@@ -1,0 +1,5675 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>Mermaid Viewer</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%232563eb'/%3E%3Cstop offset='1' stop-color='%237c3aed'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='7' fill='url(%23g)'/%3E%3Cg fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round'%3E%3Crect x='7' y='6' width='8' height='6' rx='1.5'/%3E%3Crect x='17' y='13' width='8' height='6' rx='1.5'/%3E%3Crect x='7' y='20' width='8' height='6' rx='1.5'/%3E%3Cpath d='M15 9h3.5a1.5 1.5 0 0 1 1.5 1.5V13'/%3E%3Cpath d='M17 16h-2.5a1.5 1.5 0 0 0-1.5 1.5V20'/%3E%3C/g%3E%3C/svg%3E"
+    />
+    <script>
+      // Aplica el tema ANTES de pintar para evitar parpadeo (FOUC)
+      try {
+        // La vista de referencia es oscura: sólo se usa otro tema si el usuario
+        // ya eligió uno explícitamente.
+        var _t = localStorage.getItem("mmd-theme") || "dark";
+        document.documentElement.setAttribute("data-theme", _t);
+        if (matchMedia("(max-width: 900px)").matches)
+          document.documentElement.classList.add("compact-init");
+      } catch (e) {
+        document.documentElement.setAttribute("data-theme", "dark");
+      }
+    </script>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"
+    ></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"
+    ></script>
+    <!-- HTML -> Markdown para edición inversa del preview (todo menos mermaids) -->
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/turndown/dist/turndown.js"
+    ></script>
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/turndown-plugin-gfm/dist/turndown-plugin-gfm.js"
+    ></script>
+    <style>
+      :root {
+        --panel: #fff;
+        --panel2: #f8fafc;
+        --bd: #e2e8f0;
+        --bd2: #cbd5e1;
+        --txt: #0f172a;
+        --muted: #64748b;
+        --blue: #2563eb;
+        --violet: #7c3aed;
+        --grad: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+        --danger: #ef4444;
+        --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.08);
+        --shadow: 0 4px 12px rgba(15, 23, 42, 0.1);
+        --shadow-lg: 0 14px 36px rgba(15, 23, 42, 0.18);
+        --r: 12px;
+        --rs: 8px;
+        --panel-top: clamp(76px, 14.4vh, 94px);
+        --panel-height: clamp(320px, 55vh, 360px);
+        --code-panel-width: min(32vw, 438px);
+        --rules-panel-width: min(31.1vw, 424px);
+        --motion-micro: 120ms;
+        --motion-fast: 180ms;
+        --motion-base: 260ms;
+        --motion-slow: 420ms;
+        --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+        --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+        --ease-in: cubic-bezier(0.4, 0, 1, 1);
+        --scroll-thumb: rgba(100, 116, 139, 0.52);
+        --scroll-thumb-hover: rgba(37, 99, 235, 0.78);
+        --scroll-track: transparent;
+      }
+      * {
+        box-sizing: border-box;
+        scrollbar-width: thin;
+        scrollbar-color: var(--scroll-thumb) var(--scroll-track);
+      }
+      *::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+      }
+      *::-webkit-scrollbar-track {
+        background: var(--scroll-track);
+      }
+      *::-webkit-scrollbar-thumb {
+        min-width: 34px;
+        min-height: 34px;
+        border: 3px solid transparent;
+        border-radius: 999px;
+        background: var(--scroll-thumb);
+        background-clip: padding-box;
+      }
+      *::-webkit-scrollbar-thumb:hover {
+        background: var(--scroll-thumb-hover);
+        background-clip: padding-box;
+      }
+      *::-webkit-scrollbar-corner {
+        background: transparent;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto,
+          Arial, sans-serif;
+        color: var(--txt);
+        background: #eef2f7;
+        overscroll-behavior: none;
+        overflow: hidden;
+        transition:
+          color var(--motion-base) var(--ease-standard),
+          background-color var(--motion-base) var(--ease-standard);
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+        height: 100dvh;
+      }
+
+      /* ============ FLOATING PANELS (cajas movibles) ============ */
+      /* El toolbar deja de maquetar: es una capa transparente y cada caja flota. */
+      #toolbar {
+        position: fixed;
+        inset: 0;
+        z-index: 60;
+        pointer-events: none;
+        padding: 0;
+        margin: 0;
+        border: 0;
+        opacity: 1;
+        visibility: visible;
+        transition:
+          opacity var(--motion-base) var(--ease-standard),
+          visibility 0s linear;
+      }
+      body.collapsed #toolbar {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition:
+          opacity var(--motion-base) var(--ease-in),
+          visibility 0s linear var(--motion-base);
+      }
+      body.collapsed #toolbar .card {
+        transform: translateY(-8px) scale(0.99);
+      }
+
+      .card {
+        pointer-events: auto;
+        position: fixed;
+        background: var(--panel);
+        border: 1px solid var(--bd);
+        border-radius: var(--r);
+        padding: 12px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        box-shadow: var(--shadow-lg);
+        min-height: 110px;
+        min-width: 260px;
+        max-width: 96vw;
+        max-height: 92vh;
+        overflow: hidden;
+        resize: both;
+        contain: layout paint style;
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0) scale(1);
+        transform-origin: center top;
+        transition:
+          opacity var(--motion-base) var(--ease-standard),
+          transform var(--motion-base) var(--ease-out),
+          box-shadow var(--motion-base) var(--ease-standard),
+          background-color var(--motion-base) var(--ease-standard),
+          border-color var(--motion-base) var(--ease-standard),
+          visibility 0s linear;
+      }
+      /* Posición inicial: por debajo de la barra de controles para no taparla */
+      #cardCode {
+        top: var(--panel-top);
+        left: 7px;
+        width: var(--code-panel-width);
+        height: var(--panel-height);
+        animation: panel-in-left var(--motion-slow) var(--ease-out) 40ms
+          backwards;
+      }
+      #cardRules {
+        top: var(--panel-top);
+        right: 10px;
+        width: var(--rules-panel-width);
+        height: var(--panel-height);
+        animation: panel-in-right var(--motion-slow) var(--ease-out) 100ms
+          backwards;
+      }
+      .card:hover {
+        box-shadow: var(--shadow-lg);
+      }
+      .card.dragging {
+        opacity: 0.97;
+        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.35);
+        transition: none;
+        will-change: left, top;
+      }
+
+      /* Colapsar: deja sólo el título */
+      .card.collapsed {
+        height: 50px !important;
+        min-height: 0;
+        resize: none;
+      }
+      .card.collapsed > *:not(.card-title) {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transform: translateY(-6px);
+      }
+      .card > *:not(.card-title) {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+        transition:
+          opacity var(--motion-fast) var(--ease-standard),
+          transform var(--motion-base) var(--ease-out),
+          visibility 0s linear;
+      }
+      .card.collapsed > *:not(.card-title) {
+        transition:
+          opacity var(--motion-micro) var(--ease-in),
+          transform var(--motion-fast) var(--ease-in),
+          visibility 0s linear var(--motion-fast);
+      }
+      .card.motion-collapse {
+        transition:
+          height var(--motion-base) var(--ease-out),
+          opacity var(--motion-base) var(--ease-standard),
+          transform var(--motion-base) var(--ease-out),
+          box-shadow var(--motion-base) var(--ease-standard),
+          background-color var(--motion-base) var(--ease-standard),
+          border-color var(--motion-base) var(--ease-standard),
+          visibility 0s linear;
+      }
+      /* Ocultar por completo (se reabre desde el dock) */
+      .card.hidden {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transform: translateY(12px) scale(0.985);
+        transition:
+          opacity var(--motion-fast) var(--ease-in),
+          transform var(--motion-base) var(--ease-in),
+          box-shadow var(--motion-base) var(--ease-standard),
+          background-color var(--motion-base) var(--ease-standard),
+          border-color var(--motion-base) var(--ease-standard),
+          visibility 0s linear var(--motion-base);
+      }
+
+      .card-title {
+        cursor: grab;
+      }
+      .card-title:active {
+        cursor: grabbing;
+      }
+
+      /* Botones de la cabecera (colapsar / ocultar) */
+      .card-collapse,
+      .card-hide {
+        width: 24px;
+        height: 24px;
+        padding: 0;
+        justify-content: center;
+        flex: 0 0 24px;
+        background: transparent;
+        border: 1px solid var(--bd);
+        color: var(--muted);
+        box-shadow: none;
+        border-radius: 7px;
+      }
+      .card-collapse {
+        margin-left: 8px;
+      }
+      .card-hide {
+        margin-left: 4px;
+      }
+      .card-collapse:hover {
+        color: var(--blue);
+        border-color: var(--blue);
+        transform: none;
+        box-shadow: var(--shadow-sm);
+      }
+      .card-hide:hover {
+        color: var(--danger);
+        border-color: var(--danger);
+        transform: none;
+        box-shadow: var(--shadow-sm);
+      }
+      .card-collapse svg,
+      .card-hide svg {
+        width: 14px;
+        height: 14px;
+        transition: transform var(--motion-base) var(--ease-out);
+      }
+      .card.collapsed .card-collapse svg {
+        transform: rotate(-90deg);
+      }
+
+      /* Dock/lanzador para reabrir cajas ocultas (estilo índice) */
+      #panelDock {
+        position: fixed;
+        left: 14px;
+        bottom: 14px;
+        z-index: 58;
+        display: flex;
+        gap: 7px;
+        pointer-events: auto;
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+        animation: dock-in var(--motion-slow) var(--ease-out) 170ms backwards;
+        transition:
+          opacity var(--motion-fast) var(--ease-standard),
+          transform var(--motion-base) var(--ease-out),
+          visibility 0s linear;
+      }
+      #panelDock button {
+        background: rgba(255, 255, 255, 0.94);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border: 1px solid var(--bd);
+        color: var(--muted);
+        box-shadow: var(--shadow);
+      }
+      #panelDock button.on {
+        color: var(--blue);
+        border-color: var(--blue);
+      }
+      #panelDock button:hover {
+        color: var(--blue);
+      }
+      [data-theme="dark"] #panelDock button {
+        background: rgba(13, 20, 35, 0.9);
+        color: #cbd5e1;
+      }
+      body.collapsed #panelDock {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transform: translateY(10px);
+        transition:
+          opacity var(--motion-fast) var(--ease-in),
+          transform var(--motion-base) var(--ease-in),
+          visibility 0s linear var(--motion-base);
+      }
+
+      .card-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        color: var(--muted);
+        text-transform: uppercase;
+      }
+      .dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--grad);
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+        transition:
+          transform var(--motion-fast) var(--ease-out),
+          box-shadow var(--motion-base) var(--ease-standard);
+      }
+      .card:hover .dot {
+        transform: scale(1.08);
+        box-shadow: 0 0 0 5px rgba(37, 99, 235, 0.1);
+      }
+      .badge {
+        margin-left: auto;
+        font-size: 11px;
+        font-weight: 600;
+        background: #eef2ff;
+        color: #4338ca;
+        padding: 3px 9px;
+        border-radius: 999px;
+        letter-spacing: 0;
+        text-transform: none;
+        transition:
+          color var(--motion-base) var(--ease-standard),
+          background-color var(--motion-base) var(--ease-standard),
+          transform var(--motion-fast) var(--ease-out);
+      }
+      .value-pop {
+        animation: value-pop var(--motion-fast) var(--ease-out) backwards;
+      }
+
+      /* Editor */
+      .editor {
+        position: relative;
+        border: 1px solid var(--bd);
+        border-radius: 10px;
+        overflow: hidden;
+        background: #0f172a;
+        transition:
+          border-color var(--motion-fast) var(--ease-standard),
+          box-shadow var(--motion-base) var(--ease-standard),
+          transform var(--motion-base) var(--ease-out);
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 70px;
+      }
+      .editor-head {
+        flex: 0 0 auto;
+      }
+      .editor:focus-within {
+        border-color: var(--blue);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+      }
+      /* Drag & drop overlay */
+      .drop-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 5;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(15, 23, 42, 0.82);
+        backdrop-filter: blur(2px);
+        -webkit-backdrop-filter: blur(2px);
+        border: 2px dashed var(--blue);
+        border-radius: 10px;
+        pointer-events: none;
+        opacity: 0;
+        visibility: hidden;
+        transform: scale(0.985);
+        transition:
+          opacity var(--motion-fast) var(--ease-standard),
+          transform var(--motion-base) var(--ease-out),
+          visibility 0s linear var(--motion-base);
+      }
+      .editor.dragover .drop-overlay {
+        opacity: 1;
+        visibility: visible;
+        transform: scale(1);
+        transition:
+          opacity var(--motion-fast) var(--ease-standard),
+          transform var(--motion-base) var(--ease-out),
+          visibility 0s linear;
+      }
+      .editor.dragover .drop-inner {
+        animation: drop-pulse 1.25s var(--ease-standard) infinite alternate;
+      }
+      .drop-inner {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        color: #dbeafe;
+        font-weight: 700;
+        font-size: 13px;
+        letter-spacing: 0.02em;
+      }
+      .drop-inner svg {
+        width: 34px;
+        height: 34px;
+        stroke: #93c5fd;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        fill: none;
+      }
+      .editor-head {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        background: #1e293b;
+        border-bottom: 1px solid #334155;
+        padding: 6px 10px;
+      }
+      .lights {
+        display: flex;
+        gap: 5px;
+      }
+      .lights i {
+        display: block;
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+      }
+      .lights i:nth-child(1) {
+        background: #ef4444;
+      }
+      .lights i:nth-child(2) {
+        background: #f59e0b;
+      }
+      .lights i:nth-child(3) {
+        background: #10b981;
+      }
+      .file-name {
+        margin-left: 8px;
+        color: #cbd5e1;
+        font-family: ui-monospace, Consolas, monospace;
+        font-size: 12px;
+      }
+      .lang-tag {
+        margin-left: auto;
+        background: #0f172a;
+        color: #94a3b8;
+        font-family: ui-monospace, Consolas, monospace;
+        font-size: 11px;
+        padding: 2px 7px;
+        border-radius: 5px;
+      }
+      #src {
+        width: 100%;
+        flex: 1 1 auto;
+        min-height: 60px;
+        height: auto;
+        resize: none;
+        background: #0f172a;
+        color: #e2e8f0;
+        border: 0;
+        outline: 0;
+        padding: 14px 16px;
+        line-height: 1.55;
+        tab-size: 2;
+        overflow: auto;
+        font:
+          13px ui-monospace,
+          Consolas,
+          "Cascadia Code",
+          monospace;
+        scrollbar-color: rgba(148, 163, 184, 0.58) transparent;
+      }
+      #src::placeholder {
+        color: #475569;
+      }
+
+      /* Buttons */
+      .btn-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        flex: 0 0 auto;
+      }
+      #err,
+      .hint {
+        flex: 0 0 auto;
+      }
+      button {
+        cursor: pointer;
+        border: 1px solid var(--bd2);
+        background: #fff;
+        color: var(--txt);
+        border-radius: 9px;
+        padding: 8px 12px;
+        font-size: 13px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        box-shadow: var(--shadow-sm);
+        max-width: 240px;
+        opacity: 1;
+        visibility: visible;
+        overflow: hidden;
+        transition:
+          max-width var(--motion-base) var(--ease-out),
+          width var(--motion-base) var(--ease-out),
+          min-width var(--motion-base) var(--ease-out),
+          padding var(--motion-base) var(--ease-out),
+          border-width var(--motion-fast) var(--ease-standard),
+          opacity var(--motion-fast) var(--ease-standard),
+          transform var(--motion-fast) var(--ease-out),
+          box-shadow var(--motion-fast) var(--ease-standard),
+          border-color var(--motion-fast) var(--ease-standard),
+          color var(--motion-fast) var(--ease-standard),
+          background-color var(--motion-base) var(--ease-standard),
+          filter var(--motion-fast) var(--ease-standard),
+          visibility 0s linear;
+        font-family: inherit;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+      }
+      button:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow);
+        border-color: var(--blue);
+        color: var(--blue);
+      }
+      button:active {
+        transform: translateY(0) scale(0.97);
+      }
+      button.primary {
+        background: var(--grad);
+        color: #fff;
+        border-color: transparent;
+      }
+      button.primary:hover {
+        color: #fff;
+        filter: brightness(1.06);
+        box-shadow: 0 8px 20px -6px rgba(37, 99, 235, 0.5);
+      }
+      button.ghost {
+        background: transparent;
+        color: var(--muted);
+        border-color: var(--bd);
+      }
+      button.icon-only {
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        justify-content: center;
+      }
+      button svg {
+        width: 16px;
+        height: 16px;
+        flex: 0 0 16px;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        fill: none;
+      }
+      button.icon-only svg {
+        width: 17px;
+        height: 17px;
+      }
+      #collapseIcon {
+        transition: transform var(--motion-base) var(--ease-out);
+      }
+      body.collapsed #collapseIcon {
+        transform: rotate(180deg);
+      }
+      #btnTheme.theme-pop svg {
+        animation: theme-pop var(--motion-base) var(--ease-out);
+      }
+
+      /* Error */
+      #err {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        background: #fef2f2;
+        color: #991b1b;
+        border: 1px solid #fecaca;
+        border-radius: 8px;
+        padding: 0 10px;
+        font-size: 12px;
+        white-space: pre-wrap;
+        max-height: 0;
+        opacity: 0;
+        visibility: hidden;
+        overflow: hidden;
+        transform: translateY(-5px);
+        border-width: 0;
+        transition:
+          max-height var(--motion-base) var(--ease-out),
+          opacity var(--motion-fast) var(--ease-standard),
+          transform var(--motion-base) var(--ease-out),
+          padding var(--motion-base) var(--ease-out),
+          border-width var(--motion-fast) var(--ease-standard),
+          visibility 0s linear var(--motion-base);
+      }
+      #err.show {
+        max-height: 180px;
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+        padding: 8px 10px;
+        border-width: 1px;
+        transition:
+          max-height var(--motion-base) var(--ease-out),
+          opacity var(--motion-fast) var(--ease-standard),
+          transform var(--motion-base) var(--ease-out),
+          padding var(--motion-base) var(--ease-out),
+          border-width var(--motion-fast) var(--ease-standard),
+          visibility 0s linear;
+      }
+      #err::before {
+        content: "!";
+        font-weight: 800;
+      }
+
+      /* Rules */
+      #rules {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        flex: 1 1 auto;
+        min-height: 0;
+        max-height: none;
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding-right: 2px;
+      }
+      .rule {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        width: 100%;
+        min-width: 0;
+        background: var(--panel2);
+        border: 1px solid var(--bd);
+        border-radius: 8px;
+        padding: 7px;
+        transition:
+          background-color var(--motion-base) var(--ease-standard),
+          border-color var(--motion-fast) var(--ease-standard),
+          color var(--motion-base) var(--ease-standard),
+          transform var(--motion-fast) var(--ease-out),
+          opacity var(--motion-fast) var(--ease-standard);
+        animation: rule-in var(--motion-base) var(--ease-out) backwards;
+      }
+      .rule.leaving {
+        pointer-events: none;
+        animation: rule-out var(--motion-fast) var(--ease-in) forwards;
+      }
+      .rule:hover {
+        background: #fff;
+        border-color: var(--bd2);
+      }
+      .rule .sw {
+        width: 6px;
+        flex: 0 0 6px;
+        align-self: stretch;
+        border-radius: 4px;
+        background: currentColor;
+        transition: background-color var(--motion-base) var(--ease-standard);
+      }
+      .rule input[type="text"] {
+        flex: 1;
+        min-width: 0;
+        padding: 7px 9px;
+        border: 1px solid var(--bd);
+        border-radius: 6px;
+        font: inherit;
+        font-size: 12.5px;
+        background: #fff;
+      }
+      .rule input[type="text"]:focus {
+        outline: none;
+        border-color: var(--blue);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+      }
+      .rule input[type="color"] {
+        width: 34px;
+        height: 32px;
+        flex: 0 0 34px;
+        padding: 2px;
+        border: 1px solid var(--bd);
+        border-radius: 6px;
+        background: #fff;
+        cursor: pointer;
+      }
+      .rule .x {
+        width: 30px;
+        min-width: 30px;
+        max-width: 30px;
+        flex: 0 0 30px;
+        padding: 4px 8px;
+        background: transparent;
+        border: 1px solid transparent;
+        box-shadow: none;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1;
+      }
+      .rule .x:hover {
+        background: #fef2f2;
+        color: var(--danger);
+        border-color: #fecaca;
+        transform: none;
+        box-shadow: none;
+      }
+      .empty-hint {
+        font-size: 12px;
+        color: var(--muted);
+        background: var(--panel2);
+        border: 1px dashed var(--bd2);
+        border-radius: 8px;
+        padding: 8px;
+        text-align: center;
+        animation: fade-slide-in var(--motion-base) var(--ease-out) backwards;
+        transition:
+          color var(--motion-base) var(--ease-standard),
+          background-color var(--motion-base) var(--ease-standard),
+          border-color var(--motion-base) var(--ease-standard);
+      }
+      .empty-hint.leaving {
+        pointer-events: none;
+        animation: rule-out var(--motion-fast) var(--ease-in) forwards;
+      }
+      .hint {
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+      .kbd {
+        font-family: ui-monospace, Consolas, monospace;
+        background: #f1f5f9;
+        border: 1px solid var(--bd);
+        border-radius: 5px;
+        padding: 1px 6px;
+        font-size: 11.5px;
+        color: #334155;
+      }
+
+      /* ============ VIEW ============ */
+      #view {
+        flex: 1;
+        position: relative;
+        overflow: hidden;
+        background: #fafbfc;
+        overscroll-behavior: none;
+        transition: background-color var(--motion-base) var(--ease-standard);
+      }
+      #view::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image: radial-gradient(circle, #d1d5db 1px, transparent 1px);
+        background-size: 20px 20px;
+        opacity: 0.4;
+        pointer-events: none;
+        transition:
+          opacity var(--motion-base) var(--ease-standard),
+          filter var(--motion-base) var(--ease-standard);
+      }
+      #view:fullscreen,
+      #view:-webkit-full-screen {
+        background: #fafbfc;
+      }
+
+      #single {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+        transition:
+          opacity var(--motion-fast) var(--ease-standard),
+          transform var(--motion-base) var(--ease-out),
+          visibility 0s linear;
+      }
+
+      #mdView {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        display: block;
+        overflow: auto;
+        padding: 32px 40px 80px;
+        background: var(--panel2);
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transform: translateY(8px);
+        transition:
+          opacity var(--motion-fast) var(--ease-standard),
+          transform var(--motion-base) var(--ease-out),
+          background-color var(--motion-base) var(--ease-standard),
+          visibility 0s linear var(--motion-base);
+      }
+      body.md-mode #single {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transform: translateY(-6px);
+        transition:
+          opacity var(--motion-fast) var(--ease-in),
+          transform var(--motion-base) var(--ease-in),
+          visibility 0s linear var(--motion-base);
+      }
+      body.md-mode #mdView {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        transform: translateY(0);
+        transition:
+          opacity var(--motion-fast) var(--ease-standard),
+          transform var(--motion-base) var(--ease-out),
+          background-color var(--motion-base) var(--ease-standard),
+          visibility 0s linear;
+      }
+
+      /* Empty state */
+      #emptyState {
+        position: absolute;
+        inset: 0;
+        z-index: 8;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition:
+          opacity var(--motion-base) var(--ease-standard),
+          visibility 0s linear var(--motion-base);
+      }
+      body.is-empty #emptyState {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        transition:
+          opacity var(--motion-base) var(--ease-standard),
+          visibility 0s linear;
+      }
+      body.is-empty #single,
+      body.is-empty #mdView {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transform: translateY(6px);
+      }
+
+      /* Transición de generación: el logo del favicon titila, hace un burst
+         radial corto y entrega el preview ya renderizado. Todo vive en su
+         propia capa para animar sólo transform/opacity y no forzar layout. */
+      .render-transition {
+        position: absolute;
+        inset: 0;
+        z-index: 80;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        pointer-events: none;
+        isolation: isolate;
+        contain: layout paint style;
+        background-color: rgba(248, 250, 252, 0.96);
+        opacity: 0;
+        visibility: hidden;
+        transition:
+          opacity 90ms linear,
+          background-color 220ms var(--ease-standard),
+          visibility 0s linear 220ms;
+      }
+      [data-theme="dark"] .render-transition {
+        background-color: rgba(7, 12, 23, 0.965);
+      }
+      .render-transition.active {
+        opacity: 1;
+        visibility: visible;
+        transition:
+          opacity 90ms linear,
+          background-color 220ms var(--ease-standard),
+          visibility 0s linear;
+      }
+      .render-transition.revealing {
+        background-color: transparent;
+        opacity: 0;
+        transition:
+          background-color 280ms var(--ease-out),
+          opacity 170ms linear 250ms,
+          visibility 0s linear 440ms;
+      }
+      .render-stage {
+        position: relative;
+        width: 1px;
+        height: 1px;
+        display: grid;
+        place-items: center;
+      }
+      .render-logo {
+        position: absolute;
+        width: clamp(54px, 5.2vw, 68px);
+        height: auto;
+        overflow: visible;
+        filter: drop-shadow(0 14px 28px rgba(37, 99, 235, 0.34));
+        transform: translateZ(0);
+      }
+      .render-transition.active:not(.revealing) .render-logo {
+        animation: render-logo-twinkle 310ms var(--ease-standard) infinite
+          alternate;
+      }
+      .render-transition.revealing .render-logo {
+        animation: render-logo-explode 460ms var(--ease-out) forwards;
+      }
+      .render-ring {
+        position: absolute;
+        width: 76px;
+        aspect-ratio: 1;
+        border: 3px solid rgba(99, 102, 241, 0.78);
+        border-radius: 50%;
+        opacity: 0;
+        transform: scale(0.55);
+      }
+      .render-ring.ring-2 {
+        width: 58px;
+        border-color: rgba(167, 139, 250, 0.7);
+      }
+      .render-transition.revealing .ring-1 {
+        animation: render-ring-burst 430ms var(--ease-out) forwards;
+      }
+      .render-transition.revealing .ring-2 {
+        animation: render-ring-burst 360ms var(--ease-out) 35ms forwards;
+      }
+      .render-sparks {
+        position: absolute;
+        inset: 0;
+      }
+      .render-sparks i {
+        --spark-color: #60a5fa;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 3px;
+        height: 24px;
+        margin: -12px 0 0 -1.5px;
+        border-radius: 999px;
+        background: linear-gradient(
+          to top,
+          transparent,
+          var(--spark-color) 35%,
+          #fff
+        );
+        box-shadow: 0 0 13px var(--spark-color);
+        opacity: 0;
+        transform: rotate(var(--angle)) translateY(-28px) scaleY(0.15);
+      }
+      .render-sparks i:nth-child(3n + 2) {
+        --spark-color: #a78bfa;
+      }
+      .render-sparks i:nth-child(3n) {
+        --spark-color: #fbbf24;
+      }
+      .render-transition.revealing .render-sparks i {
+        animation: render-spark-burst 390ms var(--ease-out) var(--delay, 0ms)
+          forwards;
+      }
+      .render-transition.active .render-logo,
+      .render-transition.revealing .render-ring,
+      .render-transition.revealing .render-sparks i {
+        will-change: transform, opacity;
+      }
+      #single.render-reveal,
+      #mdView.render-reveal {
+        animation: rendered-preview-in 440ms var(--ease-out) both;
+      }
+      .es-card {
+        width: min(
+          460px,
+          calc(
+            100vw - var(--code-panel-width) - var(--rules-panel-width) - 36px
+          )
+        );
+        max-width: 460px;
+        text-align: center;
+        background: var(--panel);
+        border: 1px solid var(--bd);
+        border-radius: 16px;
+        padding: 34px 32px;
+        box-shadow: var(--shadow-lg);
+        opacity: 0;
+        transform: translateY(12px) scale(0.975);
+        transition:
+          opacity var(--motion-base) var(--ease-standard),
+          transform var(--motion-slow) var(--ease-out),
+          background-color var(--motion-base) var(--ease-standard),
+          border-color var(--motion-base) var(--ease-standard),
+          box-shadow var(--motion-base) var(--ease-standard);
+      }
+      body.is-empty .es-card {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+      .es-icon {
+        width: 64px;
+        height: 64px;
+        margin: 0 auto 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: var(--grad);
+        box-shadow: 0 10px 26px -8px rgba(37, 99, 235, 0.55);
+        transform: scale(0.9) rotate(-4deg);
+        transition:
+          transform var(--motion-slow) var(--ease-out),
+          box-shadow var(--motion-base) var(--ease-standard);
+      }
+      body.is-empty .es-icon {
+        transform: scale(1) rotate(0);
+      }
+      .es-icon svg {
+        width: 30px;
+        height: 30px;
+        stroke: #fff;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        fill: none;
+      }
+      .es-title {
+        font-size: 18px;
+        font-weight: 800;
+        letter-spacing: -0.01em;
+        margin-bottom: 8px;
+      }
+      .es-sub {
+        font-size: 13.5px;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+      .es-sub b {
+        color: #334155;
+      }
+
+      .article {
+        max-width: 980px;
+        margin: 0 auto;
+        line-height: 1.65;
+        font-size: 14.5px;
+        transition: color var(--motion-base) var(--ease-standard);
+      }
+      /* Preview editable (todo menos mermaids) */
+      .article[contenteditable="true"] {
+        outline: none;
+      }
+      .article[contenteditable="true"]:focus {
+        outline: none;
+      }
+      .article[contenteditable="true"] > *:hover {
+        box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+        border-radius: 6px;
+      }
+      .article[contenteditable="true"] > * {
+        transition:
+          box-shadow var(--motion-fast) var(--ease-standard),
+          background-color var(--motion-base) var(--ease-standard);
+      }
+      .article[contenteditable="true"] .diagram {
+        box-shadow: var(--shadow) !important;
+      }
+      /* Las cards de diagrama son islas NO editables dentro del preview */
+      .article .diagram {
+        caret-color: transparent;
+      }
+      body.preview-edit #mdView {
+        cursor: text;
+      }
+      body.preview-edit .diagram {
+        cursor: default;
+      }
+      #btnEdit.active {
+        background: var(--grad) !important;
+        color: #fff !important;
+        border-color: transparent !important;
+        box-shadow: 0 8px 20px -8px rgba(37, 99, 235, 0.55);
+        transform: translateY(-1px) scale(1.01);
+      }
+      #btnEdit.active svg {
+        stroke: #fff;
+      }
+      .article h1,
+      .article h2,
+      .article h3 {
+        line-height: 1.3;
+        margin-top: 1.6em;
+        margin-bottom: 0.55em;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+      }
+      .article h1 {
+        font-size: 1.9em;
+        border-bottom: 2px solid var(--bd);
+        padding-bottom: 0.35em;
+        margin-top: 0;
+      }
+      .article h2 {
+        font-size: 1.5em;
+        border-bottom: 1px solid var(--bd);
+        padding-bottom: 0.25em;
+      }
+      .article h3 {
+        font-size: 1.22em;
+      }
+      .article p {
+        margin: 0.75em 0;
+      }
+      .article a {
+        color: var(--blue);
+        text-decoration: none;
+      }
+      .article a:hover {
+        text-decoration: underline;
+      }
+      .article code {
+        font-family: ui-monospace, Consolas, monospace;
+        font-size: 0.9em;
+        background: #eef2f7;
+        border-radius: 4px;
+        padding: 1px 6px;
+        color: #334155;
+      }
+      .article pre {
+        background: #0f172a;
+        color: #e2e8f0;
+        border-radius: 10px;
+        padding: 14px 18px;
+        overflow-x: auto;
+        font-size: 12.5px;
+      }
+      .article pre code {
+        background: transparent;
+        padding: 0;
+        color: inherit;
+      }
+      .article blockquote {
+        margin: 1em 0;
+        padding: 0.65em 1em;
+        border-left: 4px solid var(--blue);
+        background: var(--panel2);
+        color: #334155;
+        border-radius: 0 var(--rs) var(--rs) 0;
+      }
+      .article ul,
+      .article ol {
+        padding-left: 1.6em;
+      }
+      .article li {
+        margin: 0.25em 0;
+      }
+      .article table {
+        border-collapse: collapse;
+        width: 100%;
+        margin: 1em 0;
+        font-size: 13.5px;
+        box-shadow: var(--shadow-sm);
+        border-radius: var(--rs);
+        overflow: hidden;
+      }
+      .article th,
+      .article td {
+        border-bottom: 1px solid var(--bd);
+        padding: 8px 12px;
+        text-align: left;
+      }
+      .article th {
+        background: var(--panel2);
+        font-weight: 600;
+        color: #334155;
+      }
+      .article hr {
+        border: none;
+        border-top: 1px solid var(--bd);
+        margin: 2em 0;
+      }
+
+      /* Floating top-right controls */
+      .view-controls {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        z-index: 35;
+        display: flex;
+        gap: 7px;
+        animation: controls-in var(--motion-slow) var(--ease-out) 120ms
+          backwards;
+      }
+      .view-controls button {
+        background: rgba(255, 255, 255, 0.94);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border: 1px solid rgba(203, 213, 225, 0.75);
+        color: var(--muted);
+        max-width: 240px;
+        opacity: 1;
+        visibility: visible;
+        overflow: hidden;
+        transition:
+          max-width var(--motion-base) var(--ease-out),
+          width var(--motion-base) var(--ease-out),
+          min-width var(--motion-base) var(--ease-out),
+          padding var(--motion-base) var(--ease-out),
+          border-width var(--motion-fast) var(--ease-standard),
+          opacity var(--motion-fast) var(--ease-standard),
+          transform var(--motion-fast) var(--ease-out),
+          color var(--motion-fast) var(--ease-standard),
+          background-color var(--motion-base) var(--ease-standard),
+          border-color var(--motion-fast) var(--ease-standard),
+          visibility 0s linear;
+      }
+      button.mode-hidden {
+        width: 0 !important;
+        min-width: 0 !important;
+        max-width: 0;
+        padding-right: 0 !important;
+        padding-left: 0 !important;
+        border-width: 0 !important;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transform: translateY(-5px) scale(0.9);
+        transition:
+          max-width var(--motion-base) var(--ease-in),
+          width var(--motion-base) var(--ease-in),
+          min-width var(--motion-base) var(--ease-in),
+          padding var(--motion-base) var(--ease-in),
+          border-width var(--motion-fast) var(--ease-standard),
+          opacity var(--motion-micro) var(--ease-in),
+          transform var(--motion-fast) var(--ease-in),
+          visibility 0s linear var(--motion-base);
+      }
+      .view-controls button:hover {
+        background: #fff;
+        color: var(--blue);
+      }
+
+      /* ============ DIAGRAM CARD ============ */
+      .diagram {
+        background: #fff;
+        border: 1px solid var(--bd);
+        border-radius: 14px;
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        margin: 1.6em 0;
+        display: flex;
+        flex-direction: column;
+        contain: layout paint style;
+        animation: diagram-in var(--motion-slow) var(--ease-out) backwards;
+        transition:
+          background-color var(--motion-base) var(--ease-standard),
+          border-color var(--motion-base) var(--ease-standard),
+          box-shadow var(--motion-base) var(--ease-standard);
+      }
+      .diagram:fullscreen,
+      .diagram:-webkit-full-screen {
+        width: 100vw;
+        height: 100vh;
+        border-radius: 0;
+        background: #fafbfc;
+        margin: 0;
+      }
+      .dc-head {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+        background: linear-gradient(180deg, #f8fafc, #f1f5f9);
+        border-bottom: 1px solid var(--bd);
+        transition:
+          background var(--motion-base) var(--ease-standard),
+          border-color var(--motion-base) var(--ease-standard);
+      }
+      .dc-title {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        flex: 1;
+        min-width: 0;
+        font-weight: 700;
+        color: #334155;
+      }
+      .dc-title .num {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: var(--grad);
+        color: #fff;
+        font-size: 12px;
+        font-weight: 800;
+        transition: transform var(--motion-fast) var(--ease-out);
+      }
+      .diagram:hover .dc-title .num {
+        transform: scale(1.05);
+      }
+      .dc-title .type {
+        font-size: 10px;
+        letter-spacing: 0.05em;
+        background: #eef2ff;
+        color: #4338ca;
+        padding: 3px 7px;
+        border-radius: 5px;
+        text-transform: uppercase;
+        font-weight: 700;
+        transition:
+          color var(--motion-base) var(--ease-standard),
+          background-color var(--motion-base) var(--ease-standard);
+      }
+      .dc-title .label {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .dc-actions {
+        display: flex;
+        gap: 5px;
+        flex-shrink: 0;
+      }
+      .dc-actions button {
+        padding: 7px;
+        width: 34px;
+        height: 34px;
+        justify-content: center;
+        color: var(--muted);
+      }
+      .dc-actions button:hover {
+        color: var(--blue);
+      }
+
+      .dc-body {
+        position: relative;
+        height: 560px;
+        background: #fafbfc;
+        background-image: radial-gradient(circle, #d1d5db 1px, transparent 1px);
+        background-size: 20px 20px;
+        overflow: hidden;
+        transition:
+          background-color var(--motion-base) var(--ease-standard),
+          filter var(--motion-base) var(--ease-standard);
+      }
+      .diagram:fullscreen .dc-body {
+        flex: 1;
+        height: auto;
+      }
+
+      .svg-holder {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        opacity: 0;
+        transform: scale(0.995);
+        transition:
+          opacity var(--motion-base) var(--ease-standard),
+          transform var(--motion-slow) var(--ease-out);
+      }
+      .svg-holder.ready {
+        opacity: 1;
+        transform: scale(1);
+      }
+      .svg-holder svg {
+        width: 100% !important;
+        height: 100% !important;
+        max-width: none !important;
+        max-height: none !important;
+        display: block;
+      }
+
+      .dc-error {
+        display: block;
+        position: absolute;
+        inset: 0;
+        z-index: 20;
+        background: linear-gradient(135deg, #fef2f2, #fff1f2);
+        padding: 22px;
+        overflow: auto;
+        opacity: 0;
+        visibility: hidden;
+        transform: scale(0.985);
+        transition:
+          opacity var(--motion-fast) var(--ease-standard),
+          transform var(--motion-base) var(--ease-out),
+          visibility 0s linear var(--motion-base);
+      }
+      .dc-error.show {
+        opacity: 1;
+        visibility: visible;
+        transform: scale(1);
+        transition:
+          opacity var(--motion-fast) var(--ease-standard),
+          transform var(--motion-base) var(--ease-out),
+          visibility 0s linear;
+      }
+      .dc-error .t {
+        font-weight: 800;
+        color: #991b1b;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      .dc-error .t::before {
+        content: "!";
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: var(--danger);
+        color: #fff;
+        font-size: 14px;
+        font-weight: 800;
+      }
+      .dc-error pre {
+        background: #fff;
+        border: 1px solid #fecaca;
+        border-radius: 7px;
+        padding: 10px 12px;
+        color: #7f1d1d;
+        font-size: 12px;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-family: ui-monospace, Consolas, monospace;
+      }
+
+      /* ============ INTERACTION LAYER ============ */
+      .interaction-layer {
+        position: absolute;
+        inset: 0;
+        z-index: 12;
+        pointer-events: none;
+      }
+      .selection-rect {
+        position: absolute;
+        border: 2px solid rgba(37, 99, 235, 0.95);
+        background: rgba(37, 99, 235, 0.12);
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.7) inset;
+        border-radius: 5px;
+        pointer-events: none;
+        animation: selection-in var(--motion-fast) var(--ease-out) backwards;
+      }
+      .selection-rect.temp {
+        border-style: dashed;
+      }
+      .laser {
+        position: absolute;
+        width: 32px;
+        height: 32px;
+        margin-left: -16px;
+        margin-top: -16px;
+        border-radius: 50%;
+        border: 3px solid rgba(37, 99, 235, 0.95);
+        background: rgba(37, 99, 235, 0.18);
+        box-shadow:
+          0 0 0 8px rgba(37, 99, 235, 0.07),
+          0 0 18px rgba(37, 99, 235, 0.55);
+        display: block;
+        opacity: 0;
+        visibility: hidden;
+        transform: scale(0.72);
+        pointer-events: none;
+        transition:
+          opacity var(--motion-micro) var(--ease-standard),
+          transform var(--motion-fast) var(--ease-out),
+          visibility 0s linear var(--motion-fast);
+      }
+      .laser.active {
+        opacity: 1;
+        visibility: visible;
+        transform: scale(1);
+        transition:
+          opacity var(--motion-micro) var(--ease-standard),
+          transform var(--motion-fast) var(--ease-out),
+          visibility 0s linear;
+      }
+      .dc-body.annotating {
+        cursor: crosshair;
+      }
+      .dc-body.annotating * {
+        cursor: crosshair !important;
+      }
+
+      /* Highlight sutil: SIN blur, SIN opacidad, SIN texto rojo */
+      .mmd-hi-box {
+        stroke: #2563eb !important;
+        stroke-width: 3px !important;
+        paint-order: stroke fill markers; /* el contorno no tapa el texto */
+        filter: drop-shadow(0 0 5px rgba(37, 99, 235, 0.55));
+        transition:
+          stroke var(--motion-fast) var(--ease-standard),
+          stroke-width var(--motion-fast) var(--ease-standard),
+          filter var(--motion-base) var(--ease-out);
+        /* NO tocamos fill ni fill-opacity: el texto interior queda intacto */
+      }
+      .mmd-hi-line {
+        stroke: #2563eb !important;
+        stroke-width: 3px !important;
+        filter: drop-shadow(0 0 3px rgba(37, 99, 235, 0.35));
+        transition:
+          stroke var(--motion-fast) var(--ease-standard),
+          stroke-width var(--motion-fast) var(--ease-standard),
+          filter var(--motion-base) var(--ease-out);
+      }
+      .mmd-hi-msg {
+        stroke: #2563eb !important;
+        stroke-width: 2.6px !important;
+        filter: drop-shadow(0 0 3px rgba(37, 99, 235, 0.4));
+        transition:
+          stroke var(--motion-fast) var(--ease-standard),
+          stroke-width var(--motion-fast) var(--ease-standard),
+          filter var(--motion-base) var(--ease-out);
+      }
+      .mmd-hi-label {
+        fill: #dbeafe !important;
+        fill-opacity: 0.75 !important;
+        stroke: #2563eb !important;
+        stroke-width: 1.6px !important;
+        filter: drop-shadow(0 0 3px rgba(37, 99, 235, 0.28));
+        pointer-events: none;
+        transform-box: fill-box;
+        transform-origin: center;
+        animation: selection-in var(--motion-fast) var(--ease-out) backwards;
+      }
+      .mmd-hi-text-html,
+      .mmd-hi-text-html * {
+        color: var(--mmd-hi-text-color) !important;
+      }
+
+      /* Help panel: modal a nivel pantalla (se re-monta a fullscreenElement cuando hace falta) */
+      .help-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 9998;
+        display: block;
+        background: rgba(15, 23, 42, 0.55);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition:
+          opacity var(--motion-base) var(--ease-standard),
+          visibility 0s linear var(--motion-base);
+      }
+      .help-backdrop.show {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        transition:
+          opacity var(--motion-base) var(--ease-standard),
+          visibility 0s linear;
+      }
+      .help-panel {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(0.96);
+        width: min(460px, calc(100vw - 40px));
+        max-height: calc(100vh - 48px);
+        z-index: 9999;
+        display: block;
+        background: linear-gradient(180deg, #0f172a 0%, #172033 100%);
+        color: #e2e8f0;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 14px;
+        box-shadow: var(--shadow-lg);
+        padding: 16px 18px;
+        overflow: auto;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition:
+          opacity var(--motion-fast) var(--ease-standard),
+          transform var(--motion-base) var(--ease-out),
+          visibility 0s linear var(--motion-base);
+      }
+      .help-panel.show {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        transform: translate(-50%, -50%) scale(1);
+        transition:
+          opacity var(--motion-fast) var(--ease-standard),
+          transform var(--motion-base) var(--ease-out),
+          visibility 0s linear;
+      }
+      .help-panel h3 {
+        margin: 0 0 3px;
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+      }
+      .help-panel .subtitle {
+        color: #94a3b8;
+        font-size: 11.5px;
+        margin-bottom: 10px;
+      }
+      .help-panel .rows {
+        display: grid;
+        gap: 4px;
+      }
+      .help-panel .row {
+        display: grid;
+        grid-template-columns: 130px 1fr;
+        gap: 10px;
+        align-items: center;
+        padding: 5px 8px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 6px;
+        font-size: 12px;
+        transition:
+          background-color var(--motion-fast) var(--ease-standard),
+          transform var(--motion-fast) var(--ease-out);
+      }
+      .help-panel .row:hover {
+        background: rgba(37, 99, 235, 0.1);
+        transform: translateX(2px);
+      }
+      .help-panel .k {
+        font-family: ui-monospace, Consolas, monospace;
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 5px;
+        padding: 3px 7px;
+        color: #fff;
+        font-size: 11px;
+        font-weight: 600;
+        text-align: center;
+        box-shadow:
+          0 1px 0 rgba(255, 255, 255, 0.08) inset,
+          0 -1px 0 rgba(0, 0, 0, 0.25) inset;
+      }
+      .help-panel .close-help {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        padding: 4px 7px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        color: #cbd5e1;
+        box-shadow: none;
+        border-radius: 6px;
+      }
+      .help-panel .close-help:hover {
+        background: rgba(255, 255, 255, 0.14);
+        color: #fff;
+        transform: none;
+        box-shadow: none;
+      }
+      .help-panel .close-help svg {
+        width: 13px;
+        height: 13px;
+      }
+      @media (max-width: 520px) {
+        .help-panel {
+          padding: 14px 15px;
+        }
+        .help-panel h3 {
+          font-size: 14px;
+        }
+        .help-panel .row {
+          grid-template-columns: 110px 1fr;
+          font-size: 11.5px;
+        }
+      }
+
+      /* MD Nav */
+      .md-nav {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        width: 240px;
+        max-height: 70vh;
+        display: flex;
+        flex-direction: column;
+        background: rgba(255, 255, 255, 0.96);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border: 1px solid var(--bd);
+        border-radius: 10px;
+        box-shadow: var(--shadow-lg);
+        z-index: 25;
+        overflow: hidden;
+        user-select: none;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transform: translateY(-8px) scale(0.985);
+        transform-origin: top left;
+        transition:
+          width var(--motion-base) var(--ease-out),
+          opacity var(--motion-fast) var(--ease-standard),
+          transform var(--motion-base) var(--ease-out),
+          background-color var(--motion-base) var(--ease-standard),
+          border-color var(--motion-base) var(--ease-standard),
+          box-shadow var(--motion-base) var(--ease-standard),
+          visibility 0s linear var(--motion-base);
+      }
+      body.md-mode .md-nav.show {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        transform: translateY(0) scale(1);
+        transition:
+          width var(--motion-base) var(--ease-out),
+          opacity var(--motion-fast) var(--ease-standard),
+          transform var(--motion-base) var(--ease-out),
+          background-color var(--motion-base) var(--ease-standard),
+          border-color var(--motion-base) var(--ease-standard),
+          box-shadow var(--motion-base) var(--ease-standard),
+          visibility 0s linear;
+      }
+      .md-nav.collapsed {
+        width: 104px;
+      }
+      .md-nav.collapsed .nav-title {
+        opacity: 0;
+        visibility: hidden;
+      }
+      .nav-head {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: linear-gradient(180deg, #f8fafc, #f1f5f9);
+        border-bottom: 1px solid var(--bd);
+        padding: 7px 8px;
+        cursor: grab;
+      }
+      .nav-head:active {
+        cursor: grabbing;
+      }
+      .nav-head .grip {
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .nav-title {
+        font-size: 10.5px;
+        font-weight: 800;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        flex: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        opacity: 1;
+        visibility: visible;
+        transition:
+          opacity var(--motion-fast) var(--ease-standard),
+          visibility 0s linear;
+      }
+      .nav-mini {
+        padding: 2px 6px;
+        font-size: 13px;
+        background: transparent;
+        border: 1px solid transparent;
+        color: var(--muted);
+        box-shadow: none;
+      }
+      .nav-mini:hover {
+        background: #fff;
+        border-color: var(--bd);
+        color: var(--blue);
+        transform: none;
+        box-shadow: var(--shadow-sm);
+      }
+      .nav-body {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: 6px;
+        overflow: auto;
+        max-height: calc(70vh - 42px);
+        opacity: 1;
+        visibility: visible;
+        transition:
+          max-height var(--motion-base) var(--ease-out),
+          opacity var(--motion-fast) var(--ease-standard),
+          padding var(--motion-base) var(--ease-out),
+          visibility 0s linear;
+      }
+      .md-nav.collapsed .nav-body {
+        max-height: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition:
+          max-height var(--motion-base) var(--ease-in),
+          opacity var(--motion-micro) var(--ease-in),
+          padding var(--motion-base) var(--ease-in),
+          visibility 0s linear var(--motion-base);
+      }
+      .nav-body a {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 6px 8px;
+        font-size: 12px;
+        color: #334155;
+        text-decoration: none;
+        border-radius: 6px;
+        transition:
+          color var(--motion-fast) var(--ease-standard),
+          background-color var(--motion-fast) var(--ease-standard),
+          transform var(--motion-fast) var(--ease-out);
+      }
+      .nav-body a:hover {
+        background: var(--panel2);
+        color: var(--blue);
+        transform: translateX(2px);
+      }
+      .nav-body a .n {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: var(--grad);
+        color: #fff;
+        font-size: 10.5px;
+        font-weight: 800;
+        flex-shrink: 0;
+      }
+      .nav-body a .lbl {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-width: 0;
+        flex: 1;
+      }
+      .nav-reopen {
+        display: inline-flex;
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        z-index: 24;
+        background: rgba(255, 255, 255, 0.94);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border: 1px solid var(--bd);
+        color: var(--muted);
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transform: translateY(-6px) scale(0.96);
+        transition:
+          opacity var(--motion-fast) var(--ease-standard),
+          transform var(--motion-base) var(--ease-out),
+          visibility 0s linear var(--motion-base);
+      }
+      body.md-mode .nav-reopen.show {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        transform: translateY(0) scale(1);
+        transition:
+          opacity var(--motion-fast) var(--ease-standard),
+          transform var(--motion-base) var(--ease-out),
+          visibility 0s linear;
+      }
+
+      /* Toast */
+      .toast {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%) translateY(18px) scale(0.98);
+        background: #0f172a;
+        color: #fff;
+        padding: 9px 16px;
+        border-radius: 999px;
+        font-size: 12.5px;
+        font-weight: 500;
+        box-shadow: var(--shadow-lg);
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition:
+          opacity var(--motion-fast) var(--ease-standard),
+          transform var(--motion-base) var(--ease-out),
+          visibility 0s linear var(--motion-base);
+        z-index: 1100;
+      }
+      .toast.show {
+        opacity: 1;
+        visibility: visible;
+        transform: translateX(-50%) translateY(0) scale(1);
+        transition:
+          opacity var(--motion-fast) var(--ease-standard),
+          transform var(--motion-base) var(--ease-out),
+          visibility 0s linear;
+      }
+
+      /* Motion language: entradas suaves y salidas rápidas, sin rebotes bruscos. */
+      @keyframes panel-in-left {
+        from {
+          opacity: 0;
+          transform: translate3d(-18px, 0, 0) scale(0.985);
+        }
+        to {
+          opacity: 1;
+          transform: translate3d(0, 0, 0) scale(1);
+        }
+      }
+      @keyframes panel-in-right {
+        from {
+          opacity: 0;
+          transform: translate3d(18px, 0, 0) scale(0.985);
+        }
+        to {
+          opacity: 1;
+          transform: translate3d(0, 0, 0) scale(1);
+        }
+      }
+      @keyframes panel-in-up {
+        from {
+          opacity: 0;
+          transform: translate3d(0, 18px, 0) scale(0.985);
+        }
+        to {
+          opacity: 1;
+          transform: translate3d(0, 0, 0) scale(1);
+        }
+      }
+      @keyframes controls-in {
+        from {
+          opacity: 0;
+          transform: translate3d(0, -10px, 0);
+        }
+        to {
+          opacity: 1;
+          transform: translate3d(0, 0, 0);
+        }
+      }
+      @keyframes dock-in {
+        from {
+          opacity: 0;
+          transform: translate3d(0, 10px, 0);
+        }
+        to {
+          opacity: 1;
+          transform: translate3d(0, 0, 0);
+        }
+      }
+      @keyframes diagram-in {
+        from {
+          opacity: 0;
+          transform: translate3d(0, 10px, 0) scale(0.992);
+        }
+        to {
+          opacity: 1;
+          transform: translate3d(0, 0, 0) scale(1);
+        }
+      }
+      @keyframes rule-in {
+        from {
+          opacity: 0;
+          transform: translate3d(0, -6px, 0) scale(0.985);
+        }
+        to {
+          opacity: 1;
+          transform: translate3d(0, 0, 0) scale(1);
+        }
+      }
+      @keyframes rule-out {
+        to {
+          opacity: 0;
+          transform: translate3d(8px, 0, 0) scale(0.98);
+        }
+      }
+      @keyframes fade-slide-in {
+        from {
+          opacity: 0;
+          transform: translate3d(0, 5px, 0);
+        }
+        to {
+          opacity: 1;
+          transform: translate3d(0, 0, 0);
+        }
+      }
+      @keyframes selection-in {
+        from {
+          opacity: 0;
+          transform: scale(0.96);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+      @keyframes drop-pulse {
+        from {
+          transform: translateY(0) scale(1);
+        }
+        to {
+          transform: translateY(-3px) scale(1.025);
+        }
+      }
+      @keyframes theme-pop {
+        0% {
+          opacity: 0;
+          transform: rotate(-22deg) scale(0.72);
+        }
+        100% {
+          opacity: 1;
+          transform: rotate(0) scale(1);
+        }
+      }
+      @keyframes value-pop {
+        from {
+          opacity: 0.45;
+          transform: translateY(-3px) scale(0.97);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+      @keyframes render-logo-twinkle {
+        0% {
+          opacity: 0.58;
+          transform: translateZ(0) scale(0.88) rotate(-2deg);
+          filter: drop-shadow(0 8px 16px rgba(37, 99, 235, 0.2));
+        }
+        45% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 1;
+          transform: translateZ(0) scale(1.06) rotate(1deg);
+          filter: drop-shadow(0 16px 34px rgba(124, 58, 237, 0.5));
+        }
+      }
+      @keyframes render-logo-explode {
+        0% {
+          opacity: 1;
+          transform: translateZ(0) scale(1.04) rotate(0deg);
+        }
+        16% {
+          opacity: 1;
+          transform: translateZ(0) scale(0.82) rotate(-3deg);
+        }
+        58% {
+          opacity: 0.9;
+          transform: translateZ(0) scale(8) rotate(2deg);
+        }
+        100% {
+          opacity: 0;
+          transform: translateZ(0) scale(38) rotate(0deg);
+        }
+      }
+      @keyframes render-ring-burst {
+        0% {
+          opacity: 0;
+          transform: scale(0.5);
+        }
+        18% {
+          opacity: 0.95;
+        }
+        100% {
+          opacity: 0;
+          transform: scale(6.8);
+        }
+      }
+      @keyframes render-spark-burst {
+        0% {
+          opacity: 0;
+          transform: rotate(var(--angle)) translateY(-28px) scaleY(0.15);
+        }
+        20% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0;
+          transform: rotate(var(--angle)) translateY(-148px) scaleY(0.9);
+        }
+      }
+      @keyframes rendered-preview-in {
+        from {
+          opacity: 0;
+          transform: translateY(7px) scale(0.975);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+
+      /* ================================================================
+       RESPONSIVE — en escritorio conserva la composición de tres zonas de
+       la referencia; en mobile los paneles pasan a ser hojas inferiores y
+       el visor queda siempre utilizable.
+       ================================================================ */
+      @media (max-width: 900px) {
+        html.compact-init #cardRules {
+          display: none;
+        }
+        html.compact-init #panelDock [data-panel="cardRules"] {
+          color: var(--muted);
+          border-color: var(--bd);
+        }
+        .card {
+          top: auto !important;
+          right: 10px !important;
+          bottom: calc(66px + env(safe-area-inset-bottom)) !important;
+          left: 10px !important;
+          width: auto !important;
+          height: min(62dvh, 520px) !important;
+          min-width: 0;
+          max-width: none;
+          max-height: calc(100dvh - 128px);
+          resize: none;
+          border-radius: 16px;
+        }
+        #cardCode,
+        #cardRules {
+          animation-name: panel-in-up;
+        }
+        .card.collapsed {
+          height: 50px !important;
+        }
+        .card-title {
+          cursor: default;
+          touch-action: manipulation;
+        }
+        #panelDock {
+          right: 10px;
+          bottom: calc(10px + env(safe-area-inset-bottom));
+          left: 10px;
+          justify-content: center;
+        }
+        #panelDock button {
+          min-height: 44px;
+          flex: 1 1 0;
+          justify-content: center;
+          max-width: 180px;
+          background: var(--panel);
+          backdrop-filter: none;
+          -webkit-backdrop-filter: none;
+        }
+        #emptyState {
+          padding: 70px 14px calc(82px + env(safe-area-inset-bottom));
+        }
+        .es-card {
+          width: min(460px, 100%);
+          padding: 28px 24px;
+        }
+        .view-controls {
+          top: max(8px, env(safe-area-inset-top));
+          right: 8px;
+          left: 8px;
+          justify-content: flex-end;
+          gap: 6px;
+        }
+        .view-controls button {
+          width: 42px;
+          min-width: 42px;
+          height: 42px;
+          padding: 0;
+          justify-content: center;
+          gap: 0;
+          overflow: hidden;
+          font-size: 0;
+          backdrop-filter: none;
+          -webkit-backdrop-filter: none;
+        }
+        .view-controls button svg {
+          width: 18px;
+          height: 18px;
+          flex-basis: 18px;
+        }
+        #mdView {
+          padding: 64px 14px calc(88px + env(safe-area-inset-bottom));
+        }
+        .article {
+          font-size: 14px;
+        }
+        .md-nav {
+          top: 58px;
+          left: 8px;
+          width: min(240px, calc(100vw - 16px));
+          max-height: 56dvh;
+          backdrop-filter: none;
+          -webkit-backdrop-filter: none;
+        }
+        .nav-reopen {
+          top: 58px;
+          left: 8px;
+          min-height: 40px;
+          backdrop-filter: none;
+          -webkit-backdrop-filter: none;
+        }
+        .dc-body {
+          height: min(58dvh, 500px);
+        }
+        .help-panel {
+          width: calc(100vw - 24px);
+          max-height: calc(100dvh - 24px);
+        }
+      }
+
+      @media (max-width: 520px) {
+        .card {
+          right: 8px !important;
+          left: 8px !important;
+          padding: 10px;
+          gap: 8px;
+        }
+        .card-title {
+          gap: 6px;
+          font-size: 11px;
+        }
+        .badge {
+          padding-inline: 7px;
+        }
+        #src,
+        .rule input[type="text"] {
+          font-size: 16px;
+        }
+        #src {
+          padding: 12px;
+        }
+        .btn-row {
+          gap: 6px;
+        }
+        .btn-row button {
+          min-height: 40px;
+          padding: 7px 9px;
+        }
+        .view-controls {
+          gap: 5px;
+        }
+        .view-controls button {
+          width: 40px;
+          min-width: 40px;
+          height: 40px;
+        }
+        .es-card {
+          padding: 24px 18px;
+          border-radius: 14px;
+        }
+        .es-icon {
+          width: 56px;
+          height: 56px;
+          margin-bottom: 14px;
+        }
+        .es-title {
+          font-size: 17px;
+        }
+        .es-sub {
+          font-size: 13px;
+        }
+        .dc-head {
+          gap: 6px;
+          padding: 8px;
+        }
+        .dc-title .label {
+          display: none;
+        }
+        .dc-actions {
+          gap: 3px;
+        }
+        .dc-actions button {
+          width: 32px;
+          height: 32px;
+          padding: 6px;
+        }
+        .help-panel .row {
+          grid-template-columns: 102px 1fr;
+          gap: 8px;
+          padding-inline: 6px;
+        }
+        .toast {
+          bottom: calc(68px + env(safe-area-inset-bottom));
+          width: max-content;
+          max-width: calc(100vw - 24px);
+          text-align: center;
+        }
+      }
+
+      @media (max-width: 900px) and (max-height: 520px) {
+        .card {
+          height: calc(100dvh - 120px) !important;
+        }
+        body.is-empty .es-card {
+          transform: translateY(0) scale(0.9);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+
+      /* Superficies que cambian con el tema, sin aplicar transition:* al DOM. */
+      .editor-head,
+      .rule input[type="text"],
+      .rule input[type="color"],
+      .kbd,
+      .article code,
+      .article blockquote,
+      .article th,
+      .nav-head,
+      .dc-title,
+      .dc-title .type,
+      .dc-error pre {
+        transition:
+          color var(--motion-base) var(--ease-standard),
+          background-color var(--motion-base) var(--ease-standard),
+          border-color var(--motion-base) var(--ease-standard),
+          box-shadow var(--motion-base) var(--ease-standard);
+      }
+
+      /* ================================================================
+       DARK MODE — redefine variables núcleo (todo lo basado en var() se
+       adapta) y sobrescribe SOLO los literales claros hardcodeados.
+       El modo claro queda intacto.
+       ================================================================ */
+      :root[data-theme="dark"] {
+        --panel: #0f1729;
+        --panel2: #131c30;
+        --bd: #243149;
+        --bd2: #33425f;
+        --txt: #e5ecf5;
+        --muted: #94a3b8;
+        --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.45);
+        --shadow: 0 6px 16px rgba(0, 0, 0, 0.55);
+        --shadow-lg: 0 18px 44px rgba(0, 0, 0, 0.65);
+        --scroll-thumb: rgba(71, 85, 105, 0.72);
+        --scroll-thumb-hover: rgba(96, 165, 250, 0.86);
+      }
+      html[data-theme="dark"],
+      html[data-theme="dark"] body {
+        background: #0a0f1c;
+      }
+      [data-theme="dark"] #toolbar {
+        background: transparent;
+        box-shadow: none;
+      }
+      [data-theme="dark"] #view {
+        background: #0a0f1c;
+      }
+      [data-theme="dark"] #view:fullscreen,
+      [data-theme="dark"] #view:-webkit-full-screen {
+        background: #0a0f1c;
+      }
+      [data-theme="dark"] #view::before {
+        background-image: radial-gradient(circle, #1e2a44 1px, transparent 1px);
+        opacity: 0.55;
+      }
+      [data-theme="dark"] .diagram {
+        background: #0c1322;
+      }
+      [data-theme="dark"] .diagram:fullscreen,
+      [data-theme="dark"] .diagram:-webkit-full-screen {
+        background: #0a0f1c;
+      }
+      [data-theme="dark"] .dc-head {
+        background: linear-gradient(180deg, #0f1829, #0b1220);
+      }
+      [data-theme="dark"] .dc-title {
+        color: #cbd5e1;
+      }
+      [data-theme="dark"] .dc-title .type {
+        background: #1c2740;
+        color: #93c5fd;
+      }
+      [data-theme="dark"] .dc-body {
+        background: #0a1120;
+        background-image: radial-gradient(circle, #1e2a44 1px, transparent 1px);
+      }
+      [data-theme="dark"] .view-controls button {
+        background: rgba(13, 20, 35, 0.85);
+        border-color: rgba(51, 66, 95, 0.8);
+        color: #cbd5e1;
+      }
+      [data-theme="dark"] .view-controls button:hover {
+        background: #141d33;
+        color: #93c5fd;
+      }
+      [data-theme="dark"] button {
+        background: #141d33;
+        color: var(--txt);
+        border-color: var(--bd2);
+      }
+      [data-theme="dark"] button:hover {
+        color: #93c5fd;
+        border-color: var(--blue);
+      }
+      [data-theme="dark"] button.ghost {
+        background: transparent;
+        color: var(--muted);
+      }
+      [data-theme="dark"] button.primary {
+        color: #fff;
+      }
+      [data-theme="dark"] .badge {
+        background: #1c2740;
+        color: #a5b4fc;
+      }
+      [data-theme="dark"] .rule:hover {
+        background: #141d33;
+        border-color: var(--bd2);
+      }
+      [data-theme="dark"] .rule input[type="text"] {
+        background: #0b1220;
+        color: var(--txt);
+        border-color: var(--bd);
+      }
+      [data-theme="dark"] .rule input[type="color"] {
+        background: #0b1220;
+        border-color: var(--bd);
+      }
+      [data-theme="dark"] .kbd {
+        background: #1c2740;
+        color: #cbd5e1;
+        border-color: var(--bd);
+      }
+      [data-theme="dark"] .article code {
+        background: #1c2740;
+        color: #c7d2fe;
+      }
+      [data-theme="dark"] .article th {
+        color: #cbd5e1;
+      }
+      [data-theme="dark"] .article blockquote {
+        color: #cbd5e1;
+      }
+      [data-theme="dark"] .md-nav {
+        background: rgba(13, 20, 35, 0.96);
+      }
+      [data-theme="dark"] .nav-head {
+        background: linear-gradient(180deg, #0f1829, #0b1220);
+      }
+      [data-theme="dark"] .nav-body a {
+        color: #cbd5e1;
+      }
+      [data-theme="dark"] .nav-reopen {
+        background: rgba(13, 20, 35, 0.9);
+        color: #cbd5e1;
+      }
+      [data-theme="dark"] .nav-mini:hover {
+        background: #141d33;
+      }
+      [data-theme="dark"] .dc-error {
+        background: linear-gradient(135deg, #2a1214, #241016);
+      }
+      [data-theme="dark"] .dc-error .t {
+        color: #fca5a5;
+      }
+      [data-theme="dark"] .dc-error pre {
+        background: #0b1220;
+        border-color: #7f1d1d;
+        color: #fecaca;
+      }
+      [data-theme="dark"] #err {
+        background: #2a1214;
+        color: #fecaca;
+        border-color: #7f1d1d;
+      }
+      /* Highlight de mensaje: caja OSCURA en dark para que el texto claro se lea */
+      [data-theme="dark"] .mmd-hi-label {
+        fill: #1e3a8a !important;
+        fill-opacity: 0.92 !important;
+      }
+      #btnTheme svg {
+        width: 16px;
+        height: 16px;
+      }
+
+      /* Debe quedar al final para ganar la cascada sobre todo el sistema motion. */
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          animation-duration: 0.01ms !important;
+          animation-delay: 0ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+          transition-delay: 0ms !important;
+        }
+      }
+
+      /* El PDF se genera en una ventana nueva y limpia (ver downloadPdf),
+       así que la app en sí no necesita reglas @media print. */
+    </style>
+  </head>
+  <body>
+    <div id="toolbar">
+      <!-- ========== EDITOR CARD ========== -->
+      <div class="card" id="cardCode">
+        <div class="card-title">
+          <span class="dot"></span>
+          <span>Código</span>
+          <span
+            id="modeBadge"
+            class="badge"
+            title="Detección automática de Markdown o diagrama"
+            >Auto</span
+          >
+          <button
+            class="card-collapse"
+            id="colCode"
+            title="Colapsar / expandir"
+          >
+            <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9" /></svg>
+          </button>
+          <button class="card-hide" data-hide="cardCode" title="Ocultar caja">
+            <svg viewBox="0 0 24 24">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="editor" id="editorBox">
+          <div class="editor-head">
+            <div class="lights"><i></i><i></i><i></i></div>
+            <span id="fileLbl" class="file-name">diagrama.mmd</span>
+            <span id="langLbl" class="lang-tag">mermaid</span>
+          </div>
+          <textarea
+            id="src"
+            spellcheck="false"
+            placeholder="Arrastrá un archivo .md / .mmd acá, o pegá tu código. Se detecta solo si es Markdown o un diagrama."
+          ></textarea>
+          <div class="drop-overlay" id="dropOverlay">
+            <div class="drop-inner">
+              <svg viewBox="0 0 24 24">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              <span>Soltá el archivo para cargarlo</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button
+            id="btnRender"
+            class="primary"
+            title="Generar (Ctrl/Cmd + Enter)"
+          >
+            <svg viewBox="0 0 24 24">
+              <polygon
+                points="6 4 20 12 6 20 6 4"
+                fill="currentColor"
+                stroke="none"
+              />
+            </svg>
+            Generar
+          </button>
+          <button id="btnDlSvg" title="Descargar SVG">
+            <svg viewBox="0 0 24 24">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            SVG
+          </button>
+          <button id="btnDlMd" title="Descargar Markdown">
+            <svg viewBox="0 0 24 24">
+              <path
+                d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+              />
+              <polyline points="14 2 14 8 20 8" />
+            </svg>
+            Markdown
+          </button>
+          <button id="btnFit" class="ghost" title="Ajustar">
+            <svg viewBox="0 0 24 24">
+              <polyline points="4 8 4 4 8 4" />
+              <polyline points="16 4 20 4 20 8" />
+              <polyline points="4 16 4 20 8 20" />
+              <polyline points="16 20 20 20 20 16" />
+            </svg>
+            Ajustar
+          </button>
+          <button id="btnCopy" class="ghost" title="Copiar código">
+            <svg viewBox="0 0 24 24">
+              <rect x="9" y="9" width="13" height="13" rx="2" />
+              <path
+                d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+              />
+            </svg>
+            Copiar
+          </button>
+          <button
+            id="btnHelp"
+            class="ghost"
+            title="Ver atajos (Ctrl/Cmd + Shift + H)"
+          >
+            <svg viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.5-2.5 2-2.5 3.5" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            Ayuda
+          </button>
+        </div>
+
+        <div id="err"></div>
+      </div>
+
+      <!-- ========== RULES CARD ========== -->
+      <div class="card" id="cardRules">
+        <div class="card-title">
+          <span
+            class="dot"
+            style="
+              background: linear-gradient(135deg, #f43f5e, #f59e0b);
+              box-shadow: 0 0 0 4px rgba(244, 63, 94, 0.12);
+            "
+          ></span>
+          <span>Colorear artefactos</span>
+          <span class="badge" style="background: #fef3c7; color: #92400e"
+            >Opcional</span
+          >
+          <button
+            class="card-collapse"
+            id="colRules"
+            title="Colapsar / expandir"
+          >
+            <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9" /></svg>
+          </button>
+          <button class="card-hide" data-hide="cardRules" title="Ocultar caja">
+            <svg viewBox="0 0 24 24">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        <div id="rules"></div>
+
+        <div class="btn-row">
+          <button id="btnAddRule">
+            <svg viewBox="0 0 24 24">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Agregar regla
+          </button>
+          <button id="btnClearRules" class="ghost">
+            <svg viewBox="0 0 24 24">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6" />
+            </svg>
+            Limpiar
+          </button>
+        </div>
+
+        <div class="hint">
+          Funciona con cualquier tipo de diagrama Mermaid. Para presentar:
+          <span class="kbd">drag</span> pan,
+          <span class="kbd">rueda</span> zoom,
+          <span class="kbd">Shift + drag</span> marca,
+          <span class="kbd">Alt</span> láser,
+          <span class="kbd">click en texto</span> resalta el artefacto.
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== DOCK: reabrir cajas ocultas ========== -->
+    <div id="panelDock">
+      <button data-panel="cardCode" class="on" title="Mostrar / ocultar Código">
+        <svg viewBox="0 0 24 24">
+          <polyline points="16 18 22 12 16 6" />
+          <polyline points="8 6 2 12 8 18" />
+        </svg>
+        Código
+      </button>
+      <button
+        data-panel="cardRules"
+        class="on"
+        title="Mostrar / ocultar Coloreos"
+      >
+        <svg viewBox="0 0 24 24">
+          <circle cx="13.5" cy="6.5" r="2.5" />
+          <circle cx="19" cy="12" r="2.5" />
+          <circle cx="6" cy="12" r="2.5" />
+          <circle cx="10" cy="18" r="2.5" />
+          <path d="M12 2a10 10 0 1 0 0 20" />
+        </svg>
+        Coloreos
+      </button>
+    </div>
+
+    <!-- ============ VIEW ============ -->
+    <div id="view">
+      <div class="view-controls">
+        <button
+          id="btnEdit"
+          title="Editar el preview (texto, tablas, listas — no mermaids)"
+        >
+          <svg viewBox="0 0 24 24">
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+          </svg>
+          Editar
+        </button>
+        <button
+          id="btnPdf"
+          title="Descargar como PDF (imprimir → Guardar como PDF)"
+        >
+          <svg viewBox="0 0 24 24">
+            <path d="M6 9V2h9l5 5v2" />
+            <path
+              d="M6 18H4a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-2"
+            />
+            <rect x="6" y="14" width="12" height="8" rx="1" />
+          </svg>
+          PDF
+        </button>
+        <button
+          id="btnTheme"
+          title="Cambiar tema (Ctrl/Cmd + Shift + D)"
+        ></button>
+        <button
+          id="btnCollapse"
+          title="Ocultar / mostrar barra (Ctrl/Cmd + Shift + B)"
+        >
+          <svg id="collapseIcon" viewBox="0 0 24 24">
+            <polyline points="18 15 12 9 6 15" />
+          </svg>
+          <span id="collapseLbl">Ocultar barra</span>
+        </button>
+        <button
+          id="btnSingleFs"
+          title="Pantalla completa (Ctrl/Cmd + Shift + F)"
+        >
+          <svg viewBox="0 0 24 24">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3" />
+            <path d="M16 3h3a2 2 0 0 1 2 2v3" />
+            <path d="M3 16v3a2 2 0 0 0 2 2h3" />
+            <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
+          </svg>
+          Pantalla completa
+        </button>
+        <button id="btnHelp2" title="Ver atajos (Ctrl/Cmd + Shift + H)">
+          <svg viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.5-2.5 2-2.5 3.5" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+          Ayuda
+        </button>
+      </div>
+
+      <!-- MD Nav -->
+      <nav class="md-nav" id="mdNav">
+        <div class="nav-head" id="navHead">
+          <span class="grip">⋮⋮</span>
+          <span class="nav-title" id="navTitle">Diagramas</span>
+          <button class="nav-mini" id="navMin" title="Colapsar">–</button>
+          <button class="nav-mini" id="navClose" title="Cerrar">×</button>
+        </div>
+        <div class="nav-body" id="navBody"></div>
+      </nav>
+      <button class="nav-reopen" id="navReopen" title="Mostrar índice">
+        <svg viewBox="0 0 24 24">
+          <line x1="3" y1="6" x2="21" y2="6" />
+          <line x1="3" y1="12" x2="21" y2="12" />
+          <line x1="3" y1="18" x2="21" y2="18" />
+        </svg>
+        Índice
+      </button>
+
+      <div id="single"></div>
+      <div id="mdView"><div class="article" id="mdArticle"></div></div>
+
+      <!-- Empty state -->
+      <div id="emptyState">
+        <div class="es-card">
+          <div class="es-icon">
+            <svg viewBox="0 0 24 24">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+          </div>
+          <div class="es-title">Arrastrá tu archivo o pegá el código</div>
+          <div class="es-sub">
+            Soltá un <b>.md</b> o <b>.mmd</b> en el editor, o pegá directamente.
+            El viewer detecta solo si es <b>Markdown</b> o un
+            <b>diagrama Mermaid</b> y lo genera al toque.
+          </div>
+        </div>
+      </div>
+
+      <!-- Burst de render: replica exacta del favicon + rayos radiales. -->
+      <div id="renderTransition" class="render-transition" aria-hidden="true">
+        <div class="render-stage">
+          <span class="render-ring ring-1"></span>
+          <span class="render-ring ring-2"></span>
+          <span class="render-sparks" aria-hidden="true">
+            <i style="--angle: 0deg; --delay: 0ms"></i>
+            <i style="--angle: 45deg; --delay: 18ms"></i>
+            <i style="--angle: 90deg; --delay: 4ms"></i>
+            <i style="--angle: 135deg; --delay: 24ms"></i>
+            <i style="--angle: 180deg; --delay: 8ms"></i>
+            <i style="--angle: 225deg; --delay: 28ms"></i>
+            <i style="--angle: 270deg; --delay: 12ms"></i>
+            <i style="--angle: 315deg; --delay: 32ms"></i>
+          </span>
+          <svg class="render-logo" viewBox="0 0 32 32" aria-hidden="true">
+            <defs>
+              <linearGradient
+                id="renderLogoGradient"
+                x1="0"
+                y1="0"
+                x2="1"
+                y2="1"
+              >
+                <stop offset="0" stop-color="#2563eb" />
+                <stop offset="1" stop-color="#7c3aed" />
+              </linearGradient>
+            </defs>
+            <rect
+              width="32"
+              height="32"
+              rx="7"
+              fill="url(#renderLogoGradient)"
+            />
+            <g
+              fill="none"
+              stroke="white"
+              stroke-width="2.2"
+              stroke-linecap="round"
+            >
+              <rect x="7" y="6" width="8" height="6" rx="1.5" />
+              <rect x="17" y="13" width="8" height="6" rx="1.5" />
+              <rect x="7" y="20" width="8" height="6" rx="1.5" />
+              <path d="M15 9h3.5a1.5 1.5 0 0 1 1.5 1.5V13" />
+              <path d="M17 16h-2.5a1.5 1.5 0 0 0-1.5 1.5V20" />
+            </g>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ Global Help Modal (page-level, se re-monta a fullscreen si hace falta) ============ -->
+    <div id="helpBackdrop" class="help-backdrop"></div>
+    <div id="helpModal" class="help-panel">
+      <button class="close-help" id="helpClose" title="Cerrar (Esc)">
+        <svg viewBox="0 0 24 24">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+      <h3>Atajos y gestos</h3>
+      <div class="subtitle">
+        Pan y zoom siempre activos — todos los gestos coexisten sin cambiar de
+        modo.
+      </div>
+      <div class="rows">
+        <div class="row">
+          <span class="k">drag</span><span>Mover / panear el gráfico</span>
+        </div>
+        <div class="row">
+          <span class="k">rueda</span
+          ><span>Zoom sobre el punto del cursor</span>
+        </div>
+        <div class="row">
+          <span class="k">Shift + drag</span
+          ><span>Dibujar un rectángulo persistente</span>
+        </div>
+        <div class="row">
+          <span class="k">Alt + mouse</span
+          ><span>Láser azul temporal para señalar</span>
+        </div>
+        <div class="row">
+          <span class="k">Click en texto</span
+          ><span>Resalta nodo, artefacto o conexión en cualquier Mermaid</span>
+        </div>
+        <div class="row">
+          <span class="k">Click en vacío</span
+          ><span>Deselecciona todo lo actual</span>
+        </div>
+        <div class="row">
+          <span class="k">Ctrl/Cmd + click</span
+          ><span
+            >Selección múltiple — suma sin borrar (o quita si ya estaba)</span
+          >
+        </div>
+        <div class="row">
+          <span class="k">Tap en mobile</span
+          ><span>Selección acumulativa sin usar modificadores</span>
+        </div>
+        <div class="row">
+          <span class="k">Doble click</span
+          ><span>Reencuadrar / ajustar zoom</span>
+        </div>
+        <div class="row">
+          <span class="k">Ctrl/Cmd + Z</span><span>Deshacer última marca</span>
+        </div>
+        <div class="row">
+          <span class="k">Ctrl/Cmd + Y</span><span>Rehacer</span>
+        </div>
+        <div class="row">
+          <span class="k">Ctrl/Cmd + Shift + K</span
+          ><span>Limpiar todas las marcas del gráfico activo</span>
+        </div>
+        <div class="row">
+          <span class="k">Ctrl/Cmd + Shift + D</span
+          ><span>Alternar modo claro / oscuro</span>
+        </div>
+        <div class="row">
+          <span class="k">Ctrl/Cmd + Shift + B</span
+          ><span>Ocultar / mostrar barra de edición</span>
+        </div>
+        <div class="row">
+          <span class="k">Ctrl/Cmd + Shift + F</span
+          ><span>Pantalla completa</span>
+        </div>
+        <div class="row">
+          <span class="k">Ctrl/Cmd + Shift + H</span
+          ><span>Abrir / cerrar esta ayuda</span>
+        </div>
+        <div class="row">
+          <span class="k">Ctrl/Cmd + Enter</span><span>Generar el preview</span>
+        </div>
+        <div class="row">
+          <span class="k">Esc</span><span>Cerrar este panel</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+      // Los scripts clásicos se descargan sin bloquear el primer pintado. Esta
+      // barrera breve conserva el orden de inicialización aun con una red lenta.
+      async function waitForCoreRuntime() {
+        const deadline = performance.now() + 12000;
+        while (!(window.marked && window.svgPanZoom)) {
+          if (performance.now() > deadline)
+            throw new Error(
+              "No se pudieron cargar las dependencias del visor.",
+            );
+          await new Promise((resolve) => setTimeout(resolve, 25));
+        }
+      }
+      await waitForCoreRuntime();
+      // ===== Tema: Mermaid + helpers =====
+      function isDarkTheme() {
+        return document.documentElement.getAttribute("data-theme") === "dark";
+      }
+      function themeBgRGB() {
+        return isDarkTheme() ? [10, 17, 32] : [250, 251, 252];
+      } // fondo dc-body
+      function stickyBg() {
+        return isDarkTheme() ? "#0a1120" : "#ffffff";
+      }
+      function stickySep() {
+        return isDarkTheme() ? "#334155" : "#d4d4d8";
+      }
+      function applyMermaidTheme() {
+        mermaid.initialize({
+          startOnLoad: false,
+          securityLevel: "loose",
+          theme: isDarkTheme() ? "dark" : "default",
+        });
+      }
+      applyMermaidTheme();
+
+      // ===== Motor de CONTRASTE: el texto nunca se pierde contra su caja =====
+      const _cc = document.createElement("canvas").getContext("2d");
+      function toRGBA(str) {
+        if (!str) return null;
+        try {
+          _cc.fillStyle = "#000";
+          _cc.fillStyle = str;
+        } catch (e) {
+          return null;
+        }
+        const v = _cc.fillStyle;
+        if (v[0] === "#") {
+          const h = v.slice(1);
+          const n =
+            h.length === 3
+              ? h.split("").map((c) => parseInt(c + c, 16))
+              : [
+                  parseInt(h.slice(0, 2), 16),
+                  parseInt(h.slice(2, 4), 16),
+                  parseInt(h.slice(4, 6), 16),
+                ];
+          return [n[0], n[1], n[2], 1];
+        }
+        const m = v.match(/rgba?\(([^)]+)\)/i);
+        if (!m) return null;
+        const parts = m[1].split(",").map((s) => parseFloat(s.trim()));
+        return [
+          parts[0] || 0,
+          parts[1] || 0,
+          parts[2] || 0,
+          parts.length > 3 ? parts[3] : 1,
+        ];
+      }
+      function relLum(rgb) {
+        const a = [rgb[0], rgb[1], rgb[2]].map((v) => {
+          v /= 255;
+          return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+        });
+        return 0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2];
+      }
+      function effectiveBg(rect) {
+        const cs = getComputedStyle(rect);
+        const rgba = toRGBA(cs.fill) || [0, 0, 0, 0];
+        let op = parseFloat(cs.fillOpacity);
+        if (isNaN(op)) op = 1;
+        const alpha = (rgba[3] == null ? 1 : rgba[3]) * op;
+        const bg = themeBgRGB();
+        return [
+          bg[0] * (1 - alpha) + rgba[0] * alpha,
+          bg[1] * (1 - alpha) + rgba[1] * alpha,
+          bg[2] * (1 - alpha) + rgba[2] * alpha,
+        ];
+      }
+      function contrastRatio(a, b) {
+        const la = relLum(a),
+          lb = relLum(b);
+        const hi = Math.max(la, lb),
+          lo = Math.min(la, lb);
+        return (hi + 0.05) / (lo + 0.05);
+      }
+      // Elige el color de texto (oscuro o claro) que MAXIMIZA el contraste con
+      // el fondo. Así, para cualquier color de caja (incluso tonos medios como
+      // ámbar o verde) el texto siempre queda claramente legible, nunca se pierde.
+      const _TXT_DARK = [15, 23, 42],
+        _TXT_LIGHT = [248, 250, 252];
+      function idealText(bgRGB) {
+        return contrastRatio(_TXT_DARK, bgRGB) >=
+          contrastRatio(_TXT_LIGHT, bgRGB)
+          ? "#0f172a"
+          : "#f8fafc";
+      }
+      const DRAWABLE_SELECTOR =
+        "rect, circle, ellipse, polygon, path, line, polyline";
+      const artifactIndexBySvg = new WeakMap();
+
+      function safeBBox(el) {
+        try {
+          const box = el.getBBox();
+          if (![box.x, box.y, box.width, box.height].every(Number.isFinite))
+            return null;
+          return box;
+        } catch (_) {
+          return null;
+        }
+      }
+      function boxArea(box) {
+        return box ? Math.max(0, box.width) * Math.max(0, box.height) : 0;
+      }
+      function pointInBox(box, x, y, pad = 2) {
+        return (
+          !!box &&
+          x >= box.x - pad &&
+          x <= box.x + box.width + pad &&
+          y >= box.y - pad &&
+          y <= box.y + box.height + pad
+        );
+      }
+      function distanceToBox(box, x, y) {
+        if (!box) return Infinity;
+        const dx = Math.max(box.x - x, 0, x - box.x - box.width);
+        const dy = Math.max(box.y - y, 0, y - box.y - box.height);
+        return Math.hypot(dx, dy);
+      }
+      function normalizeArtifactText(value) {
+        return (value || "")
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/\s+/g, " ")
+          .trim()
+          .toLocaleLowerCase();
+      }
+      function isIgnoredSvgElement(el) {
+        return !!el.closest(
+          "defs, marker, clipPath, mask, pattern, #svg-pan-zoom-controls, .mmd-hi-label",
+        );
+      }
+      function isConnectorElement(el) {
+        const tag = el.tagName.toLowerCase();
+        const key = `${el.id || ""} ${el.getAttribute("class") || ""}`;
+        if (
+          /(?:edge|link|connector|relation|transition|messageLine|actor-line|arrow|dependency)/i.test(
+            key,
+          )
+        )
+          return true;
+        if (tag === "line" || tag === "polyline") return true;
+        if (tag !== "path") return false;
+        let style;
+        try {
+          style = getComputedStyle(el);
+        } catch (_) {
+          return false;
+        }
+        const fill = (style.fill || "").toLowerCase();
+        const stroke = (style.stroke || "").toLowerCase();
+        const fillAlpha = parseFloat(style.fillOpacity || "1");
+        return (
+          stroke !== "none" &&
+          stroke !== "transparent" &&
+          (fill === "none" || fill === "transparent" || fillAlpha === 0)
+        );
+      }
+      function measureSvgTexts(svg) {
+        const measured = [];
+        svg.querySelectorAll("text, foreignObject").forEach((el) => {
+          const label = (el.textContent || "").replace(/\s+/g, " ").trim();
+          const box = safeBBox(el);
+          if (!label || !box) return;
+          measured.push({
+            el,
+            label,
+            normalized: normalizeArtifactText(label),
+            box,
+            cx: box.x + box.width / 2,
+            cy: box.y + box.height / 2,
+          });
+        });
+        return measured;
+      }
+      function getArtifactIndex(svg, measuredLabels) {
+        let index = artifactIndexBySvg.get(svg);
+        if (index) return index;
+        const labels = measuredLabels || measureSvgTexts(svg);
+        const shapes = [];
+        const connectors = [];
+        const shapeByElement = new Map();
+        const connectorByElement = new Map();
+        svg.querySelectorAll(DRAWABLE_SELECTOR).forEach((el) => {
+          if (isIgnoredSvgElement(el)) return;
+          const box = safeBBox(el);
+          if (!box || (box.width === 0 && box.height === 0)) return;
+          const item = { el, box, area: boxArea(box) };
+          if (isConnectorElement(el)) {
+            connectors.push(item);
+            connectorByElement.set(el, item);
+          } else {
+            shapes.push(item);
+            shapeByElement.set(el, item);
+          }
+        });
+        let viewArea = 0;
+        try {
+          const vb = svg.viewBox.baseVal;
+          viewArea = Math.max(0, vb.width * vb.height);
+        } catch (_) {}
+        if (!viewArea) viewArea = boxArea(safeBBox(svg)) || 1;
+        index = {
+          labels,
+          shapes,
+          connectors,
+          shapeByElement,
+          connectorByElement,
+          viewArea,
+          resolved: new WeakMap(),
+        };
+        artifactIndexBySvg.set(svg, index);
+        return index;
+      }
+
+      const SEMANTIC_ARTIFACT_RE =
+        /(?:^|[\s_-])(node|cluster|entity|state|class|task|section|mindmap|timeline|commit|branch|block|architecture|packet|requirement|component|container|person|system|boundary|actor|participant|quadrant|point|slice)(?:$|[\s_-])/i;
+      function semanticArtifact(labelEl, svg, index) {
+        for (
+          let parent = labelEl.parentElement;
+          parent && parent !== svg;
+          parent = parent.parentElement
+        ) {
+          if ((parent.tagName || "").toLowerCase() !== "g") continue;
+          const key = `${parent.id || ""} ${parent.getAttribute("class") || ""}`;
+          if (!SEMANTIC_ARTIFACT_RE.test(key) || /edge.?label/i.test(key))
+            continue;
+          const groupBox = safeBBox(parent);
+          if (
+            groupBox &&
+            index.viewArea > 1 &&
+            boxArea(groupBox) > index.viewArea * 0.82
+          )
+            continue;
+          const shapes = [];
+          const connectors = [];
+          parent.querySelectorAll(DRAWABLE_SELECTOR).forEach((el) => {
+            if (index.shapeByElement.has(el)) shapes.push(el);
+            else if (index.connectorByElement.has(el)) connectors.push(el);
+          });
+          if (!shapes.length) continue;
+          return { shapes, connectors };
+        }
+        return null;
+      }
+      function sequenceActorArtifact(labelInfo, index) {
+        const actorRects = index.shapes.filter((item) =>
+          item.el.matches("rect.actor, rect.actor-top, rect.actor-bottom"),
+        );
+        if (!actorRects.length) return null;
+        const sameLabels = index.labels.filter(
+          (item) => item.normalized === labelInfo.normalized,
+        );
+        const matchedRects = actorRects.filter(({ box }) =>
+          sameLabels.some(({ cx, cy }) => pointInBox(box, cx, cy, 3)),
+        );
+        if (!matchedRects.length) return null;
+        const centers = matchedRects.map(({ box }) => box.x + box.width / 2);
+        const connectors = index.connectors
+          .filter(({ el, box }) => {
+            if (!el.matches("line.actor-line")) return false;
+            return centers.some((x) => Math.abs(box.x + box.width / 2 - x) < 4);
+          })
+          .map((item) => item.el);
+        return {
+          shapes: matchedRects.map((item) => item.el),
+          connectors,
+        };
+      }
+      function resolveArtifact(svg, labelEl, measuredLabels) {
+        const index = getArtifactIndex(svg, measuredLabels);
+        const cached = index.resolved.get(labelEl);
+        if (cached) return cached;
+        const info =
+          index.labels.find((item) => item.el === labelEl) ||
+          (() => {
+            const box = safeBBox(labelEl);
+            const label = (labelEl.textContent || "")
+              .replace(/\s+/g, " ")
+              .trim();
+            return box
+              ? {
+                  el: labelEl,
+                  label,
+                  normalized: normalizeArtifactText(label),
+                  box,
+                  cx: box.x + box.width / 2,
+                  cy: box.y + box.height / 2,
+                }
+              : null;
+          })();
+        if (!info) return { shapes: [], connectors: [] };
+
+        let artifact = sequenceActorArtifact(info, index);
+        if (!artifact) artifact = semanticArtifact(labelEl, svg, index);
+
+        if (!artifact) {
+          const candidates = index.shapes
+            .filter(
+              (item) =>
+                pointInBox(item.box, info.cx, info.cy, 2) &&
+                item.area < index.viewArea * 0.78,
+            )
+            .sort((a, b) => a.area - b.area);
+          let shape = candidates[0] || null;
+          if (!shape) {
+            const nearest = index.shapes
+              .filter((item) => item.area < index.viewArea * 0.78)
+              .map((item) => ({
+                ...item,
+                distance: distanceToBox(item.box, info.cx, info.cy),
+              }))
+              .sort((a, b) => a.distance - b.distance || a.area - b.area)[0];
+            const limit = Math.max(
+              30,
+              Math.sqrt(index.viewArea) * 0.085,
+              info.box.height * 4,
+            );
+            if (nearest && nearest.distance <= limit) shape = nearest;
+          }
+
+          let connectors = [];
+          if (!shape) {
+            const nearest = index.connectors
+              .map((item) => ({
+                ...item,
+                distance: distanceToBox(item.box, info.cx, info.cy),
+              }))
+              .sort((a, b) => a.distance - b.distance)[0];
+            const limit = Math.max(
+              36,
+              Math.sqrt(index.viewArea) * 0.12,
+              info.box.height * 5,
+            );
+            if (nearest && nearest.distance <= limit) connectors = [nearest.el];
+          }
+          artifact = {
+            shapes: shape ? [shape.el] : [],
+            connectors,
+          };
+        }
+        index.resolved.set(labelEl, artifact);
+        return artifact;
+      }
+      function setTextColor(tx, col) {
+        tx.style.setProperty("fill", col, "important");
+        tx.querySelectorAll("tspan").forEach((ts) =>
+          ts.style.setProperty("fill", col, "important"),
+        );
+      }
+      function setLabelColor(labelEl, color) {
+        if ((labelEl.tagName || "").toLowerCase() === "text") {
+          setTextColor(labelEl, color);
+          return;
+        }
+        labelEl.style.setProperty("color", color, "important");
+        labelEl
+          .querySelectorAll("*")
+          .forEach((node) =>
+            node.style.setProperty("color", color, "important"),
+          );
+      }
+      function computedLabelColor(labelEl) {
+        const style = getComputedStyle(labelEl);
+        return toRGBA(
+          (labelEl.tagName || "").toLowerCase() === "text"
+            ? style.fill
+            : style.color,
+        );
+      }
+      // Garantiza contraste para nodos, actores, estados, clases, tareas,
+      // entidades y demás artefactos, incluidos labels HTML en foreignObject.
+      function enforceBoxContrast(svg, measuredTexts = measureSvgTexts(svg)) {
+        const boxes = [
+          ...svg.querySelectorAll(
+            ".mmd-colored-artifact, rect.actor, rect.actor-top, rect.actor-bottom",
+          ),
+        ]
+          .map((el) => ({ el, box: safeBBox(el) }))
+          .filter((item) => item.box);
+        measuredTexts.forEach((label) => {
+          let shape = null;
+          let smallestArea = Infinity;
+          boxes.forEach((item) => {
+            if (!pointInBox(item.box, label.cx, label.cy, 3)) return;
+            const area = boxArea(item.box);
+            if (area < smallestArea) {
+              smallestArea = area;
+              shape = item.el;
+            }
+          });
+          // Si el label está fuera de la forma (pie, ejes, leyendas, etc.),
+          // conserva el contraste del tema en vez de inferir un fondo ajeno.
+          if (!shape) return;
+          const bg = effectiveBg(shape);
+          const current = computedLabelColor(label.el) || [0, 0, 0, 1];
+          if (contrastRatio(current, bg) < 3.5)
+            setLabelColor(label.el, idealText(bg));
+        });
+      }
+      marked.setOptions({ gfm: true, breaks: false });
+
+      // ============ Utilidades ============
+      const $ = (s) => document.querySelector(s);
+      const src = $("#src");
+      const single = $("#single");
+      const mdArticle = $("#mdArticle");
+      const mdNav = $("#mdNav");
+      const navBody = $("#navBody");
+      const navHead = $("#navHead");
+      const navTitle = $("#navTitle");
+      const navReopen = $("#navReopen");
+      const errBox = $("#err");
+      const toast = $("#toast");
+      const modeBadge = $("#modeBadge");
+      const fileLbl = $("#fileLbl");
+      const langLbl = $("#langLbl");
+      const btnRender = $("#btnRender");
+      const btnCollapse = $("#btnCollapse");
+      const view = $("#view");
+      const renderTransition = $("#renderTransition");
+      const editorBox = $("#editorBox");
+      const rulesRoot = $("#rules");
+      const compactLayout = matchMedia("(max-width: 900px)");
+
+      let activeMode = "single";
+      let singleEntry = null; // { card, body, svg, pz, ro, ... }
+      let mdEntries = [];
+      let lastEntry = null;
+      let exportSvg = "";
+      let previewEditOn = true; // Edición del preview activada por defecto
+      let turndownService = null; // HTML -> Markdown (lazy)
+      let previewSyncTimer; // debounce del sync preview -> código
+      // Última cosa que tocó el usuario: 'text' (editando el preview) o 'diagram'
+      // (interactuando con un mermaid). Desambigua a quién le corresponde Ctrl+Z/Y.
+      let lastInteraction = "diagram";
+      let renderGeneration = 0;
+      let mermaidSequence = 0;
+      let renderFxRevealTimer = 0;
+      let renderFxCleanupTimer = 0;
+      const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+      const nextMermaidId = (prefix = "m") =>
+        prefix + (++mermaidSequence).toString(36);
+
+      function replayMotion(nodes, className = "value-pop") {
+        const elements = nodes.filter(Boolean);
+        elements.forEach((node) => node.classList.remove(className));
+        void document.body.offsetWidth;
+        elements.forEach((node) => node.classList.add(className));
+        setTimeout(
+          () => elements.forEach((node) => node.classList.remove(className)),
+          260,
+        );
+      }
+
+      function cancelRenderTransition() {
+        clearTimeout(renderFxRevealTimer);
+        clearTimeout(renderFxCleanupTimer);
+        renderTransition.classList.remove("active", "revealing");
+        single.classList.remove("render-reveal");
+        $("#mdView").classList.remove("render-reveal");
+        view.setAttribute("aria-busy", "false");
+      }
+
+      function beginRenderTransition(generation) {
+        if (reducedMotion.matches) return null;
+        cancelRenderTransition();
+        renderTransition.dataset.generation = String(generation);
+        view.setAttribute("aria-busy", "true");
+        // Reinicia las keyframes aunque el usuario genere varias veces seguido.
+        void renderTransition.offsetWidth;
+        renderTransition.classList.add("active");
+        return performance.now();
+      }
+
+      function finishRenderTransition(generation, startedAt) {
+        if (startedAt === null || generation !== renderGeneration) return;
+        const elapsed = performance.now() - startedAt;
+        const wait = Math.max(0, 190 - elapsed);
+        renderFxRevealTimer = setTimeout(() => {
+          if (
+            generation !== renderGeneration ||
+            renderTransition.dataset.generation !== String(generation)
+          )
+            return;
+
+          const target = activeMode === "md" ? $("#mdView") : single;
+          target.classList.remove("render-reveal");
+          void target.offsetWidth;
+          target.classList.add("render-reveal");
+          renderTransition.classList.add("revealing");
+
+          renderFxCleanupTimer = setTimeout(() => {
+            if (renderTransition.dataset.generation !== String(generation))
+              return;
+            renderTransition.classList.remove("active", "revealing");
+            target.classList.remove("render-reveal");
+            view.setAttribute("aria-busy", "false");
+          }, 480);
+        }, wait);
+      }
+
+      // ============ SVG icons para JS ============
+      const ICONS = {
+        fit: '<svg viewBox="0 0 24 24"><polyline points="4 8 4 4 8 4"/><polyline points="16 4 20 4 20 8"/><polyline points="4 16 4 20 8 20"/><polyline points="16 20 20 20 20 16"/></svg>',
+        dl: '<svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
+        copy: '<svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+        clear:
+          '<svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>',
+        help: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0c0 1.5-2.5 2-2.5 3.5"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+        fs: '<svg viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>',
+        close:
+          '<svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+      };
+
+      // ============ Toast + Error ============
+      let toastTimer;
+      function showToast(t) {
+        toast.textContent = t;
+        toast.classList.add("show");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.remove("show"), 1600);
+      }
+      async function copyTextReliable(value) {
+        const text = String(value ?? "");
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          try {
+            await navigator.clipboard.writeText(text);
+            return true;
+          } catch (_) {
+            // file://, permisos denegados o contexto no seguro: usar fallback.
+          }
+        }
+        const active = document.activeElement;
+        const helper = document.createElement("textarea");
+        helper.value = text;
+        helper.setAttribute("readonly", "");
+        Object.assign(helper.style, {
+          position: "fixed",
+          inset: "0 auto auto -9999px",
+          width: "1px",
+          height: "1px",
+          opacity: "0",
+          pointerEvents: "none",
+        });
+        document.body.appendChild(helper);
+        try {
+          helper.focus({ preventScroll: true });
+        } catch (_) {
+          helper.focus();
+        }
+        helper.select();
+        helper.setSelectionRange(0, helper.value.length);
+        let copied = false;
+        try {
+          copied = document.execCommand("copy");
+        } catch (_) {}
+        helper.remove();
+        if (active && active.focus) {
+          try {
+            active.focus({ preventScroll: true });
+          } catch (_) {
+            active.focus();
+          }
+        }
+        return copied;
+      }
+      function showErr(m) {
+        if (!m) {
+          errBox.textContent = "";
+          errBox.classList.remove("show");
+          return;
+        }
+        errBox.textContent = m;
+        errBox.classList.add("show");
+        console.error("[Mermaid]", m);
+      }
+      function cleanupMermaidArtifacts() {
+        document
+          .querySelectorAll('body > [id^="dmermaid-"], body > .mermaid-tooltip')
+          .forEach((node) => node.remove());
+      }
+
+      // ============ Detección de modo (100% automática) ============
+      // Reglas:
+      //  - Vacío                                   -> 'empty' (empty-state, sin error)
+      //  - Varios bloques ```mermaid```            -> 'md'
+      //  - Un bloque + texto alrededor             -> 'md'
+      //  - Un único bloque y nada más              -> 'single'
+      //  - Sin bloques pero el texto ES un diagrama Mermaid crudo -> 'single'
+      //  - Sin bloques y NO es un diagrama          -> 'md' (documento, nunca error)
+      function detectMode(text) {
+        const s = (text || "").trim();
+        if (!s) return "empty";
+        const fences = s.match(/```\s*mermaid[\s\S]*?```/gi) || [];
+        if (fences.length > 1) return "md";
+        if (fences.length === 1) {
+          const rest = s.replace(/```\s*mermaid[\s\S]*?```/i, "").trim();
+          return rest ? "md" : "single";
+        }
+        return getType(s) !== "mermaid" ? "single" : "md";
+      }
+      function cleanMermaid(t) {
+        let x = (t || "").replace(/\r\n/g, "\n").trim();
+        x = x.replace(/^\s*(?:```|~~~)[ \t]*[A-Za-z0-9_-]*[ \t]*\n?/, "");
+        x = x.replace(/\n?[ \t]*(?:```|~~~)\s*$/, "");
+        return x.trim();
+      }
+      function getType(code) {
+        const source = (code || "")
+          .replace(/^\s*---[\s\S]*?---\s*/, "")
+          .replace(/^\s*%%[^\n]*(?:\n|$)/, "");
+        const m = source.match(
+          /^\s*(sequenceDiagram|flowchart|graph|stateDiagram-v2|stateDiagram|erDiagram|gantt|classDiagram-v2|classDiagram|pie|journey|mindmap|timeline|gitGraph|quadrantChart|requirementDiagram|C4Context|C4Container|C4Component|C4Dynamic|C4Deployment|sankey(?:-beta)?|xychart(?:-beta)?|block(?:-beta)?|packet(?:-beta)?|kanban|architecture(?:-beta)?|radar(?:-beta)?|treemap(?:-beta)?|zenuml)/i,
+        );
+        return m ? m[1] : "mermaid";
+      }
+
+      // ============ Reglas de color ============
+      let ruleRenderTimer = 0;
+      function scheduleRulesRender(delay = 160) {
+        clearTimeout(ruleRenderTimer);
+        ruleRenderTimer = setTimeout(() => {
+          if (detectMode(src.value) === "empty") return;
+          clearTimeout(previewSyncTimer);
+          if (activeMode === "md" && previewEditOn) syncPreviewToSource();
+          render({ animate: false });
+        }, delay);
+      }
+      function removeWithMotion(node, onRemoved) {
+        if (!node || node.classList.contains("leaving")) return;
+        node.classList.add("leaving");
+        let finished = false;
+        const finish = () => {
+          if (finished) return;
+          finished = true;
+          node.remove();
+          if (onRemoved) onRemoved();
+        };
+        node.addEventListener("animationend", finish, { once: true });
+        setTimeout(finish, 260);
+      }
+      function updateEmptyHint() {
+        const has = rulesRoot.querySelector(".rule");
+        let hint = rulesRoot.querySelector(".empty-hint");
+        if (!has) {
+          if (!hint) {
+            hint = document.createElement("div");
+            hint.className = "empty-hint";
+            hint.textContent =
+              "Sin reglas — se pinta con los estilos por defecto.";
+            rulesRoot.appendChild(hint);
+          }
+        } else if (hint) {
+          // El hint no convive ni un frame con una regla: evita el scrollbar
+          // vertical transitorio que aparecía mientras terminaba su salida.
+          hint.remove();
+        }
+      }
+      function addRule(name = "", color = "#2563eb") {
+        const hint = rulesRoot.querySelector(".empty-hint");
+        if (hint) hint.remove();
+        const r = document.createElement("div");
+        r.className = "rule";
+        r.style.color = color;
+        r.innerHTML = `
+        <div class="sw"></div>
+        <input type="text" placeholder="nombre del artefacto">
+        <input type="color">
+        <button class="x" title="Quitar">×</button>`;
+        const txt = r.querySelector("input[type=text]");
+        const col = r.querySelector("input[type=color]");
+        txt.value = name;
+        col.value = color;
+        txt.oninput = () => scheduleRulesRender(210);
+        col.oninput = () => {
+          r.style.color = col.value;
+          if (txt.value.trim()) scheduleRulesRender(90);
+        };
+        r.querySelector(".x").onclick = () => {
+          removeWithMotion(r, updateEmptyHint);
+          // getRules() excluye .leaving, así el color desaparece al instante
+          // mientras la fila termina su microanimación de salida.
+          scheduleRulesRender(0);
+        };
+        rulesRoot.appendChild(r);
+        updateEmptyHint();
+      }
+      function getRules() {
+        return [...rulesRoot.querySelectorAll(".rule:not(.leaving)")]
+          .map((r) => ({
+            name: r.querySelector("input[type=text]").value.trim(),
+            color: r.querySelector("input[type=color]").value,
+          }))
+          .filter((x) => x.name.length > 0);
+      }
+      // Sin reglas por defecto: la caja arranca limpia.
+
+      // ============ Coloreo por reglas ============
+      function paintArtifactShape(el, color, connector = false) {
+        if (connector || isConnectorElement(el)) {
+          el.style.setProperty("stroke", color, "important");
+          el.style.setProperty("stroke-width", "2.4px", "important");
+          return;
+        }
+        el.classList.add("mmd-colored-artifact");
+        el.style.setProperty("fill", color, "important");
+        el.style.setProperty("fill-opacity", ".22", "important");
+        el.style.setProperty("stroke", color, "important");
+        el.style.setProperty("stroke-width", "2.2px", "important");
+      }
+      function colorize(svg) {
+        const rules = getRules().map((rule) => ({
+          ...rule,
+          normalized: normalizeArtifactText(rule.name),
+        }));
+        const measuredTexts = measureSvgTexts(svg);
+        if (!rules.length) return measuredTexts;
+
+        const shapeColors = new Map();
+        const connectorColors = new Map();
+        measuredTexts.forEach((label) => {
+          let matchedColor = null;
+          // Si varias reglas coinciden, prevalece la última como antes.
+          for (const rule of rules) {
+            if (label.normalized.includes(rule.normalized))
+              matchedColor = rule.color;
+          }
+          if (!matchedColor) return;
+          const artifact = resolveArtifact(svg, label.el, measuredTexts);
+          artifact.shapes.forEach((shape) =>
+            shapeColors.set(shape, matchedColor),
+          );
+          artifact.connectors.forEach((connector) =>
+            connectorColors.set(connector, matchedColor),
+          );
+          // Labels de relaciones/mensajes pueden no tener una caja propia.
+          if (!artifact.shapes.length) setLabelColor(label.el, matchedColor);
+        });
+        shapeColors.forEach((color, shape) =>
+          paintArtifactShape(shape, color, false),
+        );
+        connectorColors.forEach((color, connector) =>
+          paintArtifactShape(connector, color, true),
+        );
+        return measuredTexts;
+      }
+
+      // ============ Card constructor ============
+      function buildCard(index, code) {
+        const type = getType(code);
+        const card = document.createElement("div");
+        card.className = "diagram";
+        card.dataset.index = index;
+        card._code = code;
+        // Guardar el código mermaid para reconstruirlo al convertir preview -> markdown
+        card.setAttribute("data-mmd-code", encodeURIComponent(code));
+        card.innerHTML = `
+        <div class="dc-head">
+          <div class="dc-title">
+            <span class="num">${index}</span>
+            <span class="type">${type}</span>
+            <span class="label">Diagrama</span>
+          </div>
+          <div class="dc-actions">
+            <button data-a="dl"    title="Descargar SVG">${ICONS.dl}</button>
+            <button data-a="copy"  title="Copiar código Mermaid">${ICONS.copy}</button>
+            <button data-a="clear" title="Limpiar marcas">${ICONS.clear}</button>
+            <button data-a="help"  title="Ver shortcuts">${ICONS.help}</button>
+            <button data-a="fs"    title="Pantalla completa">${ICONS.fs}</button>
+          </div>
+        </div>
+        <div class="dc-body">
+          <div class="svg-holder"></div>
+          <div class="interaction-layer"><div class="laser"></div></div>
+
+          <div class="dc-error"><div class="t">Error en el diagrama</div><pre></pre></div>
+        </div>`;
+        wireCard(card);
+        return card;
+      }
+
+      // ============ Render en card ============
+      async function renderInCard(card, code, generation = renderGeneration) {
+        const holder = card.querySelector(".svg-holder");
+        const errEl = card.querySelector(".dc-error");
+        holder.classList.remove("ready");
+        holder.innerHTML = "";
+        errEl.classList.remove("show");
+        errEl.querySelector("pre").textContent = "";
+
+        let svgEl;
+        try {
+          const { svg } = await mermaid.render(nextMermaidId(), code);
+          if (generation !== renderGeneration) {
+            cleanupMermaidArtifacts();
+            return null;
+          }
+          holder.innerHTML = svg;
+          svgEl = holder.querySelector("svg");
+          if (!svgEl) throw new Error("No se pudo generar el SVG.");
+
+          // Sacar límites inline de mermaid
+          svgEl.removeAttribute("width");
+          svgEl.removeAttribute("height");
+          Object.assign(svgEl.style, {
+            width: "100%",
+            height: "100%",
+            maxWidth: "none",
+            maxHeight: "none",
+            display: "block",
+          });
+          svgEl.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+          svgEl.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
+
+          const measuredTexts = colorize(svgEl);
+          enforceBoxContrast(svgEl, measuredTexts);
+          requestAnimationFrame(() => holder.classList.add("ready"));
+        } catch (e) {
+          holder.innerHTML = "";
+          const msg = e && e.message ? e.message : String(e);
+          const hint = /Parse|Expecting|Lexical|Syntax/i.test(msg)
+            ? "\n\nTip: revisá indentación, flechas (->>, -->>), o participants sin definir."
+            : "";
+          errEl.querySelector("pre").textContent = msg + hint;
+          errEl.classList.add("show");
+          // Limpiar huérfanos
+          cleanupMermaidArtifacts();
+          return null;
+        }
+
+        const entry = setupInteractive(card, svgEl);
+        card._entry = entry;
+        card._exportMarkup =
+          '<?xml version="1.0" encoding="UTF-8"?>\n' + svgEl.outerHTML;
+        return entry;
+      }
+
+      // ============ Interacción por card ============
+      function setupInteractive(card, svgEl) {
+        const body = card.querySelector(".dc-body");
+        const layer = card.querySelector(".interaction-layer");
+        const laser = card.querySelector(".laser");
+
+        let pz = null;
+        try {
+          pz = svgPanZoom(svgEl, {
+            controlIconsEnabled: true,
+            fit: true,
+            center: true,
+            minZoom: 0.15,
+            maxZoom: 30,
+            beforePan: () => !body.classList.contains("annotating"),
+          });
+        } catch (e) {
+          console.warn("svg-pan-zoom:", e);
+        }
+
+        const entry = { card, body, svgEl, pz, layer, laser, annotations: [] };
+        lastEntry = entry;
+
+        body.addEventListener("mouseenter", () => {
+          lastEntry = entry;
+        });
+        body.addEventListener("mousemove", (ev) => {
+          lastEntry = entry;
+          // Alt + mouse → láser
+          if (ev.altKey) showLaser(entry, ev);
+          else laser.classList.remove("active");
+        });
+        body.addEventListener("mouseleave", () => {
+          laser.classList.remove("active");
+        });
+
+        // Rastrear drag para no confundir un pan con un click "en vacío"
+        let downX = 0,
+          downY = 0,
+          dragged = false,
+          lastPointerType = "mouse";
+
+        body.addEventListener("pointerdown", (ev) => {
+          lastEntry = entry;
+          lastInteraction = "diagram"; // Ctrl+Z/Y irán al undo de marcas del mermaid
+          downX = ev.clientX;
+          downY = ev.clientY;
+          dragged = false;
+          lastPointerType = ev.pointerType || "mouse";
+          if (ev.shiftKey) {
+            startRect(entry, ev);
+            ev.preventDefault();
+            ev.stopPropagation();
+          }
+        });
+
+        body.addEventListener("pointermove", (ev) => {
+          if (ev.buttons > 0 && !dragged) {
+            const dx = ev.clientX - downX,
+              dy = ev.clientY - downY;
+            if (Math.hypot(dx, dy) > 5) dragged = true;
+          }
+        });
+
+        body.addEventListener("click", (ev) => {
+          // Ignorar clicks en controles internos, help panel, botones de la card
+          if (
+            ev.target.closest &&
+            (ev.target.closest("#svg-pan-zoom-controls") ||
+              ev.target.closest(".help-panel") ||
+              ev.target.closest(".help-backdrop") ||
+              ev.target.closest(".dc-actions"))
+          )
+            return;
+          // Si veníamos de un pan, no considerarlo click
+          if (dragged) {
+            dragged = false;
+            return;
+          }
+          // Shift/Alt tienen sus propios gestos: no interpretar como click de selección
+          if (ev.shiftKey || ev.altKey) return;
+
+          // En desktop la suma es Ctrl/Cmd + click. En pantallas táctiles el
+          // tap es acumulativo porque no existe una tecla modificadora.
+          const additive =
+            ev.ctrlKey || ev.metaKey || lastPointerType === "touch";
+          const t =
+            ev.target.closest && ev.target.closest("text, foreignObject");
+
+          if (t && svgEl.contains(t)) {
+            highlight(entry, t, additive);
+          } else {
+            // Click en vacío → deseleccionar (con historia). Si S está mantenida, no borrar.
+            if (!additive && hasAnyMark(entry)) {
+              pushHistory(entry);
+              entry.annotations.forEach((a) => a.remove());
+              entry.annotations = [];
+              clearHi(svgEl);
+              entry.textOps = [];
+              showToast("Deseleccionado");
+            }
+          }
+        });
+
+        // (El help panel ahora es global, no per-card — se abre con toggleHelp())
+
+        // Auto-fit ante cambios de tamaño
+        if (typeof ResizeObserver !== "undefined") {
+          let t;
+          const ro = new ResizeObserver(() => {
+            clearTimeout(t);
+            t = setTimeout(() => refit(entry), 60);
+          });
+          ro.observe(body);
+          entry.ro = ro;
+        }
+
+        // Sticky headers (sólo sequence)
+        entry.sticky = createSticky(svgEl, body);
+        if (entry.sticky && pz) {
+          const scheduleSticky = () => {
+            if (entry.stickyFrame) return;
+            entry.stickyFrame = requestAnimationFrame(() => {
+              entry.stickyFrame = 0;
+              updateSticky(entry.sticky);
+            });
+          };
+          pz.setOnPan(scheduleSticky);
+          pz.setOnZoom(scheduleSticky);
+        }
+
+        setTimeout(() => refit(entry), 60);
+        return entry;
+      }
+
+      // ============ Láser ============
+      function showLaser(entry, ev) {
+        const r = entry.body.getBoundingClientRect();
+        entry.laser.style.left = ev.clientX - r.left + "px";
+        entry.laser.style.top = ev.clientY - r.top + "px";
+        entry.laser.classList.add("active");
+      }
+
+      // ============ Rectángulos persistentes ============
+      function startRect(entry, ev) {
+        const body = entry.body;
+        const layer = entry.layer;
+        const r = body.getBoundingClientRect();
+        body.classList.add("annotating");
+        const x0 = ev.clientX - r.left;
+        const y0 = ev.clientY - r.top;
+        // Guardar historial ANTES de agregar el nuevo rectángulo
+        pushHistory(entry);
+        const rect = document.createElement("div");
+        rect.className = "selection-rect temp";
+        Object.assign(rect.style, {
+          left: x0 + "px",
+          top: y0 + "px",
+          width: "0px",
+          height: "0px",
+        });
+        layer.appendChild(rect);
+        function mv(e) {
+          const x = e.clientX - r.left,
+            y = e.clientY - r.top;
+          Object.assign(rect.style, {
+            left: Math.min(x0, x) + "px",
+            top: Math.min(y0, y) + "px",
+            width: Math.abs(x - x0) + "px",
+            height: Math.abs(y - y0) + "px",
+          });
+        }
+        function up() {
+          // Descartar rectángulos accidentales (< 4px)
+          const w = parseFloat(rect.style.width) || 0;
+          const h = parseFloat(rect.style.height) || 0;
+          if (w < 4 && h < 4) {
+            rect.remove();
+            // Sacar el snapshot que habíamos guardado, no representó cambio real
+            if (entry.past && entry.past.length) entry.past.pop();
+          } else {
+            rect.classList.remove("temp");
+            entry.annotations.push(rect);
+          }
+          body.classList.remove("annotating");
+          window.removeEventListener("pointermove", mv);
+          window.removeEventListener("pointerup", up);
+        }
+        window.addEventListener("pointermove", mv);
+        window.addEventListener("pointerup", up);
+      }
+
+      // ============ Undo / Redo (logical state) ============
+      // Guardamos operaciones lógicas, no rutas DOM.
+      // - rects: rectángulos de selección con coords en el layer
+      // - textOps: cada highlight de label SVG/HTML, identificado por texto + centro
+      // Al restaurar: limpiamos todo y re-aplicamos cada op, evitando corrupciones por reordenamiento del DOM.
+
+      function snapshot(entry) {
+        if (!entry) return null;
+        return {
+          rects: entry.annotations.map((a) => ({
+            left: parseFloat(a.style.left) || 0,
+            top: parseFloat(a.style.top) || 0,
+            w: parseFloat(a.style.width) || 0,
+            h: parseFloat(a.style.height) || 0,
+          })),
+          textOps: (entry.textOps || []).map((o) => ({
+            label: o.label,
+            cx: o.cx,
+            cy: o.cy,
+          })),
+        };
+      }
+
+      function findTextByOp(svg, op) {
+        const all = [...svg.querySelectorAll("text, foreignObject")];
+        // Preferimos match exacto
+        let candidates = all.filter(
+          (t) => (t.textContent || "").replace(/\s+/g, " ").trim() === op.label,
+        );
+        if (!candidates.length) {
+          candidates = all.filter((t) =>
+            (t.textContent || "").replace(/\s+/g, " ").includes(op.label),
+          );
+        }
+        if (!candidates.length) return null;
+        let best = null,
+          bd = Infinity;
+        candidates.forEach((t) => {
+          let tb;
+          try {
+            tb = t.getBBox();
+          } catch {
+            return;
+          }
+          const dx = tb.x + tb.width / 2 - op.cx;
+          const dy = tb.y + tb.height / 2 - op.cy;
+          const d = dx * dx + dy * dy;
+          if (d < bd) {
+            bd = d;
+            best = t;
+          }
+        });
+        return best;
+      }
+
+      function restoreSnap(entry, snap) {
+        if (!entry || !snap) return;
+        // 1) Limpiar todo
+        entry.annotations.forEach((a) => a.remove());
+        entry.annotations = [];
+        clearHi(entry.svgEl);
+        entry.textOps = [];
+
+        // 2) Restaurar rectángulos
+        snap.rects.forEach((r) => {
+          const div = document.createElement("div");
+          div.className = "selection-rect";
+          Object.assign(div.style, {
+            left: r.left + "px",
+            top: r.top + "px",
+            width: r.w + "px",
+            height: r.h + "px",
+          });
+          entry.layer.appendChild(div);
+          entry.annotations.push(div);
+        });
+
+        // 3) Re-aplicar highlights buscando el texto por posición + contenido
+        snap.textOps.forEach((op) => {
+          const t = findTextByOp(entry.svgEl, op);
+          if (t) {
+            applyHighlight(entry, t);
+            entry.textOps.push({ label: op.label, cx: op.cx, cy: op.cy });
+          }
+        });
+      }
+
+      function pushHistory(entry) {
+        if (!entry) return;
+        entry.past = entry.past || [];
+        entry.future = entry.future || [];
+        entry.past.push(snapshot(entry));
+        if (entry.past.length > 80) entry.past.shift();
+        entry.future = [];
+      }
+      function undo(entry) {
+        if (!entry) {
+          showToast("Pasá el cursor sobre un diagrama");
+          return;
+        }
+        entry.past = entry.past || [];
+        entry.future = entry.future || [];
+        if (!entry.past.length) {
+          showToast("Nada para deshacer");
+          return;
+        }
+        const current = snapshot(entry);
+        const prev = entry.past.pop();
+        entry.future.push(current);
+        restoreSnap(entry, prev);
+        showToast("Deshecho");
+      }
+      function redo(entry) {
+        if (!entry) {
+          showToast("Pasá el cursor sobre un diagrama");
+          return;
+        }
+        entry.past = entry.past || [];
+        entry.future = entry.future || [];
+        if (!entry.future.length) {
+          showToast("Nada para rehacer");
+          return;
+        }
+        const current = snapshot(entry);
+        const next = entry.future.pop();
+        entry.past.push(current);
+        restoreSnap(entry, next);
+        showToast("Rehecho");
+      }
+      function hasAnyMark(entry) {
+        if (!entry) return false;
+        if (entry.annotations && entry.annotations.length) return true;
+        if (entry.textOps && entry.textOps.length) return true;
+        const svg = entry.svgEl;
+        if (!svg) return false;
+        return !!svg.querySelector(
+          ".mmd-hi-box, .mmd-hi-line, .mmd-hi-msg, .mmd-hi-label",
+        );
+      }
+
+      // ============ Highlight ============
+      function clearHi(svg) {
+        svg
+          .querySelectorAll(".mmd-hi-box, .mmd-hi-line, .mmd-hi-msg")
+          .forEach((n) =>
+            n.classList.remove("mmd-hi-box", "mmd-hi-line", "mmd-hi-msg"),
+          );
+        svg.querySelectorAll(".mmd-hi-label").forEach((n) => n.remove());
+        // Restaurar labels SVG y HTML que recibieron contraste temporal.
+        svg.querySelectorAll("[data-mmd-hi-text]").forEach((label) => {
+          if ((label.tagName || "").toLowerCase() === "text") {
+            const original = label.dataset.mmdOrigFill || "";
+            if (original) label.style.setProperty("fill", original);
+            else label.style.removeProperty("fill");
+            label
+              .querySelectorAll("tspan")
+              .forEach((span) => span.style.removeProperty("fill"));
+          } else {
+            label.classList.remove("mmd-hi-text-html");
+            label.style.removeProperty("--mmd-hi-text-color");
+          }
+          delete label.dataset.mmdHiText;
+          delete label.dataset.mmdOrigFill;
+        });
+      }
+      function setTemporaryLabelColor(labelEl, color) {
+        if ((labelEl.tagName || "").toLowerCase() === "text") {
+          if (labelEl.dataset.mmdOrigFill === undefined)
+            labelEl.dataset.mmdOrigFill = labelEl.style.fill || "";
+          setTextColor(labelEl, color);
+        } else {
+          labelEl.classList.add("mmd-hi-text-html");
+          labelEl.style.setProperty("--mmd-hi-text-color", color);
+        }
+        labelEl.dataset.mmdHiText = "1";
+      }
+      function clearEntry(entry) {
+        if (!entry) return;
+        // Guardar historia sólo si había algo que limpiar
+        if (hasAnyMark(entry)) pushHistory(entry);
+        entry.annotations.forEach((a) => a.remove());
+        entry.annotations = [];
+        clearHi(entry.svgEl);
+        entry.laser.classList.remove("active");
+        showToast("Marcas limpiadas");
+      }
+      // applyHighlight: aplica el efecto visual, SIN tocar historia ni textOps.
+      // Se reusa desde highlight() y desde restoreSnap() al hacer Undo/Redo.
+      function applyHighlight(entry, textEl) {
+        const svg = entry.svgEl;
+        const label = (textEl.textContent || "").replace(/\s+/g, " ").trim();
+        if (!label) return;
+        const box = safeBBox(textEl);
+        if (!box) return;
+        const artifact = resolveArtifact(svg, textEl);
+        artifact.shapes.forEach((shape) => shape.classList.add("mmd-hi-box"));
+        artifact.connectors.forEach((connector) =>
+          connector.classList.add(
+            artifact.shapes.length ? "mmd-hi-line" : "mmd-hi-msg",
+          ),
+        );
+
+        // Un nodo/actor/estado/etc. ya tiene una forma propia para resaltar.
+        if (artifact.shapes.length) return;
+
+        // Labels de mensajes, relaciones o elementos sin caja reciben una
+        // pastilla de contraste; su conector ya fue resuelto geométricamente.
+        const NS = "http://www.w3.org/2000/svg";
+        const pad = { x: 8, y: 5 };
+        const bg = document.createElementNS(NS, "rect");
+        bg.setAttribute("class", "mmd-hi-label");
+        bg.setAttribute("x", box.x - pad.x);
+        bg.setAttribute("y", box.y - pad.y);
+        bg.setAttribute("width", Math.max(18, box.width + pad.x * 2));
+        bg.setAttribute("height", Math.max(16, box.height + pad.y * 2));
+        bg.setAttribute("rx", "5");
+        bg.setAttribute("ry", "5");
+        textEl.parentNode.insertBefore(bg, textEl);
+
+        const labelBg = isDarkTheme() ? [30, 58, 138] : [219, 234, 254];
+        setTemporaryLabelColor(textEl, idealText(labelBg));
+      }
+
+      // highlight: entry point de usuario. Maneja historia + textOps + toggle en aditivo.
+      function highlight(entry, textEl, additive) {
+        const label = (textEl.textContent || "").replace(/\s+/g, " ").trim();
+        if (!label) return;
+        const tb = safeBBox(textEl);
+        if (!tb) return;
+        const cx = tb.x + tb.width / 2;
+        const cy = tb.y + tb.height / 2;
+
+        entry.textOps = entry.textOps || [];
+        const dupIdx = entry.textOps.findIndex(
+          (o) =>
+            o.label === label &&
+            Math.abs(o.cx - cx) < 4 &&
+            Math.abs(o.cy - cy) < 4,
+        );
+
+        pushHistory(entry);
+
+        if (additive) {
+          if (dupIdx !== -1) {
+            // Toggle off: sacarlo y redibujar el resto
+            entry.textOps.splice(dupIdx, 1);
+            const ops = entry.textOps.slice();
+            clearHi(entry.svgEl);
+            entry.textOps = [];
+            ops.forEach((op) => {
+              const t = findTextByOp(entry.svgEl, op);
+              if (t) {
+                applyHighlight(entry, t);
+                entry.textOps.push(op);
+              }
+            });
+            showToast("Deseleccionado: " + label.slice(0, 30));
+            return;
+          }
+          entry.textOps.push({ label, cx, cy });
+          applyHighlight(entry, textEl);
+          showToast("+ " + label.slice(0, 40));
+        } else {
+          clearHi(entry.svgEl);
+          entry.textOps = [{ label, cx, cy }];
+          applyHighlight(entry, textEl);
+          showToast("Resaltado: " + label.slice(0, 40));
+        }
+      }
+
+      // ============ Sticky headers (sequence) ============
+      function parseVB(str) {
+        if (!str) return null;
+        const p = str.split(/[\s,]+/).map(Number);
+        if (p.length < 4 || p.some(Number.isNaN)) return null;
+        return { x: p[0], y: p[1], w: p[2], h: p[3] };
+      }
+      function headerBounds(svgEl) {
+        const ll = [...svgEl.querySelectorAll("line.actor-line")];
+        if (!ll.length) return null;
+        let bottom = Infinity;
+        ll.forEach((l) => {
+          bottom = Math.min(bottom, l.y1.baseVal.value, l.y2.baseVal.value);
+        });
+        if (!isFinite(bottom)) return null;
+        let top = bottom;
+        svgEl
+          .querySelectorAll(
+            ".svg-pan-zoom_viewport rect, .svg-pan-zoom_viewport text, .svg-pan-zoom_viewport line, .svg-pan-zoom_viewport path, .svg-pan-zoom_viewport polygon, .svg-pan-zoom_viewport circle",
+          )
+          .forEach((el) => {
+            let bb;
+            try {
+              bb = el.getBBox();
+            } catch {
+              return;
+            }
+            if (bb.width === 0 && bb.height === 0) return;
+            if (bb.y + bb.height <= bottom + 1.5) top = Math.min(top, bb.y);
+          });
+        return { top, bottom };
+      }
+      function createSticky(svgEl, container) {
+        const viewport = svgEl.querySelector(".svg-pan-zoom_viewport");
+        if (!viewport) return null;
+        if (!svgEl.querySelector("line.actor-line")) return null;
+        const hb = headerBounds(svgEl);
+        if (!hb) return null;
+
+        const NS = "http://www.w3.org/2000/svg";
+        const overlay = document.createElementNS(NS, "svg");
+        Object.assign(overlay.style, {
+          position: "absolute",
+          left: "0",
+          top: "0",
+          width: "100%",
+          height: "100%",
+          pointerEvents: "none",
+          overflow: "hidden",
+          zIndex: "5",
+        });
+        const vbAttr = svgEl.getAttribute("viewBox");
+        if (vbAttr) overlay.setAttribute("viewBox", vbAttr);
+        const par = svgEl.getAttribute("preserveAspectRatio");
+        if (par) overlay.setAttribute("preserveAspectRatio", par);
+
+        svgEl
+          .querySelectorAll("style")
+          .forEach((st) => overlay.appendChild(st.cloneNode(true)));
+
+        const clipId = nextMermaidId("stickyClip");
+        const clip = document.createElementNS(NS, "clipPath");
+        clip.setAttribute("id", clipId);
+        clip.setAttribute("clipPathUnits", "userSpaceOnUse");
+        const clipRect = document.createElementNS(NS, "rect");
+        clip.appendChild(clipRect);
+        overlay.appendChild(clip);
+
+        const band = document.createElementNS(NS, "g");
+        band.setAttribute("clip-path", `url(#${clipId})`);
+        const bgRect = document.createElementNS(NS, "rect");
+        bgRect.setAttribute("fill", stickyBg());
+        band.appendChild(bgRect);
+
+        const cloneG = viewport.cloneNode(true);
+        cloneG.style.transform = "";
+        band.appendChild(cloneG);
+
+        const sep = document.createElementNS(NS, "line");
+        sep.setAttribute("stroke", stickySep());
+        sep.setAttribute("stroke-width", "1");
+        band.appendChild(sep);
+
+        overlay.appendChild(band);
+        container.appendChild(overlay);
+
+        // ── FIX banda fija ──────────────────────────────────────────────
+        // Mermaid v11 scopea sus estilos con el id del SVG (#mermaid-xxx .actor…).
+        // Al clonar el diagrama a ESTE overlay (otro SVG, sin ese id), los
+        // selectores dejan de matchear y el clon pierde fills/colores → el texto
+        // de las cajas se vuelve ilegible SOLO cuando queda fijado.
+        // Solución robusta: copiar los estilos COMPUTADOS reales del diagrama
+        // original a estilos inline del clon, para que pinte exactamente igual.
+        // (El clon y el viewport son idénticos en estructura en este punto.)
+        inlineComputedStyles(viewport, cloneG);
+
+        // Segunda garantía: sobre el clon ya inyectado, forzar contraste del
+        // texto contra el relleno REAL de cada caja. Así, aunque el diagrama
+        // original tuviera un contraste borderline, la banda fija SIEMPRE se lee.
+        enforceBoxContrast(overlay);
+
+        // Recién ahora limpiamos clase y controles del clon (ya copiamos estilos)
+        cloneG.removeAttribute("class");
+        cloneG
+          .querySelectorAll("#svg-pan-zoom-controls")
+          .forEach((n) => n.remove());
+
+        return {
+          svgEl,
+          container,
+          overlay,
+          cloneG,
+          clipRect,
+          bgRect,
+          sep,
+          viewport,
+          top: hb.top,
+          bottom: hb.bottom,
+          vb: parseVB(vbAttr),
+        };
+      }
+      // Copia estilos de pintura/tipografía computados de src -> inline en dst.
+      // Recorre ambos árboles en paralelo (misma estructura garantizada por clone).
+      const _INLINE_PROPS = [
+        "fill",
+        "fill-opacity",
+        "stroke",
+        "stroke-width",
+        "stroke-opacity",
+        "stroke-dasharray",
+        "opacity",
+        "color",
+        "font-family",
+        "font-size",
+        "font-weight",
+        "font-style",
+        "text-anchor",
+        "dominant-baseline",
+      ];
+      function _copyPaint(s, d) {
+        let cs;
+        try {
+          cs = getComputedStyle(s);
+        } catch (e) {
+          return;
+        }
+        for (const p of _INLINE_PROPS) {
+          const v = cs.getPropertyValue(p);
+          if (v) d.style.setProperty(p, v);
+        }
+      }
+      function inlineComputedStyles(srcRoot, dstRoot) {
+        _copyPaint(srcRoot, dstRoot);
+        const s = srcRoot.querySelectorAll("*");
+        const d = dstRoot.querySelectorAll("*");
+        const n = Math.min(s.length, d.length);
+        for (let i = 0; i < n; i++) _copyPaint(s[i], d[i]);
+      }
+      function updateSticky(st) {
+        if (!st) return;
+        const {
+          svgEl,
+          overlay,
+          cloneG,
+          clipRect,
+          bgRect,
+          sep,
+          viewport,
+          top,
+          bottom,
+          container,
+        } = st;
+        const vbAttr = svgEl.getAttribute("viewBox");
+        if (vbAttr && overlay.getAttribute("viewBox") !== vbAttr) {
+          overlay.setAttribute("viewBox", vbAttr);
+          st.vb = parseVB(vbAttr);
+        }
+        let vb = st.vb;
+        if (!vb)
+          vb = {
+            x: 0,
+            y: 0,
+            w: container.clientWidth,
+            h: container.clientHeight,
+          };
+        let m;
+        try {
+          m = viewport.getCTM();
+        } catch {
+          m = null;
+        }
+        if (!m) return;
+        const a = m.a,
+          d = m.d,
+          e = m.e,
+          f = m.f;
+        const pin = Math.max(2, vb.h * 0.006);
+        const realTop = d * top + f;
+        if (realTop >= vb.y + pin - 0.5) {
+          overlay.style.display = "none";
+          return;
+        }
+        overlay.style.display = "";
+        const stickyF = vb.y + pin - d * top;
+        cloneG.setAttribute(
+          "transform",
+          `matrix(${a},0,0,${d},${e},${stickyF})`,
+        );
+        const bandTop = vb.y;
+        const bandH = d * (bottom - top) + pin + 4;
+        [clipRect, bgRect].forEach((r) => {
+          r.setAttribute("x", vb.x);
+          r.setAttribute("y", bandTop);
+          r.setAttribute("width", vb.w);
+          r.setAttribute("height", bandH);
+        });
+        sep.setAttribute("x1", vb.x);
+        sep.setAttribute("x2", vb.x + vb.w);
+        sep.setAttribute("y1", bandTop + bandH);
+        sep.setAttribute("y2", bandTop + bandH);
+      }
+      function destroySticky(st) {
+        if (st && st.overlay && st.overlay.parentNode)
+          st.overlay.parentNode.removeChild(st.overlay);
+      }
+
+      // ============ Refit / destroy ============
+      function refit(entry) {
+        if (!entry || !entry.pz) return;
+        try {
+          entry.pz.resize();
+          entry.pz.fit();
+          entry.pz.center();
+        } catch {}
+        if (entry.sticky) updateSticky(entry.sticky);
+      }
+      function destroyEntry(entry) {
+        if (!entry) return;
+        if (entry.stickyFrame) cancelAnimationFrame(entry.stickyFrame);
+        if (entry.ro)
+          try {
+            entry.ro.disconnect();
+          } catch {}
+        if (entry.pz)
+          try {
+            entry.pz.destroy();
+          } catch {}
+        if (entry.sticky) destroySticky(entry.sticky);
+      }
+      function destroyAll() {
+        destroyEntry(singleEntry);
+        singleEntry = null;
+        mdEntries.forEach(destroyEntry);
+        mdEntries = [];
+      }
+
+      // ============ Wire card actions ============
+      function wireCard(card) {
+        const q = (a) => card.querySelector(`[data-a="${a}"]`);
+        // Doble click sobre el diagrama = reencuadrar (reemplaza el botón fit borrado)
+        const bodyEl = card.querySelector(".dc-body");
+        if (bodyEl)
+          bodyEl.addEventListener("dblclick", (ev) => {
+            if (
+              ev.target.closest(
+                "button, .help-panel, .help-backdrop, .dc-actions, #svg-pan-zoom-controls",
+              )
+            )
+              return;
+            if (card._entry) refit(card._entry);
+          });
+        q("dl").onclick = () => {
+          if (!card._exportMarkup)
+            return showToast("Este diagrama tiene errores");
+          download(
+            new Blob([card._exportMarkup], {
+              type: "image/svg+xml;charset=utf-8",
+            }),
+            `diagrama-${card.dataset.index}.svg`,
+          );
+        };
+        q("copy").onclick = async () => {
+          const copied = await copyTextReliable(card._code);
+          showToast(copied ? "Código copiado" : "No se pudo copiar");
+        };
+        q("clear").onclick = () => clearEntry(card._entry);
+        q("help").onclick = () => toggleHelp();
+        q("fs").onclick = () => toggleFs(card);
+      }
+
+      // Help modal es global (page-level). Se re-monta dentro del elemento en fullscreen si hace falta,
+      // así siempre queda centrado y visible arriba del gráfico.
+      function toggleHelp() {
+        const modal = document.getElementById("helpModal");
+        const backdrop = document.getElementById("helpBackdrop");
+        if (modal.classList.contains("show")) {
+          modal.classList.remove("show");
+          backdrop.classList.remove("show");
+          return;
+        }
+        const target = document.fullscreenElement || document.body;
+        if (backdrop.parentElement !== target) target.appendChild(backdrop);
+        if (modal.parentElement !== target) target.appendChild(modal);
+        backdrop.classList.add("show");
+        modal.classList.add("show");
+      }
+      function closeHelp() {
+        document.getElementById("helpModal").classList.remove("show");
+        document.getElementById("helpBackdrop").classList.remove("show");
+      }
+
+      async function toggleFs(el) {
+        try {
+          if (document.fullscreenElement) {
+            await document.exitFullscreen();
+          } else if (el.requestFullscreen) {
+            await el.requestFullscreen();
+          } else if (el.webkitRequestFullscreen) {
+            el.webkitRequestFullscreen();
+          }
+        } catch (e) {
+          showToast("No se pudo entrar en pantalla completa");
+        }
+      }
+
+      // ============ Download helpers ============
+      function download(blob, name) {
+        const u = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = u;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(u);
+      }
+
+      // ============ Modo UI ============
+      function setSingleActionsVisible(visible) {
+        ["#btnDlSvg", "#btnFit", "#btnSingleFs"].forEach((selector) => {
+          const button = $(selector);
+          button.classList.toggle("mode-hidden", !visible);
+          button.setAttribute("aria-hidden", visible ? "false" : "true");
+          button.tabIndex = visible ? 0 : -1;
+        });
+      }
+      function applyMode(mode) {
+        activeMode = mode;
+        document.body.classList.toggle("md-mode", mode === "md");
+        modeBadge.textContent =
+          mode === "md" ? "Auto → Markdown" : "Auto → Diagrama";
+        fileLbl.textContent = mode === "md" ? "documento.md" : "diagrama.mmd";
+        langLbl.textContent = mode === "md" ? "markdown" : "mermaid";
+        replayMotion([modeBadge, fileLbl, langLbl]);
+        // Ocultar botones que sólo aplican al modo diagrama
+        setSingleActionsVisible(mode === "single");
+      }
+
+      // ===== Toggle de tema (botón + atajo Ctrl/Cmd + Shift + D) =====
+      const MOON_SVG =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>';
+      const SUN_SVG =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
+      function updateThemeIcon() {
+        const b = document.getElementById("btnTheme");
+        if (!b) return;
+        const dark = isDarkTheme();
+        b.innerHTML =
+          (dark ? SUN_SVG : MOON_SVG) +
+          "<span>" +
+          (dark ? "Modo claro" : "Modo oscuro") +
+          "</span>";
+        b.title = dark
+          ? "Cambiar a modo claro (Ctrl/Cmd + Shift + D)"
+          : "Cambiar a modo oscuro (Ctrl/Cmd + Shift + D)";
+      }
+      function toggleTheme() {
+        const next = isDarkTheme() ? "light" : "dark";
+        document.documentElement.setAttribute("data-theme", next);
+        try {
+          localStorage.setItem("mmd-theme", next);
+        } catch (e) {}
+        updateThemeIcon();
+        const themeButton = document.getElementById("btnTheme");
+        if (themeButton) {
+          themeButton.classList.remove("theme-pop");
+          void themeButton.offsetWidth;
+          themeButton.classList.add("theme-pop");
+          setTimeout(() => themeButton.classList.remove("theme-pop"), 320);
+        }
+        renderNow(false); // regenera sin repetir el burst sólo por cambiar tema
+      }
+      (function () {
+        const b = document.getElementById("btnTheme");
+        if (b) b.onclick = toggleTheme;
+      })();
+      updateThemeIcon();
+
+      async function render({ animate = false } = {}) {
+        const generation = ++renderGeneration;
+        showErr("");
+        const mode = detectMode(src.value);
+        const transitionStartedAt =
+          animate && mode !== "empty"
+            ? beginRenderTransition(generation)
+            : (cancelRenderTransition(), null);
+        applyMermaidTheme();
+        destroyAll();
+        exportSvg = "";
+        // Limpiar huérfanos
+        [...view.querySelectorAll(":scope > svg")].forEach((n) => n.remove());
+        cleanupMermaidArtifacts();
+
+        // Vacío -> empty-state, sin error ni ejemplo
+        if (mode === "empty") {
+          document.body.classList.add("is-empty");
+          document.body.classList.remove("md-mode");
+          single.innerHTML = "";
+          mdArticle.innerHTML = "";
+          navBody.innerHTML = "";
+          mdNav.classList.remove("show");
+          navReopen.classList.remove("show");
+          document.body.classList.remove("preview-edit");
+          mdArticle.setAttribute("contenteditable", "false");
+          modeBadge.textContent = "Auto";
+          fileLbl.textContent = "diagrama.mmd";
+          langLbl.textContent = "mermaid";
+          replayMotion([modeBadge, fileLbl, langLbl]);
+          setSingleActionsVisible(true);
+          return;
+        }
+        document.body.classList.remove("is-empty");
+
+        applyMode(mode);
+
+        try {
+          if (mode === "md") await renderMarkdown(generation);
+          else await renderSingle(generation);
+        } finally {
+          finishRenderTransition(generation, transitionStartedAt);
+        }
+      }
+
+      async function renderSingle(generation) {
+        single.innerHTML = "";
+        mdArticle.innerHTML = "";
+        navBody.innerHTML = "";
+        mdNav.classList.remove("show");
+        navReopen.classList.remove("show");
+        document.body.classList.remove("preview-edit");
+        mdArticle.setAttribute("contenteditable", "false");
+
+        const code = cleanMermaid(src.value);
+        if (!code) {
+          showErr("Pegá código Mermaid.");
+          return;
+        }
+
+        const card = buildCard(1, code);
+        card.style.margin = "0";
+        card.style.border = "0";
+        card.style.borderRadius = "0";
+        card.style.height = "100%";
+        card.querySelector(".dc-head").style.display = "none";
+        single.appendChild(card);
+
+        const entry = await renderInCard(card, code, generation);
+        if (generation !== renderGeneration) {
+          destroyEntry(entry);
+          return;
+        }
+        singleEntry = entry;
+        if (entry) exportSvg = card._exportMarkup;
+        else
+          showErr(card.querySelector(".dc-error pre").textContent || "Error");
+      }
+
+      async function renderMarkdown(generation) {
+        single.innerHTML = "";
+        mdArticle.innerHTML = "";
+        navBody.innerHTML = "";
+        mdNav.classList.remove("show");
+        navReopen.classList.remove("show");
+
+        const raw = src.value.replace(/\r\n/g, "\n");
+        const blocks = [];
+        const md = raw.replace(
+          /```\s*mermaid\s*\n([\s\S]*?)```/gi,
+          (m, code) => {
+            const i = blocks.push(code.replace(/^\s+|\s+$/g, "")) - 1;
+            return `\n\n<div data-mmd="${i}"></div>\n\n`;
+          },
+        );
+        mdArticle.innerHTML = marked.parse(md);
+
+        const renderedEntries = [];
+        for (let i = 0; i < blocks.length; i++) {
+          const ph = mdArticle.querySelector(`[data-mmd="${i}"]`);
+          if (!ph) continue;
+          const card = buildCard(i + 1, blocks[i]);
+          card.setAttribute("contenteditable", "false"); // isla NO editable dentro del preview
+          ph.replaceWith(card);
+          const entry = await renderInCard(card, blocks[i], generation);
+          if (generation !== renderGeneration) {
+            destroyEntry(entry);
+            renderedEntries.forEach(destroyEntry);
+            return;
+          }
+          if (entry) renderedEntries.push(entry);
+        }
+        mdEntries = renderedEntries;
+        buildNav();
+        applyPreviewEditable();
+        if (!blocks.length) showToast("No hay bloques ```mermaid``` en el MD");
+      }
+
+      // ============ Preview editable (todo menos mermaids) ============
+      function applyPreviewEditable() {
+        const on = previewEditOn && activeMode === "md";
+        mdArticle.setAttribute("contenteditable", on ? "true" : "false");
+        mdArticle.spellcheck = false;
+        document.body.classList.toggle("preview-edit", on);
+        // Reforzar que cada diagrama quede como isla no editable
+        mdArticle
+          .querySelectorAll(".diagram")
+          .forEach((d) => d.setAttribute("contenteditable", "false"));
+      }
+
+      function getTurndown() {
+        if (turndownService) return turndownService;
+        if (typeof TurndownService === "undefined") return null;
+        turndownService = new TurndownService({
+          headingStyle: "atx",
+          codeBlockStyle: "fenced",
+          bulletListMarker: "-",
+          emDelimiter: "*",
+          hr: "---",
+        });
+        if (window.turndownPluginGfm && window.turndownPluginGfm.gfm) {
+          try {
+            turndownService.use(window.turndownPluginGfm.gfm);
+          } catch (e) {}
+        }
+        // Regla: cada .diagram vuelve a su bloque ```mermaid``` original (intacto)
+        turndownService.addRule("mermaidDiagram", {
+          filter: (n) =>
+            n.nodeType === 1 && n.classList && n.classList.contains("diagram"),
+          replacement: (c, n) =>
+            "\n\n```mermaid\n" +
+            decodeURIComponent(n.getAttribute("data-mmd-code") || "") +
+            "\n```\n\n",
+        });
+        // Ignorar cualquier resto de UI que pudiera colarse
+        turndownService.addRule("dropUi", {
+          filter: (n) =>
+            n.nodeType === 1 &&
+            n.matches &&
+            n.matches(
+              ".md-nav, .view-controls, .toast, .help-panel, .help-backdrop, svg",
+            ),
+          replacement: () => "",
+        });
+        return turndownService;
+      }
+
+      function syncPreviewToSource() {
+        if (!previewEditOn || activeMode !== "md") return;
+        const td = getTurndown();
+        if (!td) {
+          showToast("No cargó el conversor (sin internet)");
+          return;
+        }
+        let md;
+        try {
+          md = td.turndown(mdArticle);
+        } catch (e) {
+          console.warn("turndown:", e);
+          return;
+        }
+        // Set programático: NO dispara el input del textarea, así no hay re-render ni pierde el caret
+        src.value = md.replace(/\n{3,}/g, "\n\n").trim() + "\n";
+      }
+
+      function buildNav() {
+        const cards = [...mdArticle.querySelectorAll(".diagram")];
+        if (!cards.length) return;
+        navTitle.textContent = `${cards.length} diagrama${cards.length === 1 ? "" : "s"}`;
+        cards.forEach((c, i) => {
+          c.id = `diag-${i + 1}`;
+          const type = c.querySelector(".type").textContent;
+          const a = document.createElement("a");
+          a.href = `#diag-${i + 1}`;
+          a.innerHTML = `<span class="n">${i + 1}</span><span class="lbl">${type}</span>`;
+          a.onclick = (e) => {
+            e.preventDefault();
+            c.scrollIntoView({ behavior: "smooth", block: "start" });
+          };
+          navBody.appendChild(a);
+        });
+        mdNav.classList.add("show");
+      }
+
+      // ============ MD Nav drag / collapse / close ============
+      (function () {
+        $("#navMin").onclick = (e) => {
+          e.stopPropagation();
+          const c = mdNav.classList.toggle("collapsed");
+          $("#navMin").textContent = c ? "+" : "–";
+          replayMotion([$("#navMin")]);
+          $("#navMin").title = c ? "Expandir" : "Colapsar";
+        };
+        $("#navClose").onclick = (e) => {
+          e.stopPropagation();
+          mdNav.classList.remove("show");
+          if (activeMode === "md" && navBody.children.length > 0) {
+            navReopen.classList.add("show");
+          }
+        };
+        navReopen.onclick = () => {
+          mdNav.classList.add("show");
+          navReopen.classList.remove("show");
+        };
+        let dragging = false,
+          offX = 0,
+          offY = 0;
+        navHead.addEventListener("pointerdown", (e) => {
+          if (e.target.closest("button")) return;
+          dragging = true;
+          const nr = mdNav.getBoundingClientRect();
+          const vr = view.getBoundingClientRect();
+          offX = e.clientX - nr.left;
+          offY = e.clientY - nr.top;
+          mdNav.style.left = nr.left - vr.left + "px";
+          mdNav.style.top = nr.top - vr.top + "px";
+          mdNav.style.right = "auto";
+          e.preventDefault();
+        });
+        window.addEventListener("pointermove", (e) => {
+          if (!dragging) return;
+          const vr = view.getBoundingClientRect();
+          const nr = mdNav.getBoundingClientRect();
+          let x = e.clientX - vr.left - offX;
+          let y = e.clientY - vr.top - offY;
+          x = Math.max(0, Math.min(vr.width - nr.width, x));
+          y = Math.max(0, Math.min(vr.height - nr.height, y));
+          mdNav.style.left = x + "px";
+          mdNav.style.top = y + "px";
+        });
+        window.addEventListener("pointerup", () => {
+          dragging = false;
+        });
+      })();
+
+      // ============ Drag & Drop de archivos (.md / .mmd / texto) ============
+      function loadFile(file) {
+        if (!file) return;
+        const okName = /\.(md|markdown|mmd|mermaid|txt)$/i.test(
+          file.name || "",
+        );
+        const okType = !file.type || /text|markdown|plain/i.test(file.type);
+        if (!okName && !okType) {
+          showToast("Formato no soportado — usá .md, .mmd o .txt");
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+          src.value = (reader.result || "").toString();
+          renderNow(true);
+          showToast("Cargado: " + (file.name || "archivo"));
+        };
+        reader.onerror = () => showToast("No se pudo leer el archivo");
+        reader.readAsText(file);
+      }
+
+      // Contador para dragenter/dragleave anidados
+      let dragDepth = 0;
+      const dtHasFiles = (e) =>
+        !!(e.dataTransfer && [...e.dataTransfer.types].includes("Files"));
+      function onDragEnter(e) {
+        if (!dtHasFiles(e)) return;
+        e.preventDefault();
+        dragDepth++;
+        editorBox.classList.add("dragover");
+      }
+      function onDragOver(e) {
+        if (!dtHasFiles(e)) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "copy";
+      }
+      function onDragLeave(e) {
+        if (dragDepth > 0) dragDepth--;
+        if (dragDepth === 0) editorBox.classList.remove("dragover");
+      }
+      function onDrop(e) {
+        if (!dtHasFiles(e)) return;
+        e.preventDefault();
+        dragDepth = 0;
+        editorBox.classList.remove("dragover");
+        const file = e.dataTransfer.files && e.dataTransfer.files[0];
+        loadFile(file);
+      }
+      // Soltar en el editor o en cualquier parte de la vista
+      [editorBox, view].forEach((zone) => {
+        zone.addEventListener("dragenter", onDragEnter);
+        zone.addEventListener("dragover", onDragOver);
+        zone.addEventListener("dragleave", onDragLeave);
+        zone.addEventListener("drop", onDrop);
+      });
+      // Evitar que el navegador abra el archivo si se suelta fuera de las zonas
+      window.addEventListener("dragover", (e) => {
+        if (dtHasFiles(e)) e.preventDefault();
+      });
+      window.addEventListener("drop", (e) => {
+        if (dtHasFiles(e)) {
+          e.preventDefault();
+        }
+      });
+
+      // Auto-render mientras se escribe / pega (con debounce)
+      let inputTimer;
+      let inputWantsRenderFx = false;
+      let pastedIntoSource = false;
+      let sourceIsComposing = false;
+      function scheduleSourceRender(animate = false) {
+        inputWantsRenderFx ||= animate;
+        clearTimeout(inputTimer);
+        inputTimer = setTimeout(() => {
+          const shouldAnimate = inputWantsRenderFx;
+          inputWantsRenderFx = false;
+          render({ animate: shouldAnimate });
+        }, 350);
+      }
+      function renderNow(animate = true) {
+        clearTimeout(inputTimer);
+        inputWantsRenderFx = false;
+        return render({ animate: Boolean(animate) });
+      }
+      src.addEventListener("compositionstart", () => {
+        sourceIsComposing = true;
+        clearTimeout(inputTimer);
+      });
+      src.addEventListener("compositionend", () => {
+        sourceIsComposing = false;
+        scheduleSourceRender();
+      });
+      src.addEventListener("paste", () => {
+        pastedIntoSource = true;
+      });
+      src.addEventListener("input", (event) => {
+        if (sourceIsComposing || event.isComposing) return;
+        const fromPasteOrDrop =
+          pastedIntoSource ||
+          /insertFrom(?:Paste|Drop)/i.test(event.inputType || "");
+        pastedIntoSource = false;
+        scheduleSourceRender(fromPasteOrDrop);
+      });
+
+      // ============ Toolbar / view wiring ============
+      btnRender.onclick = () => renderNow(true);
+      $("#btnDlSvg").onclick = () => {
+        if (activeMode !== "single") {
+          showToast("En Markdown, usá el botón SVG de cada card");
+          return;
+        }
+        if (!exportSvg) {
+          showErr("Primero generá el diagrama.");
+          return;
+        }
+        download(
+          new Blob([exportSvg], { type: "image/svg+xml;charset=utf-8" }),
+          "diagrama.svg",
+        );
+      };
+      $("#btnDlMd").onclick = () => {
+        const ts = new Date().toISOString().slice(0, 10);
+        const md =
+          activeMode === "md"
+            ? src.value
+            : `# Diagrama Mermaid\n\n> Exportado el ${ts}\n\n\`\`\`mermaid\n${cleanMermaid(src.value)}\n\`\`\`\n`;
+        download(
+          new Blob([md], { type: "text/markdown;charset=utf-8" }),
+          activeMode === "md" ? "documento.md" : "diagrama.md",
+        );
+      };
+      $("#btnCopy").onclick = async () => {
+        clearTimeout(previewSyncTimer);
+        if (activeMode === "md" && previewEditOn) syncPreviewToSource();
+        const copied = await copyTextReliable(src.value);
+        showToast(copied ? "Código copiado" : "No se pudo copiar");
+      };
+      $("#btnFit").onclick = () => refit(singleEntry);
+      $("#btnHelp").onclick = () => toggleHelp();
+      $("#btnHelp2").onclick = () => toggleHelp();
+      $("#btnSingleFs").onclick = () => toggleFs(view);
+
+      // Cierre del modal global (X + click en backdrop)
+      document.getElementById("helpClose").onclick = closeHelp;
+      document.getElementById("helpBackdrop").onclick = closeHelp;
+      $("#btnAddRule").onclick = () => addRule("", "#2563eb");
+      $("#btnClearRules").onclick = () => {
+        const rules = [...rulesRoot.querySelectorAll(".rule:not(.leaving)")];
+        if (!rules.length) return updateEmptyHint();
+        scheduleRulesRender(0);
+        let remaining = rules.length;
+        rules.forEach((rule) =>
+          removeWithMotion(rule, () => {
+            remaining--;
+            if (remaining === 0) {
+              updateEmptyHint();
+            }
+          }),
+        );
+      };
+
+      // Collapse toolbar
+      btnCollapse.onclick = () => {
+        const c = document.body.classList.toggle("collapsed");
+        $("#collapseLbl").textContent = c ? "Mostrar barra" : "Ocultar barra";
+        replayMotion([$("#collapseLbl")]);
+        setTimeout(() => {
+          refit(singleEntry);
+          mdEntries.forEach(refit);
+        }, 300);
+      };
+
+      // ============ Preview editable: sync hacia el código ============
+      function refitAll() {
+        refit(singleEntry);
+        mdEntries.forEach(refit);
+      }
+      let refitFrame = 0;
+      function scheduleRefitAll() {
+        if (refitFrame) return;
+        refitFrame = requestAnimationFrame(() => {
+          refitFrame = 0;
+          refitAll();
+        });
+      }
+
+      mdArticle.addEventListener("input", () => {
+        if (!previewEditOn || activeMode !== "md") return;
+        lastInteraction = "text"; // el último cambio fue tipeo en el preview
+        clearTimeout(previewSyncTimer);
+        previewSyncTimer = setTimeout(syncPreviewToSource, 300);
+      });
+      // Cualquier edición inminente (incluye undo/redo nativos) marca contexto texto
+      mdArticle.addEventListener("beforeinput", () => {
+        if (previewEditOn && activeMode === "md") lastInteraction = "text";
+      });
+      // Click en el preview: si NO es sobre un diagrama, el contexto pasa a texto
+      mdArticle.addEventListener("pointerdown", (e) => {
+        if (e.target.closest && e.target.closest(".diagram")) return; // lo maneja el mermaid
+        if (previewEditOn && activeMode === "md") lastInteraction = "text";
+      });
+      // Evitar que Enter dentro de una card de diagrama haga cosas raras
+      mdArticle.addEventListener("keydown", (e) => {
+        if (e.target.closest && e.target.closest(".diagram")) {
+          // dentro de un mermaid: no editable, dejamos pasar sólo atajos de navegación
+          if (!e.ctrlKey && !e.metaKey && e.key.length === 1) {
+            e.preventDefault();
+          }
+        }
+      });
+
+      $("#btnEdit").onclick = () => {
+        previewEditOn = !previewEditOn;
+        applyPreviewEditable();
+        $("#btnEdit").classList.toggle("active", previewEditOn);
+        showToast(
+          previewEditOn ? "Edición de preview: ON" : "Edición de preview: OFF",
+        );
+      };
+      $("#btnEdit").classList.toggle("active", previewEditOn);
+
+      // ============ Colapsar cajas ============
+      function wireCollapse(btnId, cardId) {
+        const b = document.getElementById(btnId);
+        const card = document.getElementById(cardId);
+        if (!b || !card) return;
+        b.onclick = () => {
+          card.classList.add("motion-collapse");
+          void card.offsetHeight;
+          const c = card.classList.toggle("collapsed");
+          b.title = c ? "Expandir" : "Colapsar";
+          clearTimeout(card._collapseMotionTimer);
+          card._collapseMotionTimer = setTimeout(() => {
+            card.classList.remove("motion-collapse");
+            refitAll();
+          }, 340);
+        };
+      }
+      wireCollapse("colCode", "cardCode");
+      wireCollapse("colRules", "cardRules");
+
+      // ============ Paneles flotantes: arrastrar para mover ============
+      function makeDraggable(panelId) {
+        const panel = document.getElementById(panelId);
+        if (!panel) return;
+        const handle = panel.querySelector(".card-title");
+        if (!handle) return;
+        let dragging = false,
+          sx = 0,
+          sy = 0,
+          ox = 0,
+          oy = 0,
+          panelWidth = 0,
+          panelHeight = 0,
+          pendingX = 0,
+          pendingY = 0,
+          dragFrame = 0;
+
+        handle.addEventListener("pointerdown", (e) => {
+          // No arrastrar si se hace click en un botón de la cabecera
+          if (compactLayout.matches || e.target.closest("button")) return;
+          dragging = true;
+          panel.classList.add("dragging");
+          const r = panel.getBoundingClientRect();
+          // Fijar posición por left/top y anular right para poder mover libremente
+          panel.style.left = r.left + "px";
+          panel.style.top = r.top + "px";
+          panel.style.right = "auto";
+          sx = e.clientX;
+          sy = e.clientY;
+          ox = r.left;
+          oy = r.top;
+          panelWidth = r.width;
+          panelHeight = r.height;
+          try {
+            handle.setPointerCapture(e.pointerId);
+          } catch (_) {}
+          e.preventDefault();
+        });
+        window.addEventListener("pointermove", (e) => {
+          if (!dragging) return;
+          let x = ox + (e.clientX - sx);
+          let y = oy + (e.clientY - sy);
+          // Mantener el panel dentro de la ventana (deja asomar un poco)
+          x = Math.max(-panelWidth + 80, Math.min(window.innerWidth - 80, x));
+          y = Math.max(0, Math.min(window.innerHeight - 40, y));
+          pendingX = x;
+          pendingY = y;
+          if (!dragFrame) {
+            dragFrame = requestAnimationFrame(() => {
+              dragFrame = 0;
+              panel.style.left = pendingX + "px";
+              panel.style.top = pendingY + "px";
+            });
+          }
+        });
+        window.addEventListener("pointerup", () => {
+          if (!dragging) return;
+          dragging = false;
+          if (dragFrame) {
+            cancelAnimationFrame(dragFrame);
+            dragFrame = 0;
+            panel.style.left = pendingX + "px";
+            panel.style.top = pendingY + "px";
+          }
+          panel.classList.remove("dragging");
+        });
+      }
+      makeDraggable("cardCode");
+      makeDraggable("cardRules");
+
+      // ============ Ocultar cajas + Dock para reabrirlas ============
+      function setPanelVisible(id, visible) {
+        const card = document.getElementById(id);
+        if (!card) return;
+        // En mobile funciona como un selector de hojas: nunca se superponen.
+        if (visible && compactLayout.matches) {
+          ["cardCode", "cardRules"].forEach((otherId) => {
+            if (otherId === id) return;
+            const other = document.getElementById(otherId);
+            const otherDock = document.querySelector(
+              `#panelDock button[data-panel="${otherId}"]`,
+            );
+            if (other) other.classList.add("hidden");
+            if (otherDock) otherDock.classList.remove("on");
+          });
+        }
+        card.classList.toggle("hidden", !visible);
+        const dockBtn = document.querySelector(
+          `#panelDock button[data-panel="${id}"]`,
+        );
+        if (dockBtn) dockBtn.classList.toggle("on", visible);
+      }
+      // Botones × de cada cabecera
+      document.querySelectorAll(".card-hide").forEach((b) => {
+        b.addEventListener("click", (e) => {
+          e.stopPropagation();
+          setPanelVisible(b.getAttribute("data-hide"), false);
+          showToast("Caja oculta — reabrila desde el dock ↙");
+        });
+      });
+      // Botones del dock (toggle)
+      document.querySelectorAll("#panelDock button").forEach((b) => {
+        b.addEventListener("click", () => {
+          const id = b.getAttribute("data-panel");
+          const card = document.getElementById(id);
+          const willShow = card.classList.contains("hidden");
+          setPanelVisible(id, willShow);
+          if (willShow) {
+            // Si estaba fuera de vista, traerla a una posición segura
+            const r = card.getBoundingClientRect();
+            if (
+              r.left > window.innerWidth - 60 ||
+              r.top > window.innerHeight - 60
+            ) {
+              card.style.left = "14px";
+              card.style.top = "14px";
+              card.style.right = "auto";
+            }
+          }
+        });
+      });
+
+      function syncResponsivePanels(event = compactLayout) {
+        if (event.matches) {
+          const codeVisible = !$("#cardCode").classList.contains("hidden");
+          const rulesVisible = !$("#cardRules").classList.contains("hidden");
+          if (codeVisible && rulesVisible) setPanelVisible("cardRules", false);
+        } else {
+          // Al volver a escritorio se recupera la composición de referencia.
+          ["cardCode", "cardRules"].forEach((id) => {
+            const panel = document.getElementById(id);
+            panel.style.removeProperty("left");
+            panel.style.removeProperty("top");
+            panel.style.removeProperty("right");
+            setPanelVisible(id, true);
+          });
+        }
+        document.documentElement.classList.remove("compact-init");
+        scheduleRefitAll();
+      }
+      compactLayout.addEventListener
+        ? compactLayout.addEventListener("change", syncResponsivePanels)
+        : compactLayout.addListener(syncResponsivePanels);
+      syncResponsivePanels();
+
+      // ============ Descargar como PDF ============
+      // Estrategia: NO imprimimos la app (eso metía la barra flotante encima y salía
+      // gris). Armamos un DOCUMENTO LIMPIO en una ventana nueva: solo el contenido del
+      // preview, texto negro nítido, y cada mermaid re-renderizado completo (tema claro
+      // para papel, respetando las reglas de coloreo). Desde esa ventana se imprime a PDF
+      // con calidad vectorial.
+      function pdfStyles() {
+        return `
+        @page{ size:A4; margin:18mm 16mm; }
+        *{ box-sizing:border-box; }
+        html,body{ margin:0; padding:0; background:#fff; }
+        body{
+          font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,Roboto,Arial,sans-serif;
+          color:#0f172a; line-height:1.6; font-size:11pt;
+          -webkit-print-color-adjust:exact; print-color-adjust:exact;
+        }
+        .wrap{ max-width:170mm; margin:0 auto; }
+        h1,h2,h3,h4{ line-height:1.25; font-weight:700; letter-spacing:-.01em; color:#0f172a; break-after:avoid; page-break-after:avoid; }
+        h1{ font-size:1.75em; border-bottom:2px solid #e2e8f0; padding-bottom:.3em; margin:0 0 .7em; }
+        h2{ font-size:1.4em;  border-bottom:1px solid #e2e8f0; padding-bottom:.22em; margin:1.5em 0 .5em; }
+        h3{ font-size:1.18em; margin:1.25em 0 .4em; }
+        h4{ font-size:1.05em; margin:1.1em 0 .35em; }
+        p{ margin:.6em 0; }
+        strong{ font-weight:700; }
+        em{ font-style:italic; }
+        a{ color:#1d4ed8; text-decoration:underline; word-break:break-word; }
+        ul,ol{ padding-left:1.5em; margin:.5em 0; }
+        li{ margin:.28em 0; }
+        code{ font-family:ui-monospace,Consolas,monospace; font-size:.88em; background:#eef2f7; border-radius:4px; padding:1px 5px; color:#334155; }
+        pre{ background:#0f172a; color:#e2e8f0; border-radius:8px; padding:12px 16px; overflow:auto; font-size:9.5pt; break-inside:avoid; page-break-inside:avoid; }
+        pre code{ background:transparent; padding:0; color:inherit; }
+        blockquote{ margin:1em 0; padding:.55em 1em; border-left:4px solid #2563eb; background:#f8fafc; color:#334155; border-radius:0 8px 8px 0; break-inside:avoid; }
+        hr{ border:none; border-top:1px solid #e2e8f0; margin:1.6em 0; }
+        img{ max-width:100%; height:auto; }
+        table{ border-collapse:collapse; width:100%; margin:1em 0; font-size:10pt; break-inside:avoid; page-break-inside:avoid; }
+        th,td{ border:1px solid #cbd5e1; padding:6px 10px; text-align:left; vertical-align:top; }
+        th{ background:#f1f5f9; font-weight:700; }
+        tr:nth-child(even) td{ background:#fafcff; }
+        .pdf-diagram{ text-align:center; margin:16px 0; break-inside:avoid; page-break-inside:avoid; }
+        .pdf-diagram svg{ width:100%; max-width:100%; height:auto; }
+        .pdf-diagram .cap{ font-size:8.5pt; color:#94a3b8; margin-top:4px; }
+        .doc-foot{ margin-top:22px; padding-top:8px; border-top:1px solid #e2e8f0; color:#94a3b8; font-size:8.5pt; text-align:right; }
+      `;
+      }
+
+      async function downloadPdf() {
+        if (activeMode !== "md") {
+          showToast("El PDF se arma desde un preview Markdown");
+          return;
+        }
+        showToast("Preparando PDF…");
+
+        // 1) Clonar el artículo y limpiar estados de edición
+        const clone = mdArticle.cloneNode(true);
+        clone.removeAttribute("contenteditable");
+        clone
+          .querySelectorAll("[contenteditable]")
+          .forEach((n) => n.removeAttribute("contenteditable"));
+        clone.querySelectorAll("[id]").forEach((n) => n.removeAttribute("id"));
+
+        // 2) Re-render de cada mermaid, limpio y en tema claro, sobre un stage offscreen
+        //    (necesario para que getBBox de colorize funcione).
+        const stage = document.createElement("div");
+        stage.style.cssText =
+          "position:fixed; left:-99999px; top:0; width:1000px; opacity:0; pointer-events:none;";
+        document.body.appendChild(stage);
+        try {
+          mermaid.initialize({
+            startOnLoad: false,
+            securityLevel: "loose",
+            theme: "default",
+          });
+        } catch (_) {}
+
+        const cloneCards = [...clone.querySelectorAll(".diagram")];
+        for (const cc of cloneCards) {
+          const code = decodeURIComponent(
+            cc.getAttribute("data-mmd-code") || "",
+          );
+          const wrap = document.createElement("div");
+          wrap.className = "pdf-diagram";
+          try {
+            const { svg } = await mermaid.render(nextMermaidId("pdf"), code);
+            const holder = document.createElement("div");
+            holder.innerHTML = svg;
+            stage.appendChild(holder);
+            const s = holder.querySelector("svg");
+            if (s) {
+              colorize(s); // aplica reglas de coloreo de artefactos
+              s.removeAttribute("width");
+              s.removeAttribute("height");
+              s.style.width = "100%";
+              s.style.height = "auto";
+              s.style.maxWidth = "100%";
+              wrap.appendChild(s); // mover el SVG limpio al wrap
+            } else {
+              wrap.textContent = "(no se pudo generar el diagrama)";
+            }
+          } catch (err) {
+            const pre = document.createElement("pre");
+            pre.textContent =
+              "Error en diagrama: " + ((err && err.message) || err);
+            wrap.appendChild(pre);
+          }
+          cc.replaceWith(wrap);
+        }
+        document.body.removeChild(stage);
+        applyMermaidTheme(); // restaurar el tema real de la app
+
+        // 3) Documento imprimible
+        const title =
+          (clone.querySelector("h1, h2") || {}).textContent || "Documento";
+        const ts = new Date().toLocaleDateString("es-AR", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+        const html =
+          '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">' +
+          "<title>" +
+          title.trim().replace(/[<>&]/g, "") +
+          "</title>" +
+          "<style>" +
+          pdfStyles() +
+          "</style></head><body>" +
+          '<div class="wrap">' +
+          clone.innerHTML +
+          '<div class="doc-foot">Generado el ' +
+          ts +
+          "</div></div>" +
+          "</body></html>";
+
+        // 4) Ventana nueva → imprimir a PDF (contenido limpio y nítido)
+        const win = window.open("", "_blank");
+        if (!win) {
+          showToast(
+            "El navegador bloqueó la ventana. Permití pop-ups y reintentá.",
+          );
+          return;
+        }
+        win.document.open();
+        win.document.write(html);
+        win.document.close();
+        const go = () => {
+          try {
+            win.focus();
+            win.print();
+          } catch (_) {}
+        };
+        if (win.document.readyState === "complete") setTimeout(go, 350);
+        else win.addEventListener("load", () => setTimeout(go, 350));
+        showToast('PDF listo — elegí "Guardar como PDF"');
+      }
+      $("#btnPdf").onclick = downloadPdf;
+
+      // Fullscreen change: re-fit con reintentos
+      document.addEventListener("fullscreenchange", () => {
+        [0, 80, 200, 400].forEach((ms) =>
+          setTimeout(() => {
+            scheduleRefitAll();
+          }, ms),
+        );
+      });
+      window.addEventListener("resize", scheduleRefitAll, { passive: true });
+
+      // ============ Keyboard ============
+      src.addEventListener("keydown", (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+          e.preventDefault();
+          renderNow(true);
+        }
+      });
+
+      // Un comando global nunca debe confundir escritura con una acción.
+      function isTypingContext(target = document.activeElement) {
+        const a =
+          target && target.nodeType === 3 ? target.parentElement : target;
+        if (!a) return false;
+        const tag = a.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT")
+          return true;
+        const editable = a.closest && a.closest("[contenteditable]");
+        if (editable)
+          return editable.getAttribute("contenteditable") !== "false";
+        if (a.isContentEditable) return true;
+        return false;
+      }
+      document.addEventListener("keydown", (e) => {
+        const typing = isTypingContext(e.target);
+        const commandKey = e.ctrlKey || e.metaKey;
+
+        // Undo / Redo con enrutamiento por contexto:
+        //  - Si lo último fue editar el PREVIEW (texto) → dejamos el undo/redo NATIVO
+        //    del contenteditable (no hacemos preventDefault). El 'input' resincroniza
+        //    el código. Esto NO toca las islas de mermaid (contenteditable=false).
+        //  - Si lo último fue un DIAGRAMA → undo/redo de marcas/selecciones del mermaid.
+        // En cualquier zona editable el navegador maneja su propio undo.
+        if (commandKey && !typing) {
+          const k = e.key.toLowerCase();
+          const isUndo = k === "z" && !e.shiftKey;
+          const isRedo = k === "y" || (k === "z" && e.shiftKey);
+          if (isUndo || isRedo) {
+            const editingText =
+              previewEditOn &&
+              activeMode === "md" &&
+              lastInteraction === "text";
+            if (editingText) {
+              // Undo/redo nativo del preview: NO interceptar (deja actuar al navegador).
+              return;
+            }
+            // Contexto diagrama: undo/redo de nuestras marcas.
+            e.preventDefault();
+            if (isUndo) undo(lastEntry || singleEntry);
+            else redo(lastEntry || singleEntry);
+            return;
+          }
+        }
+
+        // Todos los comandos globales requieren Ctrl/Cmd + Shift. Las letras
+        // sueltas quedan 100% disponibles para escribir Markdown.
+        if (!commandKey || !e.shiftKey || e.altKey || e.repeat || typing)
+          return;
+        const key = (e.key || "").toLowerCase();
+        if (key === "b") {
+          e.preventDefault();
+          btnCollapse.click();
+        } else if (key === "f") {
+          e.preventDefault();
+          if (activeMode === "single") {
+            toggleFs(view);
+          } else {
+            // En Markdown: fullscreen del diagrama sobre el que está el cursor
+            const target =
+              (lastEntry && lastEntry.card) ||
+              (mdEntries[0] && mdEntries[0].card);
+            if (target) toggleFs(target);
+            else showToast("Pasá el cursor sobre un diagrama");
+          }
+        } else if (key === "k") {
+          e.preventDefault();
+          clearEntry(lastEntry || singleEntry);
+        } else if (key === "d") {
+          e.preventDefault();
+          toggleTheme();
+        } else if (key === "h") {
+          e.preventDefault();
+          toggleHelp();
+        }
+      });
+
+      // Esc con captura: si el modal está abierto, lo cerramos ANTES de que el navegador
+      // salga de pantalla completa. Si no hay modal, dejamos pasar el Esc normal.
+      document.addEventListener(
+        "keydown",
+        (e) => {
+          if (e.key !== "Escape") return;
+          const modal = document.getElementById("helpModal");
+          if (modal && modal.classList.contains("show")) {
+            e.preventDefault();
+            e.stopPropagation();
+            closeHelp();
+          }
+        },
+        true,
+      );
+
+      // Fullscreen change: si el modal está abierto, re-montarlo dentro del nuevo target
+      document.addEventListener("fullscreenchange", () => {
+        const modal = document.getElementById("helpModal");
+        if (modal && modal.classList.contains("show")) {
+          const backdrop = document.getElementById("helpBackdrop");
+          const target = document.fullscreenElement || document.body;
+          if (backdrop.parentElement !== target) target.appendChild(backdrop);
+          if (modal.parentElement !== target) target.appendChild(modal);
+        }
+      });
+
+      // ============ Estado inicial: markdown LIMPIO (sin ejemplo) ============
+      src.value = "";
+
+      updateEmptyHint();
+      render({ animate: false });
+    </script>
+  </body>
+</html>
