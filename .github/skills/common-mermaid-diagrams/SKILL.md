@@ -17,7 +17,7 @@ description: |
 
 Generar y mantener diagramas Mermaid actualizados en el repositorio destino: arquitectura
 del sistema, flujos de secuencia y árbol de dependencias entre módulos. Los diagramas
-viven en el repo destino (en README.md o en `docs/`), no en starter-ai.
+viven en el repositorio destino (en README.md o en `docs/`).
 
 ## Cuándo activar
 
