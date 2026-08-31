@@ -1,10 +1,10 @@
 ---
 name: aspnetcore-microservice-orchestrator
 description: |
-  Meta-skill SIEMPRE ACTIVO al trabajar en un microservicio ASP.NET Core de Banco
-  . No define reglas propias: indexa los demás skills del set .NET, decide
-  cuáles se activan para una tarea, en qué orden, y cómo resolver conflictos entre
-  ellos. Contexto: microservicios ASP.NET Core 8 con arquetipo epa-net-paas.
+  Meta-skill SIEMPRE ACTIVO al trabajar en un microservicio ASP.NET Core. No define
+  reglas propias: indexa los demás skills del set .NET, decide cuáles se activan para
+  una tarea, en qué orden, y cómo resolver conflictos entre ellos. Contexto:
+  microservicios ASP.NET Core 8 con arquetipo epa-net-paas.
   Triggers: cualquier tarea de feature, fix, refactor o test en un microservicio
   .NET/ASP.NET Core; también cuando el agente arranca conversación nueva sin saber
   qué skills aplican. Palabras clave: "microservicio ASP.NET Core", "arquitectura
@@ -32,10 +32,10 @@ Resuelve el problema de "tengo 16 skills, ¿cuáles aplican acá?" sin obligar a
 dev a recordarlas todas.
 
 Contexto de arquitectura: microservicios ASP.NET Core 8 sobre el arquetipo
-`epa-net-paas` de . Los skills cubren la superficie completa del
-arquetipo: capa REST, DI y pipeline, concurrencia, thread safety, performance,
-validación, HTTP saliente, acceso a datos con EF Core, mensajería, observabilidad,
-configuración, seguridad OWASP, testing unitario y testing adversarial.
+`epa-net-paas`. Los skills cubren la superficie completa del arquetipo: capa REST,
+DI y pipeline, concurrencia, thread safety, performance, validación, HTTP saliente,
+acceso a datos con EF Core, mensajería, observabilidad, configuración, seguridad OWASP,
+testing unitario y testing adversarial.
 
 ## Cuándo activar
 
@@ -138,78 +138,36 @@ Los siguientes skills aplican a casi toda tarea que toca código de red o de neg
    - **Correctitud > performance.** Si una optimización (N-5, N-3) compromete
      correctitud (N-6, N-4), gana correctitud.
    - **Idempotencia > throughput.** N-9 dice "consumer idempotente siempre"; N-3
-     no puede sacrificarlo por performance.
-   - **Validación > flexibilidad.** N-6 gana sobre "aceptemos lo que venga".
+     puede sugerir paralelizar, pero solo si la idempotencia está garantizada.
 
-5. **MUST cerrar con tests** (N-13 unit + N-14 adversarial) toda feature antes
-   de pedir review.
-
-6. **MUST registrar en el PRP qué skills aplicaron.** La sección "Skills
-   aplicables" del PRP debe completarse con la lista real, no genérica.
-
-7. **MUST, al modificar funciones o código existente, descubrir la
-   documentación relacionada antes de entregar** — README de módulo/subcarpeta,
-   `docs/testing.md`, XML doc comments de lo tocado, diagramas Mermaid — y
-   actualizarla en el mismo cambio si el comportamiento documentado cambió. No
-   asumir que "ya está bien": buscarla explícitamente (`common-repo-documentation`,
-   `common-mermaid-diagrams`, `dotnet-code-documentation-xmldoc` (N-15)).
-
-8. **MUST, al agregar, modificar o eliminar tests, ubicar y actualizar
-   `docs/testing.md`** (o la sección de testing del README si el paquete no
-   tiene carpeta `docs/`) en el mismo cambio: conteo de tests, casos cubiertos
-   y no cubiertos.
+5. **MUST documentar qué skills se activaron** en el plan de implementación del
+   PRP para que el evaluator sepa qué reglas verificar.
 
 ### MUST NOT
 
-9. **MUST NOT escribir código de implementación sin haber pasado por T-1**
-   para tareas no triviales.
+6. **MUST NOT desactivar N-12 (security-baseline)** para simplificar una feature.
+   Si una regla de seguridad bloquea el diseño, se cambia el diseño.
 
-10. **MUST NOT desactivar skills transversales** por "es un caso simple".
-    Seguridad y observabilidad aplican siempre en código de red.
+7. **MUST NOT aplicar N-5 (performance) preventivamente** sin evidencia de
+   bottleneck. La regla de "evidencia primero" de N-5 prevalece.
 
-11. **MUST NOT inventar nuevas reglas en este skill.** Si una guideline no
-    existe en ningún skill del set, no se inventa acá.
+8. **MUST NOT mezclar acceso a DB (N-8) con lógica de HTTP saliente (N-7) en el
+   mismo método sin una capa de service que orqueste.** Mantener separación de
+   concerns: repository solo DB, client solo HTTP, service orquesta.
 
-## Comparación con el set Java
+## Checklist de activación por tarea
 
-| ID .NET | Skill .NET                              | ID Java | Skill Java                             | Diferencia clave                                                                                                               |
-| ------- | --------------------------------------- | ------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| T-1     | `prp-feature-discovery-dotnet`          | T-1     | `prp-feature-discovery-java`           | Mismo flujo; template del PRP adaptado al arquetipo epa-net-paas vs stack Spring                                        |
-| N-1     | `aspnetcore-rest-layer`                 | J-1     | `springboot-rest-layer`                | IResponseBuilder + formato meta-data-error vs `@ControllerAdvice` + `ResponseEntity`; Minimal APIs vs `@RestController`        |
-| N-2     | `aspnetcore-di-and-middleware-pipeline` | J-2     | `springboot-di-and-bean-lifecycle`     | `AddScoped/Singleton/Transient` + `Program.cs` vs `@Component/@Bean` + `@PostConstruct`; `AddPaaS/UsePaas` no existe en Spring |
-| N-3     | `dotnet-async-and-concurrency`          | J-3     | `java-async-and-concurrency`           | `async/await` + `CancellationToken` vs `CompletableFuture/@Async`; .NET no necesita `TaskExecutor` explícito                   |
-| N-4     | `dotnet-thread-safety-and-shared-state` | J-4     | `java-thread-safety-and-shared-state`  | `IHttpContextAccessor` en singletons es el riesgo .NET más frecuente; Java tiene `ThreadLocal`                                 |
-| N-5     | `dotnet-performance-and-memory`         | J-5     | `java-jvm-performance-and-gc`          | `Span<T>/Memory<T>/ArrayPool` vs virtual threads y G1GC; GC .NET y GC JVM tienen perfiles distintos                            |
-| N-6     | `dotnet-parsing-and-validation`         | J-6     | `java-parsing-and-validation`          | FluentValidation / DataAnnotations vs Bean Validation (JSR-380); ambos validan en el borde                                     |
-| N-7     | `aspnetcore-outgoing-http`              | J-7     | `springboot-outgoing-http`             | `IHttpClientFactory` + named clients EPA vs `WebClient/RestClient`; Polly es equivalente a Resilience4j                        |
-| N-8     | `aspnetcore-database-access-efcore`     | J-8     | `springboot-database-access-jpa`       | EF Core 8 + `AsNoTracking` vs JPA/Spring Data; `DbContext` scoped vs `EntityManager` gestionado por Spring                     |
-| N-9     | `aspnetcore-messaging`                  | J-9     | `springboot-messaging-kafka`           | Stack de mensajería .NET no confirmado; Java usa Kafka + Avro + Confluent Schema Registry                                      |
-| N-10    | `aspnetcore-error-and-observability`    | J-10    | `springboot-error-and-observability`   | Tipos de log EPA + Jaeger OTLP vs SLF4J/Logback + MDC + Micrometer; misma semántica de observabilidad                          |
-| N-11    | `aspnetcore-config-and-secrets`         | J-11    | `springboot-config-and-secrets`        | `IOptions<T>` + `appsettings.json` + env vars EPA vs `@ConfigurationProperties` + Vault; similar patrón fail-fast              |
-| N-12    | `aspnetcore-security-owasp-baseline`    | J-12    | `springboot-security-owasp-baseline`   | ASP.NET Core auth/authz middleware vs Spring Security + OAuth2 + `@PreAuthorize`; misma cobertura OWASP Top 10                 |
-| N-13    | `dotnet-unit-testing`                   | J-13    | `springboot-unit-testing`              | xUnit + Moq + `WebApplicationFactory` vs JUnit 5 + Mockito + `@WebMvcTest/@DataJpaTest`; ambos tienen slices de test           |
-| N-14    | `dotnet-adversarial-testing`            | J-14    | `java-adversarial-testing`             | Mismos principios; librerías distintas (FsCheck/AutoFixture vs jqwik/Hypothesis)                                               |
-| N-0     | `aspnetcore-microservice-orchestrator`  | J-0     | `springboot-microservice-orchestrator` | Mismo rol de meta-skill; arquetipo epa-net-paas vs stack Spring del banco                                                      |
+Antes de implementar, completar mentalmente o en el PRP:
 
-## Checklist antes de terminar
-
-- [ ] T-1 (PRP) corrió y está aprobado en `_in-progress/`.
-- [ ] Los skills transversales (N-4, N-10, N-11, N-12) se aplicaron.
-- [ ] Cada capa tocada tiene su skill de borde activado.
-- [ ] El PRP registra qué skills aplicaron.
-- [ ] Tests unitarios (N-13) y adversariales (N-14) están completos.
-- [ ] Documentación sincronizada: si cambió comportamiento, `docs/testing.md`/README de
-      testing refleja el conteo y casos actuales; XML doc comments de lo tocado están
-      al día; READMEs de módulo y diagramas Mermaid impactados fueron revisados y
-      actualizados.
-
-## Conexiones con otros skills
-
-- **Upstream:** T-1 (`prp-feature-discovery-dotnet`) — debe correr antes de que
-  este orchestrator active los skills de implementación.
-- **Transversales siempre activos:** N-4, N-10, N-11, N-12.
-- **Skills de borde por capa:** N-1 a N-9, N-13, N-14 según la tabla de la sección
-  "Skills de borde".
-- **Referencia cruzada:** `springboot-microservice-orchestrator` (J-0) — equivalente
-  para microservicios Java; la tabla de comparación de este skill es la fuente de
-  verdad del mapeo .NET ↔ Java.
+- [ ] ¿Hay PRP aprobado? → T-1 completado.
+- [ ] ¿Toca REST? → N-1 + N-6 + N-12.
+- [ ] ¿Toca DI/pipeline? → N-2.
+- [ ] ¿Toca async/concurrencia? → N-3 + N-4.
+- [ ] ¿Toca performance/memoria? → N-5 solo con evidencia.
+- [ ] ¿Toca parsing/validación? → N-6.
+- [ ] ¿Toca HTTP saliente? → N-7 + N-3.
+- [ ] ¿Toca EF Core? → N-8.
+- [ ] ¿Toca mensajería? → N-9.
+- [ ] N-10, N-11, N-12 siempre activos en código de red.
+- [ ] ¿Requiere tests? → N-13 y N-14 según riesgo.
+- [ ] ¿Agrega/modifica API pública? → N-15.
