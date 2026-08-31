@@ -16,7 +16,8 @@ description: |
 ## Objetivo
 
 Garantizar que cada carpeta funcional del repositorio destino posea documentación local
-actualizada. Los documentos viven en el repo destino, no en starter-ai.
+actualizada. Los documentos viven en el repositorio destino y deben describir únicamente
+el sistema al que pertenecen.
 
 ## Cuándo activar
 
@@ -29,7 +30,7 @@ actualizada. Los documentos viven en el repo destino, no en starter-ai.
 
 - Documentación inline en código → usar el skill de doc del stack (JSDoc/TSDoc/XMLDoc/Javadoc).
 - Diagramas Mermaid → usar `common-mermaid-diagrams`.
-- Documentación interna de starter-ai → no aplica este skill.
+- Documentación ajena al repositorio destino → no aplica este skill.
 
 ## Estructura mínima de un README de módulo
 
@@ -66,7 +67,7 @@ Secciones opcionales según aplique: `Configuración`, `Variables de entorno req
 
 Si la carpeta documentada es la raíz de un **paquete publicable** (tiene su propio
 `package.json` con `name`/`version` y se instala como dependencia, ej.
-`@-toolkit-web-v2/*`), su `README.md` raíz es **documentación para el consumidor**:
+`@organization/package`), su `README.md` raíz es **documentación para el consumidor**:
 Instalación, Uso/API pública, Configuración y variables de entorno requeridas,
 Limitaciones conocidas relevantes para integrar la lib. NO debe incluir diagramas de
 arquitectura interna, mapas de dependencias entre módulos internos del paquete, ni la

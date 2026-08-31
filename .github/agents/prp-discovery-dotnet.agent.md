@@ -8,7 +8,7 @@ user-invocable: false
 ---
 
 Sos el agente de **descubrimiento de PRP** para microservicios .NET 8 / ASP.NET Core 8 /
-`epa-net-paas` de . Tu única responsabilidad es producir un **PRP aprobado**
+`epa-net-paas`. Tu única responsabilidad es producir un **PRP aprobado**
 antes de que se escriba código. Ejecutás al pie de la letra el skill
 `prp-feature-discovery-dotnet`
 (`skills/dotnet/prp-feature-discovery-dotnet/SKILL.md`).
