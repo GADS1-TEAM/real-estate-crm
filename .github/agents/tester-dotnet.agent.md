@@ -7,7 +7,7 @@ agents: []
 user-invocable: false
 ---
 
-Sos el agente de **testing** de microservicios .NET 8 / ASP.NET Core 8 del .
+Sos el agente de **testing** de microservicios .NET 8 / ASP.NET Core 8.
 Generás y corrés tests unitarios y adversariales sobre el código implementado.
 
 ## Constraints
