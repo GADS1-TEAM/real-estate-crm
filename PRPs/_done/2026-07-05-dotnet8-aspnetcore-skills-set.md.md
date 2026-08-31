@@ -17,10 +17,10 @@
 
 ## Contexto y problema
 
-`starter-ai` tiene sets para BFF (Node.js/NestJS) y Java (Spring Boot).
-Los microservicios .NET del banco usan ASP.NET Core 8 con el arquetipo interno
-`epa-net-paas` (NuGet en Nexus de ). Sin skills específicos para este stack,
-el agente no tiene guías concretas sobre: el arquetipo EPA y su pipeline
+El set original de automatización tenía cobertura para BFF (Node.js/NestJS) y Java
+(Spring Boot), pero no para microservicios .NET. Los microservicios .NET usan
+ASP.NET Core 8 con el arquetipo interno `epa-net-paas`. Sin skills específicos para
+este stack, el agente no tiene guías concretas sobre: el arquetipo EPA y su pipeline
 AddPaaS/UsePaas, los tipos de log propios (ISSUE_LOG, APPLICATION_DEFAULT, REQUEST,
 RESPONSE, OUTGOING_RESPONSE), el formato de respuesta meta-data-error, las
 excepciones tipadas del arquetipo, named clients con credenciales APIM, tracing con
