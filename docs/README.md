@@ -5,6 +5,9 @@ Este directorio complementa las dos fuentes principales del repositorio:
 - [`../README.md`](../README.md) — modelo de dominio y lenguaje ubicuo.
 - [`../ARCHITECTURE.md`](../ARCHITECTURE.md) — arquitectura de software y reglas de trazabilidad.
 
+Para el flujo de trabajo (ramas, commits, PRs y escalamiento) ver
+[`../CONTRIBUTING.md`](../CONTRIBUTING.md).
+
 ## Implementación
 
 - [`implementation/POC_TECH_DECISIONS.md`](implementation/POC_TECH_DECISIONS.md) — stack físico de la POC y decisiones diferidas.
@@ -20,6 +23,11 @@ Este directorio complementa las dos fuentes principales del repositorio:
 - [`tasks/VALIDATION_REPORT.md`](tasks/VALIDATION_REPORT.md) — cobertura por ola y checks estructurales.
 
 `docs/tasks/` es el **backlog maestro**. `PRPs/` es el mecanismo de ejecución cuando una task es tomada y necesita discovery/implementación detallada.
+
+## Decisiones de arquitectura
+
+- [`adr/README.md`](adr/README.md) — cuándo abrir un ADR, cómo se escribe e índice.
+- [`adr/ADR_TEMPLATE.md`](adr/ADR_TEMPLATE.md) — plantilla.
 
 ## Skills
 
