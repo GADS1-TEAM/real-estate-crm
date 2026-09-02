@@ -54,7 +54,7 @@ Fuentes: [`ARCHITECTURE.md`](../../../ARCHITECTURE.md) §7,
 ## Cuándo NO activar
 
 - API concreta del driver: `MongoClient`, serializers, `CancellationToken`,
-  proyecciones (ver `mongodb-dotnet-driver`, pendiente).
+  proyecciones (ver `mongodb-dotnet-driver`).
 - Reglas de negocio e invariantes (ver `ddd-hexagonal-architecture`).
 - Proyecciones y read models (ver `cqrs-read-models-projections`, pendiente).
 - Mensajería, outbox y consumidores.
@@ -63,7 +63,7 @@ Fuentes: [`ARCHITECTURE.md`](../../../ARCHITECTURE.md) §7,
 
 | Tema | Decisión |
 |---|---|
-| Instancia | Una sola instancia MongoDB Community en POC, compartida por todos los servicios. |
+| Instancia | Una sola instancia MongoDB Community en POC, compartida por todos los servicios, levantada como **replica set de un nodo** (habilita transacciones y change streams). |
 | Ownership | Cada colección tiene **un único servicio owner**. Compartir instancia no autoriza acceso cruzado. |
 | Nombres | Prefijo por contexto: `party_parties`, `property_properties`, `supply_listings`, `demand_requirements`. |
 | Unidad | Una colección por **raíz de agregado**, no por clase. |
@@ -107,7 +107,9 @@ ese orden ya venía mal desde mucho antes.
 - **MUST** llevar un campo `version` (entero) por aggregate y actualizar con
   concurrencia optimista: filtrar por `version` esperada e incrementarla.
 - **MUST** resolver una operación de negocio con **una sola escritura de documento**.
-  La atomicidad de MongoDB es por documento.
+  La atomicidad de MongoDB es por documento. La única excepción sancionada es el
+  outbox: escribir el aggregate y sus eventos en una transacción (ver
+  `event-driven-outbox-inbox`).
 - **MUST** embeber únicamente cuando se cumplen las cuatro condiciones: forma parte
   de la misma invariante, no tiene ciclo de vida propio, el volumen está acotado y
   se lee o escribe habitualmente junto.
@@ -136,8 +138,9 @@ ese orden ya venía mal desde mucho antes.
 - **MUST NOT** crear un índice único global sobre un dato de negocio: colisiona
   entre tenants.
 - **MUST NOT** guardar `false`, `0` o `[]` para representar un dato desconocido.
-- **MUST NOT** usar transacciones multi-documento como mecanismo por defecto para
-  compensar un límite de aggregate mal elegido.
+- **MUST NOT** usar transacciones multi-documento para compensar un límite de
+  aggregate mal elegido. La única excepción permitida es la escritura conjunta de
+  aggregate + outbox; cualquier otro uso requiere ADR.
 - **MUST NOT** guardar binarios, PII innecesaria ni secretos dentro del documento.
 - **MUST NOT** escribir en la colección de un read model desde lógica de negocio: se
   alimenta por proyección y es reconstruible.
@@ -300,7 +303,8 @@ var pipeline = new BsonDocument("$lookup", new BsonDocument
       cada índice compuesto.
 - [ ] Ningún array embebido puede crecer sin cota; los acotados tienen la cota
       documentada.
-- [ ] Toda escritura de negocio afecta un único documento.
+- [ ] Toda escritura de negocio afecta un único documento, salvo la escritura
+      conjunta de aggregate + outbox.
 - [ ] Los updates usan `version` y detectan conflicto.
 - [ ] Los índices se crean al arranque de forma idempotente.
 - [ ] La unicidad es por tenant, con `partialFilterExpression` si el campo es
@@ -316,8 +320,8 @@ var pipeline = new BsonDocument("$lookup", new BsonDocument
 | Skill | Relación |
 |---|---|
 | `ddd-hexagonal-architecture` | Define el límite del aggregate. Esta skill lo traduce a documento; nunca al revés. |
-| `mongodb-dotnet-driver` | *Pendiente.* API del driver, serializers, proyecciones, testing con Testcontainers. |
+| `mongodb-dotnet-driver` | API del driver, serializers, proyecciones, testing con Testcontainers. |
 | `multitenancy-authorization` | *Pendiente.* De dónde sale el `tenantId` que acá se da por presente. |
 | `cqrs-read-models-projections` | *Pendiente.* Colecciones derivadas, checkpoints y rebuild. |
-| `event-driven-outbox-inbox` | *Pendiente.* La colección de outbox vive junto al aggregate que la genera. |
+| `event-driven-outbox-inbox` | La colección de outbox pertenece al mismo servicio y se escribe junto al aggregate. Única excepción a la regla de transacciones. |
 | `dotnet-adversarial-testing` | Escrituras concurrentes, documentos en el límite y datos malformados. |

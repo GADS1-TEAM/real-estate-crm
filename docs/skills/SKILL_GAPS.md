@@ -113,7 +113,11 @@ Debe cubrir:
 - prohibición de importar modelos internos de otro servicio;
 - cuándo una abstracción pertenece al dominio y cuándo es infraestructura.
 
-### 4. `event-driven-outbox-inbox`
+### 4. `event-driven-outbox-inbox` — ✅ escrita
+
+Vive en [`.github/skills/event-driven-outbox-inbox/`](../../.github/skills/event-driven-outbox-inbox/SKILL.md).
+
+Decisiones fijadas al escribirla: outbox en **colección separada** escrita en la misma transacción que el aggregate (única excepción sancionada a la regla de una escritura por operación), relay como `BackgroundService`, inbox con índice único por `(tenantId, messageId)`, y retención de **7 días por TTL** en outbox e inbox. Requiere MongoDB como replica set: anotado en `FND-004`.
 
 **Necesaria antes de:** primer evento cross-service.
 
@@ -218,7 +222,7 @@ Como mínimo habrá que verificar cobertura de:
 1. ~~`ddd-hexagonal-architecture`~~ ✅
 2. ~~`mongodb-document-modeling`~~ ✅
 3. ~~`mongodb-dotnet-driver`~~ ✅
-4. `event-driven-outbox-inbox`
+4. ~~`event-driven-outbox-inbox`~~ ✅
 5. `rabbitmq-dotnet`
 6. `multitenancy-authorization`
 7. `oidc-keycloak-aspnetcore`

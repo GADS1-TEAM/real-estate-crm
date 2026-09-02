@@ -134,7 +134,8 @@ compilar contra `MongoDB.Driver`, el diseño está mal.
   repositorio.
 - **MUST NOT** exponer colecciones mutables ni setters públicos desde un aggregate.
 - **MUST NOT** abarcar dos aggregates en una misma transacción. Si hace falta,
-  el límite del aggregate está mal o corresponde una saga por eventos.
+  el límite del aggregate está mal o corresponde una saga por eventos. El outbox no
+  cuenta: son los eventos del mismo aggregate y es la única excepción sancionada.
 - **MUST NOT** publicar un evento de integración que sea un comando disfrazado
   (`SendWelcomeEmail` no es un evento; `PartyRegistered` sí).
 - **MUST NOT** inventar campos obligatorios que el dominio define opcionales, ni
@@ -272,7 +273,7 @@ await session.CommitTransactionAsync(ct);
 
 ```csharp
 // ✅ Un aggregate por transacción; el otro reacciona al evento.
-await _reservations.SaveAsync(reservation, ct);   // + outbox en el mismo boundary
+await _reservations.SaveWithOutboxAsync(reservation, events, ct);  // aggregate + outbox: excepción sancionada
 // listing-service consume ReservationConfirmed y decide qué hacer con el Listing.
 ```
 
@@ -326,6 +327,6 @@ await _publisher.PublishAsync(new PartyRegistered(partyId, tenantId, occurredAt)
 | `dotnet-parsing-and-validation` | Valida forma del input en el borde. Las invariantes de negocio son de esta skill. |
 | `dotnet-unit-testing` | Los aggregates son el mejor lugar para testear sin infraestructura. |
 | `mongodb-document-modeling` | *Pendiente.* Traduce estas fronteras a documentos, embed vs reference e índices. |
-| `event-driven-outbox-inbox` | *Pendiente.* Cómo se publica confiablemente lo que este skill decide publicar. |
+| `event-driven-outbox-inbox` | Cómo se publica confiablemente lo que este skill decide publicar. |
 | `multitenancy-authorization` | *Pendiente.* De dónde sale `tenantId` y cómo se autoriza. |
 | `cqrs-read-models-projections` | *Pendiente.* Cuándo un read model se justifica y cómo se reconstruye. |

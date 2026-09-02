@@ -61,7 +61,7 @@ de modelos siguen siendo de la 2.x.
 |---|---|
 | Paquete | `MongoDB.Driver` **3.11.1 exacta** |
 | Gestión de versión | Central: `Directory.Packages.props` en la raíz, con `ManagePackageVersionsCentrally`. Ningún `.csproj` declara versión propia |
-| Servidor mínimo | MongoDB **8.x Community**. El driver 3.10+ ya no soporta Server 4.2 o anterior |
+| Servidor mínimo | MongoDB **8.x Community**, como **replica set de un nodo**. El driver 3.10+ ya no soporta Server 4.2 o anterior |
 | LINQ | LINQ3 únicamente. LINQ2 no existe en 3.x |
 | Proyecciones client-side | **Deshabilitadas.** Se deja el default: una query no traducible tira `ExpressionNotSupportedException` |
 | IDs | `Guid` serializado como **binario, `GuidRepresentation.Standard`** (subtype 4) |
@@ -141,8 +141,8 @@ compilar, fallan al leer**.
   (`.ToListAsync()` seguido de `.Where(...)`).
 - **MUST NOT** hacer mocks de `IMongoCollection<T>` ni de los tipos del driver: los
   tests de repositorio corren contra MongoDB real.
-- **MUST NOT** usar transacciones multi-documento salvo necesidad demostrada y
-  documentada.
+- **MUST NOT** usar transacciones multi-documento salvo la escritura conjunta de
+  aggregate + outbox, que es la única excepción sancionada del proyecto.
 - **MUST NOT** exponer `IQueryable` fuera del repositorio: filtra el ownership y
   arrastra infraestructura hacia arriba.
 - **MUST NOT** declarar la versión del driver en un `.csproj` individual.
@@ -370,4 +370,4 @@ catch (MongoWriteException ex)
 | `aspnetcore-config-and-secrets` | El connection string es un secreto: viene de configuración, nunca hardcodeado. |
 | `aspnetcore-error-and-observability` | Trazas del driver vía OpenTelemetry; sin PII en los logs de query. |
 | `multitenancy-authorization` | *Pendiente.* De dónde sale el `tenantId` que acá se exige en cada filtro. |
-| `event-driven-outbox-inbox` | *Pendiente.* La escritura del outbox comparte el boundary con el aggregate. |
+| `event-driven-outbox-inbox` | La escritura del outbox comparte la transacción con el aggregate. |
