@@ -134,7 +134,11 @@ Complementa `aspnetcore-messaging` con las decisiones específicas del proyecto:
 - payload mínimo y minimización de PII;
 - replay/rebuild de proyecciones.
 
-### 5. `rabbitmq-dotnet`
+### 5. `rabbitmq-dotnet` — ✅ escrita
+
+Vive en [`.github/skills/rabbitmq-dotnet/`](../../.github/skills/rabbitmq-dotnet/SKILL.md).
+
+Decisiones fijadas al escribirla: `RabbitMQ.Client` **7.x** (API totalmente async, `IChannel` reemplaza a `IModel`), exchange **topic por servicio publicador** (`<servicio>.events`), routing key `<aggregate>.<Evento>.v<N>`, queue por consumidor, DLQ por queue, publisher confirms y ack manual obligatorios, prefetch 20.
 
 **Necesaria antes de:** FND-004/FND-008 o primer producer/consumer real.
 
@@ -223,7 +227,7 @@ Como mínimo habrá que verificar cobertura de:
 2. ~~`mongodb-document-modeling`~~ ✅
 3. ~~`mongodb-dotnet-driver`~~ ✅
 4. ~~`event-driven-outbox-inbox`~~ ✅
-5. `rabbitmq-dotnet`
+5. ~~`rabbitmq-dotnet`~~ ✅
 6. `multitenancy-authorization`
 7. `oidc-keycloak-aspnetcore`
 8. `cqrs-read-models-projections`

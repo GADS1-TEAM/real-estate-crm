@@ -56,7 +56,7 @@ Fuentes: [`ARCHITECTURE.md`](../../../ARCHITECTURE.md) §8,
 ## Cuándo NO activar
 
 - Configuración de RabbitMQ: exchanges, bindings, prefetch, canales, ack (ver
-  `rabbitmq-dotnet`, pendiente, y `aspnetcore-messaging`).
+  `rabbitmq-dotnet` y `aspnetcore-messaging`).
 - Forma de los documentos de negocio (ver `mongodb-document-modeling`).
 - Qué evento corresponde emitir según el dominio (ver `ddd-hexagonal-architecture`).
 - Read models y proyecciones (ver `cqrs-read-models-projections`, pendiente).
@@ -350,7 +350,7 @@ después de 7 días vuelve a procesarse. Es un compromiso deliberado.
 | `ddd-hexagonal-architecture` | Decide **qué** es evento de dominio y qué de integración. Esta skill decide cómo se publica. |
 | `mongodb-document-modeling` | El outbox es una colección más: índices, TTL y ownership siguen sus reglas. |
 | `mongodb-dotnet-driver` | Sesiones, transacciones y manejo del duplicate key en C#. |
-| `rabbitmq-dotnet` | *Pendiente.* Exchanges, bindings, publisher confirms, ack manual, DLQ, prefetch. |
+| `rabbitmq-dotnet` | Exchanges, bindings, publisher confirms, ack manual, DLQ, prefetch. |
 | `aspnetcore-messaging` | Reglas agnósticas de consumo: shutdown graceful, backpressure, `CancellationToken`. |
 | `cqrs-read-models-projections` | *Pendiente.* Los projectors son consumidores: mismo inbox, mismas reglas. |
 | `aspnetcore-error-and-observability` | Trazas del relay, métricas de pendientes, sin PII en los logs de evento. |

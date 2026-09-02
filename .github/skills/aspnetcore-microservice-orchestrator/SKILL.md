@@ -69,6 +69,7 @@ Siempre que se trabaje sobre un microservicio ASP.NET Core bajo `epa-net-paas`:
 | N-8b | [`mongodb-dotnet-driver`](../mongodb-dotnet-driver/SKILL.md)                                 | Driver 3.11.1, cliente singleton, serialización, LINQ3, Testcontainers      |
 | N-9  | [`aspnetcore-messaging`](../aspnetcore-messaging/SKILL.md)                                   | Mensajería agnóstica, idempotencia, DLQ. Broker del proyecto: RabbitMQ      |
 | N-9b | [`event-driven-outbox-inbox`](../event-driven-outbox-inbox/SKILL.md)                         | Outbox transaccional, relay, inbox, idempotencia, versionado de eventos     |
+| N-9c | [`rabbitmq-dotnet`](../rabbitmq-dotnet/SKILL.md)                                             | Cliente 7.x async, IChannel, topología, confirms, ack manual, DLQ           |
 | N-10 | [`aspnetcore-error-and-observability`](../aspnetcore-error-and-observability/SKILL.md)       | Tipos de log EPA, MASKED_DATA, Jaeger OTLP, excepciones tipadas             |
 | N-11 | [`aspnetcore-config-and-secrets`](../aspnetcore-config-and-secrets/SKILL.md)                 | IOptions, appsettings, env vars EPA, secretos                               |
 | N-12 | [`aspnetcore-security-owasp-baseline`](../aspnetcore-security-owasp-baseline/SKILL.md)       | OWASP Top 10 — transversal, siempre activo                                  |
