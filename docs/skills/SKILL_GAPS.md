@@ -73,7 +73,11 @@ Debe cubrir:
 - evolución/versionado de documentos;
 - anti-patrones de modelar MongoDB como SQL sin joins.
 
-### 2. `mongodb-dotnet-driver`
+### 2. `mongodb-dotnet-driver` — ✅ escrita
+
+Vive en [`.github/skills/mongodb-dotnet-driver/`](../../.github/skills/mongodb-dotnet-driver/SKILL.md).
+
+Decisiones fijadas al escribirla: driver **3.11.1 exacta** gestionada centralmente, LINQ3 sin proyecciones client-side, `Guid` binario `Standard` (subtype 4), MongoDB Server 8.x.
 
 **Necesaria antes de:** primer repositorio productivo MongoDB.
 
@@ -213,7 +217,7 @@ Como mínimo habrá que verificar cobertura de:
 
 1. ~~`ddd-hexagonal-architecture`~~ ✅
 2. ~~`mongodb-document-modeling`~~ ✅
-3. `mongodb-dotnet-driver`
+3. ~~`mongodb-dotnet-driver`~~ ✅
 4. `event-driven-outbox-inbox`
 5. `rabbitmq-dotnet`
 6. `multitenancy-authorization`
