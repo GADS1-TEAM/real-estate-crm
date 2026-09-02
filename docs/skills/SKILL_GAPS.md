@@ -26,6 +26,32 @@ El repositorio ya dispone de una base .NET útil para:
 
 Estas skills deben conservarse y aplicarse cuando correspondan. `README.md`, `ARCHITECTURE.md` y `AGENTS.md` tienen prioridad cuando una skill heredada asume un stack diferente al definido para este CRM.
 
+## Alineación de skills heredadas
+
+Las skills y agentes provienen de otro proyecto, con arquetipo corporativo `epa-net-paas`, .NET 8 y EF Core. Se hizo una primera pasada de alineación:
+
+- versiones actualizadas a .NET 10 / ASP.NET Core 10 y C# 14;
+- `epa-net-paas` removido de los `description` del frontmatter, para que las skills dejen de activarse por contexto ajeno;
+- `aspnetcore-database-access-efcore` movida a [`.github/skills/_archived/`](../../.github/skills/_archived/README.md): enseña EF Core relacional y sus triggers coinciden con los de cualquier task de datos, lo que empujaba al anti-patrón de modelar MongoDB como SQL;
+- los agentes apuntan a `AGENTS.md` como fuente de verdad del stack.
+
+### Deuda abierta
+
+El **cuerpo** de seis skills sigue describiendo convenciones del arquetipo ajeno:
+
+| Skill | Qué contiene que no aplica |
+|---|---|
+| `aspnetcore-rest-layer` | `PaasControllerBase`, `IResponseBuilder`, formato `meta-data-error` |
+| `aspnetcore-error-and-observability` | tipos de log EPA, excepciones tipadas EPA, headers `APP_ID`/`APP_KEY` |
+| `aspnetcore-di-and-middleware-pipeline` | pipeline `AddPaaS`/`UsePaas` |
+| `aspnetcore-security-owasp-baseline` | APIM delante del microservicio, env vars de CORS del arquetipo |
+| `aspnetcore-outgoing-http` | named clients `SERVICES:DATAS`, credenciales APIM |
+| `aspnetcore-config-and-secrets` | env vars EPA |
+
+No se reescriben todavía porque **dependen de `FND-003`**: hay que definir primero el formato de error público, el controller base y la convención de configuración de este proyecto. Reescribirlas antes obligaría a hacerlo dos veces.
+
+Hasta entonces, un agente que active una de estas skills debe tomar sus reglas generales (controllers delgados, validación en el borde, sin PII en logs, timeouts acotados) e **ignorar toda referencia a tipos o env vars del arquetipo**.
+
 ## Skills específicas faltantes
 
 ### 1. `mongodb-document-modeling`
