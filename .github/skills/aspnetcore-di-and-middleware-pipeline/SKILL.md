@@ -49,8 +49,8 @@ vida de recursos.
 
 ## Estado actual vs target
 
-- **Target:** ASP.NET Core 8, inyección por constructor con primary constructors
-  (C# 12) o constructor explícito, servicios Singleton con estado inmutable,
+- **Target:** ASP.NET Core 10, inyección por constructor con primary constructors
+  (C# 14) o constructor explícito, servicios Singleton con estado inmutable,
   `IHostedService`/`BackgroundService` para tareas de background o startup,
   `IOptions<T>` para binding de config, `IDisposable`/`IAsyncDisposable` para
   cleanup de recursos.

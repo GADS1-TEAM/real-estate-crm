@@ -1,9 +1,8 @@
 ---
 name: aspnetcore-outgoing-http
 description: |
-  Activa cuando el microservicio ASP.NET Core 8 hace llamadas HTTP salientes a otros
-  microservicios, APIs internas del banco o servicios externos con el arquetipo
-  epa-net-paas. Triggers: "IHttpClientFactory", "HttpClient", "named client",
+  Activa cuando el microservicio ASP.NET Core 10 hace llamadas HTTP salientes a otros
+  microservicios, APIs internas o servicios externos. Triggers: "IHttpClientFactory", "HttpClient", "named client",
   "CreateClient", "llamar al servicio de", "consumir la API de", "request al
   microservicio", "timeout", "reintento", "retry", "circuit breaker", "Polly",
   "ResilienceHandler", "AddResilienceHandler", "Microsoft.Extensions.Http.Resilience",
@@ -11,13 +10,13 @@ description: |
   "HttpRetryStrategyOptions", "HttpCircuitBreakerStrategyOptions", "backoff", "jitter",
   "connection refused", "socket exhaustion", "new HttpClient", "SERVICES:DATAS",
   "WITHAPIMCREDENTIALS", "APP_ID", "APP_KEY", "APP_ID_B2C", "APP_KEY_B2C",
-  "credenciales APIM", "named client EPA", "epa-net-paas", "NetworkException",
+  "credenciales APIM", "NetworkException",
   "DependencyException", "falla del upstream", "CancellationToken HTTP saliente",
   "HttpRequestException", "OperationCanceledException HTTP". Garantiza que TODA
   llamada saliente use IHttpClientFactory con named clients del arquetipo, tenga
   timeout acotado, resiliencia con Polly o Microsoft.Extensions.Http.Resilience,
   CancellationToken propagado, y fallas mapeadas a excepciones EPA tipadas. NO
-  activar para: acceso a DB con EF Core, mensajería, ni lógica in-process.
+  activar para: acceso a datos, mensajería, ni lógica in-process.
 ---
 
 # ASP.NET Core Outgoing HTTP
@@ -54,7 +53,7 @@ cadena, y mapeo de fallas a excepciones tipadas EPA.
 
 ## Estado actual vs target
 
-- **Target:** ASP.NET Core 8, `IHttpClientFactory` con named clients registrados
+- **Target:** ASP.NET Core 10, `IHttpClientFactory` con named clients registrados
   en `Program.cs`, configuración de upstreams vía env vars
   `SERVICES:DATAS:{i}:NAME`, `SERVICES:DATAS:{i}:URL`,
   `SERVICES:DATAS:{i}:WITHAPIMCREDENTIALS`. El arquetipo `epa-net-paas` registra
@@ -140,7 +139,7 @@ cadena, y mapeo de fallas a excepciones tipadas EPA.
 ### SHOULD
 
 - Usar `AddStandardResilienceHandler()` de `Microsoft.Extensions.Http.Resilience`
-  (.NET 8+) como baseline de resiliencia; ofrece retry, circuit breaker y timeout
+  (.NET 10+) como baseline de resiliencia; ofrece retry, circuit breaker y timeout
   configurados con valores razonables por defecto, reduciendo el boilerplate de Polly.
 - Usar `IOptions<T>` para exponer la configuración de named clients en un tipo
   fuertemente tipado si se necesita acceso programático (timeouts custom, configuración

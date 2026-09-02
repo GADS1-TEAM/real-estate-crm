@@ -2,7 +2,7 @@
 name: dotnet-unit-testing
 description: |
   Activa cuando se escriben, modifican o revisan tests unitarios o de integración
-  en un microservicio ASP.NET Core 8 con xUnit y Moq. Triggers: "test unitario",
+  en un microservicio ASP.NET Core 10 con xUnit y Moq. Triggers: "test unitario",
   "unit test", "xUnit", "[Fact]", "[Theory]", "[InlineData]", "Moq", "Mock<T>",
   "Setup", "Verify", "Returns", "ReturnsAsync", "mock de ILogger", "mock de ILogger<T>",
   "WebApplicationFactory", "WebApplicationFactory<T>", "integration test",
@@ -25,7 +25,7 @@ Un unit test bien hecho prueba **una unidad** (service, controller, clase de dom
 con sus dependencias mockeadas en las fronteras (DB, HTTP, tiempo), es rápido
 (milisegundos), determinista (mismo resultado siempre), y falla con un mensaje que
 dice **qué** está mal sin abrir el código. Este skill define cómo escribir tests en
-un microservicio ASP.NET Core 8 con xUnit y Moq, qué mockear, qué no, y cómo
+un microservicio ASP.NET Core 10 con xUnit y Moq, qué mockear, qué no, y cómo
 estructurarlos para que sean mantenibles.
 
 ## Cuándo activar
@@ -45,7 +45,7 @@ estructurarlos para que sean mantenibles.
 - **Target:** xUnit 2.x con `[Fact]` y `[Theory]` + `[InlineData]`, Moq 4.x para
   mocks, `WebApplicationFactory<T>` para tests de integración de endpoints,
   `FluentAssertions` (opcional) para assertions expresivas, `TimeProvider`
-  de .NET 8 para inyectar tiempo determinista.
+  de .NET 10 para inyectar tiempo determinista.
 - **`WebApplicationFactory<T>`** levanta el host completo de ASP.NET Core en memoria
   sin I/O de red real; es el estándar para testear endpoints, middleware y pipeline.
 - Evitar dependencias de I/O real (red, DB real, reloj del sistema) en tests
@@ -59,7 +59,7 @@ estructurarlos para que sean mantenibles.
   Separados visualmente con una línea en blanco o comentario.
 - **Mockear en la frontera:** mockear el repositorio, el cliente HTTP, el clock,
   no la clase que se está probando.
-- **Tests deterministas:** usar `TimeProvider` (inyectable en .NET 8) para tiempo;
+- **Tests deterministas:** usar `TimeProvider` (inyectable en .NET 10) para tiempo;
   no `DateTime.UtcNow` ni `DateTimeOffset.Now` en el código de producción.
 - **`IHttpClientFactory` mockeado** para cualquier llamada HTTP saliente en tests
   unitarios. Nunca llamadas HTTP reales en tests unitarios.

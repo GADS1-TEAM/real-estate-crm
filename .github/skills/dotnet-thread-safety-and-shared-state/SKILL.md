@@ -2,7 +2,7 @@
 name: dotnet-thread-safety-and-shared-state
 description: |
   Activa SIEMPRE que haya estado compartido o potencialmente mutable en un
-  microservicio ASP.NET Core 8. Los servicios registrados como Singleton son
+  microservicio ASP.NET Core 10. Los servicios registrados como Singleton son
   accedidos desde múltiples request-threads simultáneamente. Transversal:
   aplica a cualquier capa (controller, service, repository, middleware).
   Triggers: "campo no readonly en un servicio singleton", "variable de

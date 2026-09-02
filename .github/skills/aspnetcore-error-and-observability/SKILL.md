@@ -3,11 +3,11 @@ name: aspnetcore-error-and-observability
 description: |
   Activa cuando se maneja errores, se escribe logs, se configuran métricas o trazas,
   o se define qué se devuelve al cliente ante un fallo en un microservicio ASP.NET
-  Core 8 con el arquetipo epa-net-paas. Triggers: "ILogger", "ILogger<T>",
+  Core 10. Triggers: "ILogger", "ILogger<T>",
   "Console.WriteLine en producción", "log", "logging", "ISSUE_LOG",
   "APPLICATION_DEFAULT", "REQUEST", "RESPONSE", "OUTGOING_RESPONSE", "MASKED_DATA",
   "PII", "datos sensibles", "ofuscar", "enmascarar", "APP_ID en log", "APP_KEY log",
-  "epa-net-paas logging", "excepción EPA", "ConfigurationException",
+  "excepción tipada", "ConfigurationException",
   "DependencyInjectionException", "DatabaseException", "IOException",
   "NetworkException", "BusinessException", "NotFoundException",
   "ValidationException", "excepciones tipadas EPA", "mapear excepción",
@@ -17,10 +17,10 @@ description: |
   "JAEGER_COLLECTOR_HOST", "JAEGER_COLLECTOR_PORT", "OTLP", "gRPC tracing",
   "AddOtlpExporter", "tracing distribuido", "correlation id", "TraceId",
   "span", "Activity", "OpenTelemetry .NET", "métricas", "health check",
-  "structured logging", "Serilog", "epa-net-paas observabilidad". Garantiza
+  "structured logging", "Serilog". Garantiza
   logging estructurado con tipos de log EPA, excepciones tipadas mapeadas a
   meta-data-error con IResponseBuilder, tracing Jaeger OTLP/gRPC, sin PII en
-  logs, sin catch vacíos. MUST referenciar epa-net-paas. NO activar para
+  logs, sin catch vacíos. NO activar para
   lógica de negocio sin dimensión de error/observabilidad.
 ---
 
@@ -35,7 +35,7 @@ críticos. Y la diferencia entre un fallo controlado y una caída en cascada es 
 **manejo de errores**: excepciones tipadas EPA traducidas a un contrato uniforme
 (`meta-data-error` con `IResponseBuilder`), sin tragar errores en silencio, sin
 filtrar detalles internos al cliente. Este skill define ambas cosas para
-microservicios ASP.NET Core 8 con el arquetipo `epa-net-paas`.
+microservicios ASP.NET Core 10 con el arquetipo `epa-net-paas`.
 
 ## Cuándo activar
 

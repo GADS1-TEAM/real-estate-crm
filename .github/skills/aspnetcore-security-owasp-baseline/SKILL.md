@@ -1,7 +1,7 @@
 ---
 name: aspnetcore-security-owasp-baseline
 description: |
-  SIEMPRE ACTIVO al escribir o revisar código de un microservicio ASP.NET Core 8
+  SIEMPRE ACTIVO al escribir o revisar código de un microservicio ASP.NET Core 10
   expuesto a la red. Es el baseline de seguridad OWASP que aplica a todo endpoint,
   parser, cliente saliente, acceso a datos y log. Triggers: cualquier controller o
   minimal API, manejo de input del usuario o de upstream, headers, autenticación/
@@ -9,14 +9,14 @@ description: |
   serialización de respuestas, logging, manejo de errores, CORS, SSRF. Palabras
   clave: "endpoint", "input", "[FromBody]", "[FromQuery]", "[FromRoute]", "auth",
   "autenticación", "autorización", "token", "JWT", "[Authorize]", "policy", "claim",
-  "OAuth2", "password", "secreto", "query a la DB", "EF Core", "native SQL",
-  "armar URL", "redirect", "log", "error al cliente", "CORS", "CORS_POLICY_ORIGINS",
+  "OAuth2", "password", "secreto", "query a la DB", "query nativa",
+  "armar URL", "redirect", "log", "error al cliente", "CORS",
   "CORS_POLICY_METHODS", "CORS_POLICY_HEADERS", "CORS_POLICY_NAME", "MASKED_DATA",
   "PII", "datos sensibles", "número de cuenta", "datos bancarios", "APIM",
   "SQL injection", "SSRF", "deserialización", "XXE", "IActionResult", "rate limit",
-  "validación de input", "inyección", "IDOR", "ownership", "stack trace al cliente",
-  "epa-net-paas seguridad". Cubre OWASP Top 10 en contexto ASP.NET Core: inyección
-  SQL via EF params, auth/authz con JWT validado y APIM, exposición de datos
+  "validación de input", "inyección", "IDOR", "ownership", "stack trace al cliente".
+  Cubre OWASP Top 10 en contexto ASP.NET Core: inyección
+  SQL/NoSQL via parámetros, auth/authz con JWT validado, exposición de datos
   sensibles, XXE/deserialización insegura, control de acceso roto (IDOR), misconfig
   de seguridad (headers, CORS), componentes vulnerables, logging de eventos de
   seguridad, SSRF. NO se desactiva nunca para código de red; solo es irrelevante
@@ -29,7 +29,7 @@ description: |
 
 El microservicio es parte de la infraestructura del banco: cada endpoint es
 superficie de ataque potencial. Este skill es el **baseline de seguridad TRANSVERSAL
-que aplica siempre**, alineado con OWASP Top 10 en el contexto ASP.NET Core 8 con
+que aplica siempre**, alineado con OWASP Top 10 en el contexto ASP.NET Core 10 con
 el arquetipo `epa-net-paas`. APIM se posiciona delante del microservicio y valida el
 JWT antes de llegar al servicio; esto no exime al microservicio de verificar
 autorización a nivel de recurso. Ante conflicto con otra preferencia,
@@ -53,7 +53,7 @@ autorización a nivel de recurso. Ante conflicto con otra preferencia,
 
 ## Estado actual vs target
 
-- **Target:** ASP.NET Core 8 con JWT validado por APIM + verificación de authz
+- **Target:** ASP.NET Core 10 con JWT validado por APIM + verificación de authz
   a nivel de recurso en el microservicio; EF Core con queries parametrizadas
   (previene SQL injection por defecto); Data Annotations + FluentValidation en el
   borde; logging JSON sin PII via `ILogger<T>` + `MASKED_DATA` del arquetipo;
@@ -158,7 +158,7 @@ autorización a nivel de recurso. Ante conflicto con otra preferencia,
   en CI para detectar componentes con CVEs conocidos.
 - Usar `RequireHttpsMetadata = true` en el middleware JWT para evitar tokens
   transmitidos en texto plano fuera de entornos de desarrollo.
-- Agregar rate limiting (`AddRateLimiter` en ASP.NET Core 8) en endpoints de
+- Agregar rate limiting (`AddRateLimiter` en ASP.NET Core 10) en endpoints de
   alta sensibilidad o costosos computacionalmente.
 
 ### SHOULD NOT

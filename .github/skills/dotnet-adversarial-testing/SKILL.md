@@ -1,7 +1,7 @@
 ---
 name: dotnet-adversarial-testing
 description: |
-  Activa cuando se escriben tests adversariales en un microservicio ASP.NET Core 8:
+  Activa cuando se escriben tests adversariales en un microservicio ASP.NET Core 10:
   inputs hostiles, valores extremos, inyecciones, fallos de dependencias, o
   comportamiento bajo condiciones de error y concurrencia. Triggers: "test adversarial",
   "adversarial testing", "boundary testing", "valor extremo", "null input",
@@ -31,7 +31,7 @@ y devuelve un JSON malformado, se recibe `long.MaxValue` como monto, el
 `CancellationToken` está cancelado antes de empezar, o hay una race condition al
 acceder a estado compartido. Este skill define cómo escribir tests que buscan
 vulnerabilidades y comportamientos incorrectos ante condiciones hostiles en
-microservicios ASP.NET Core 8.
+microservicios ASP.NET Core 10.
 
 ## Cuándo activar
 

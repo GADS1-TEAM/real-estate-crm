@@ -1,7 +1,7 @@
 ---
 name: aspnetcore-messaging
 description: |
-  Activa cuando el microservicio ASP.NET Core 8 produce o consume mensajes de
+  Activa cuando el microservicio ASP.NET Core 10 produce o consume mensajes de
   un broker de mensajería (Kafka con Confluent .NET client, Azure Service Bus,
   u otro). Triggers: "IHostedService", "BackgroundService", "consumer loop",
   "Kafka", "KafkaConsumer", "Confluent.Kafka", "IConsumer<TKey, TValue>",
@@ -16,9 +16,10 @@ description: |
   "publicar evento", "enviar mensaje", "IServiceScopeFactory mensajería".
   Garantiza consumers idempotentes, commit de offset/ack post-proceso, DLQ para
   mensajes irrecuperables, shutdown graceful con CancellationToken y backpressure
-  controlada. IMPORTANTE: el stack de mensajería NO está confirmado en el arquetipo
-  epa-net-paas; aplicar patrones agnósticos al broker y confirmar con el equipo
-  de plataforma. NO activar para: llamadas HTTP salientes ni acceso a DB aislado.
+  controlada. IMPORTANTE: esta skill cubre patrones agnósticos al broker. El broker
+  de este proyecto es RabbitMQ (ver docs/implementation/POC_TECH_DECISIONS.md) y las
+  reglas específicas viven en las skills rabbitmq-dotnet y event-driven-outbox-inbox,
+  pendientes de escribir. NO activar para: llamadas HTTP salientes ni acceso a DB aislado.
 ---
 
 # ASP.NET Core Messaging

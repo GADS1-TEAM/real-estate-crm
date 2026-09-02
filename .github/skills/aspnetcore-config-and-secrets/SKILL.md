@@ -2,7 +2,7 @@
 name: aspnetcore-config-and-secrets
 description: |
   Activa cuando se lee configuración, secretos o variables de entorno en un
-  microservicio ASP.NET Core 8 con el arquetipo epa-net-paas, o cuando se definen
+  microservicio ASP.NET Core 10, o cuando se definen
   opciones tipadas o presupuestos de recursos del proceso. Triggers: "IOptions<T>",
   "IOptionsSnapshot<T>", "IOptionsMonitor<T>", "IConfiguration", "appsettings.json",
   "appsettings.Development.json", "appsettings.Production.json", "appsettings.{env}",
@@ -13,10 +13,10 @@ description: |
   "connection string", "timeout", "pool size", "Vault", "K8s secrets",
   "user-secrets", "leer config", "variable de entorno", "fail-fast",
   "validar config al arranque", "valores hardcodeados", "magic number",
-  "epa-net-paas config", "configuración tipada", "epa-net-paas". Garantiza que toda
+  "configuración tipada". Garantiza que toda
   la config se valide al arranque (fail-fast con ValidateOnStart), no haya secretos
   ni valores mágicos hardcodeados, y los presupuestos de recursos sean explícitos y
-  por entorno. MUST referenciar epa-net-paas. NO activar para: constantes de dominio
+  por entorno. NO activar para: constantes de dominio
   puro que no cambian por entorno, ni valores de presentación sin impacto en recursos
   o seguridad.
 ---
@@ -58,7 +58,7 @@ específicas (`X509_CERTIFICATE__{i}`, `MASKED_DATA`, `CORS_POLICY_*`, `APP_ID`,
 
 ## Estado actual vs target
 
-- **Target:** ASP.NET Core 8 con el patrón Options (`IOptions<T>`), binding tipado
+- **Target:** ASP.NET Core 10 con el patrón Options (`IOptions<T>`), binding tipado
   vía `.Bind()` o `services.Configure<T>()`, validación al arranque con
   `.ValidateDataAnnotations().ValidateOnStart()`, secretos inyectados por Vault o
   Kubernetes Secrets (nunca en `appsettings.json` commiteado con valores reales),

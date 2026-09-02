@@ -2,7 +2,7 @@
 name: dotnet-parsing-and-validation
 description: |
   Activa cuando se parsea, valida o transforma datos que cruzan un borde de
-  confianza en un microservicio ASP.NET Core 8 con arquetipo epa-net-paas:
+  confianza en un microservicio ASP.NET Core 10:
   body/query/params de un request, respuestas de otros microservicios, documentos
   de la DB, mensajes de mensajería, o cualquier dato externo antes de usarlo.
   Triggers: "DTO", "[Required]", "[Range]", "[StringLength]", "[RegularExpression]",
@@ -13,11 +13,11 @@ description: |
   "DeserializationException", "ValidationProblemDetails", "validar input",
   "validar request", "parsear payload", "mapear la respuesta de", "normalizar",
   "deserializar JSON", "campos opcionales", "input del usuario", "respuesta del
-  servicio upstream", "mensaje de Kafka", "los datos vienen mal", "campo null
+  servicio upstream", "mensaje del broker", "los datos vienen mal", "campo null
   inesperado", "tipo incorrecto", "límite de tamaño", "tamaño máximo del body",
   "MaxRequestBodySize". Garantiza que todo dato externo se valide en el borde con
-  un esquema, se coercionen tipos de forma segura, se rechace lo inválido con la
-  ValidationException EPA, y que la validación sea consistente en todos los bordes.
+  un esquema, se coercionen tipos de forma segura, se rechace lo inválido con un error
+  de validación estable, y que la validación sea consistente en todos los bordes.
   NO activar para: datos ya validados que circulan internamente, ni constantes del
   código.
 ---
@@ -31,7 +31,7 @@ body del cliente, query params, respuesta de un microservicio upstream, mensaje 
 mensajería, documento de la DB. La regla es **validar en el borde**: convertir el
 dato externo en un objeto válido al punto de entrada, de forma que el resto del
 código trabaje con datos que se sabe que son correctos. Este skill define cómo
-validar con DataAnnotations y FluentValidation en ASP.NET Core 8, cuándo usar
+validar con DataAnnotations y FluentValidation en ASP.NET Core 10, cuándo usar
 `IValidatableObject` para validación cross-field, cómo parsear de forma segura con
 `TryParse`, y cómo deserializar JSON con `System.Text.Json` con opciones estrictas.
 La `ValidationException` del arquetipo `epa-net-paas` es el mecanismo estándar para

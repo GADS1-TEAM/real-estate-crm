@@ -16,7 +16,7 @@ description: |
   explícitamente "ya tengo el PRP" o "implementá directo".
 ---
 
-# PRP Feature Discovery (.NET 8 / ASP.NET Core)
+# PRP Feature Discovery (.NET 10 / ASP.NET Core)
 
 ## Objetivo
 

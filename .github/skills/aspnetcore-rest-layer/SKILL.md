@@ -1,8 +1,8 @@
 ---
 name: aspnetcore-rest-layer
 description: |
-  Activa cuando se crea o modifica la capa REST de un microservicio ASP.NET Core 8
-  con el arquetipo epa-net-paas: controllers, endpoints, el pipeline de request
+  Activa cuando se crea o modifica la capa REST de un microservicio ASP.NET Core 10:
+  controllers, endpoints, el pipeline de request
   (middleware, filtros) o el contrato de respuesta. Triggers: "[ApiController]",
   "[Route]", "[HttpGet]/[HttpPost]/[HttpPut]/[HttpDelete]/[HttpPatch]", "endpoint",
   "ruta", "[FromBody]", "[FromQuery]", "[FromRoute]", "[FromHeader]", "DTO",
@@ -10,11 +10,11 @@ description: |
   "meta-data-error", "IActionResult", "Task<IActionResult>", "CancellationToken",
   "contrato de respuesta", "status code", "versionado de API", "serializar respuesta",
   "manejar el request", "ProblemDetail", "RFC 7807", "ValidationException",
-  "NotFoundException", "BusinessException", "epa-net-paas". Garantiza controllers
+  "NotFoundException", "BusinessException". Garantiza controllers
   delgados (sin lógica de negocio), validación en el borde, manejo de excepciones
   EPA centralizado con IResponseBuilder, y contratos de respuesta consistentes con
   el formato meta-data-error. NO activar para: lógica de negocio en services,
-  acceso a DB (EF Core/ADO.NET), ni llamadas salientes HTTP.
+  acceso a datos, ni llamadas salientes HTTP.
 ---
 
 # ASP.NET Core REST Layer
@@ -25,7 +25,7 @@ El controller es el **borde HTTP** del microservicio: traduce un request en una
 llamada a un service y devuelve una respuesta con el contrato correcto. Nada más.
 La lógica de negocio, las llamadas a otros servicios y el acceso a datos viven en
 services y repositories. Este skill define cómo estructurar la capa REST de
-ASP.NET Core 8 con el arquetipo `epa-net-paas`: controllers delgados, validación
+ASP.NET Core 10 con el arquetipo `epa-net-paas`: controllers delgados, validación
 en el borde con DataAnnotations o FluentValidation, manejo centralizado de
 excepciones EPA en middleware global, y contratos de respuesta consistentes usando
 `IResponseBuilder` y el formato `meta-data-error`.
@@ -48,7 +48,7 @@ excepciones EPA en middleware global, y contratos de respuesta consistentes usan
 
 ## Estado actual vs target
 
-- **Target:** ASP.NET Core 8, `[ApiController]` con validación automática de
+- **Target:** ASP.NET Core 10, `[ApiController]` con validación automática de
   modelo, `IResponseBuilder` del arquetipo `epa-net-paas` para construir
   respuestas en formato `meta-data-error`, excepciones tipadas EPA mapeadas
   centralmente en `IExceptionHandler` o middleware global, DTOs/records
@@ -65,7 +65,7 @@ excepciones EPA en middleware global, y contratos de respuesta consistentes usan
 - **Validación automática de modelo con `[ApiController]`:** cuando la validación
   de DataAnnotations falla, ASP.NET Core devuelve 400 automáticamente; no hace
   falta `ModelState.IsValid` explícito en el controller.
-- **Errores centralizados** en `IExceptionHandler` (ASP.NET Core 8) o middleware
+- **Errores centralizados** en `IExceptionHandler` (ASP.NET Core 10) o middleware
   de excepciones que traduce excepciones EPA a respuestas uniformes con
   `IResponseBuilder`/`BaseErrorBuilder`. El cliente nunca recibe un stack trace.
 - **Formato `meta-data-error`** controlado por el arquetipo: el `ObjectResult`

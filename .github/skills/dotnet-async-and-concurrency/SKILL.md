@@ -2,7 +2,7 @@
 name: dotnet-async-and-concurrency
 description: |
   Activa cuando se coordina trabajo asíncrono o paralelo en un microservicio
-  ASP.NET Core 8: fan-out a múltiples servicios, procesar listas llamando un
+  ASP.NET Core 10: fan-out a múltiples servicios, procesar listas llamando un
   servicio por ítem, paralelizar tareas, o usar Task/async/await con concurrencia
   controlada. Triggers: "async", "await", "Task<T>", "ValueTask<T>", "async void",
   "CancellationToken", "Task.WhenAll", "Task.WhenAny", "SemaphoreSlim",
@@ -52,7 +52,7 @@ corresponde.
 
 ## Estado actual vs target
 
-- **Target:** ASP.NET Core 8, `async`/`await` de punta a punta sin bloqueos
+- **Target:** ASP.NET Core 10, `async`/`await` de punta a punta sin bloqueos
   síncronos, `CancellationToken` propagado en toda la cadena de I/O,
   `Task.WhenAll` solo para número fijo y pequeño de tasks conocidos,
   `SemaphoreSlim` o `Parallel.ForEachAsync` con `MaxDegreeOfParallelism` para

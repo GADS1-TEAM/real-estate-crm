@@ -2,7 +2,7 @@
 name: dotnet-performance-and-memory
 description: |
   Activa cuando se trabaja con performance o uso de memoria en un microservicio
-  ASP.NET Core 8: latencia en hot paths, presión sobre el GC, allocations
+  ASP.NET Core 10: latencia en hot paths, presión sobre el GC, allocations
   innecesarias, boxing/unboxing, streaming de datos, o sizing de pools.
   Triggers: "Span<T>", "Memory<T>", "ReadOnlySpan", "ArrayPool", "ObjectPool",
   "MemoryPool", "boxing", "unboxing", "value type", "struct", "readonly struct",
@@ -27,7 +27,7 @@ controla cuánta presión ejerce sobre él. En un microservicio de alta carga, l
 diferencia entre devolver un `byte[]` y usar `Span<byte>`, o entre `string + string`
 en un loop y `StringBuilder`, puede ser la diferencia entre un GC suave y pauses
 que aumentan la latencia de P99. Este skill define cómo tomar decisiones de
-performance deliberadas en ASP.NET Core 8: cuándo usar `Span<T>`, cuándo evitar
+performance deliberadas en ASP.NET Core 10: cuándo usar `Span<T>`, cuándo evitar
 allocations en hot paths, cómo dimensionar pools y cuándo streaming con
 `IAsyncEnumerable<T>` evita materializar colecciones completas en memoria.
 
@@ -50,7 +50,7 @@ allocations en hot paths, cómo dimensionar pools y cuándo streaming con
 
 ## Estado actual vs target
 
-- **Target:** ASP.NET Core 8 con .NET 8 GC optimizado, `Span<T>`/`Memory<T>` para
+- **Target:** ASP.NET Core 10 con .NET 10 GC optimizado, `Span<T>`/`Memory<T>` para
   procesamiento de buffers sin allocations, `ArrayPool<T>.Shared` para buffers
   temporales de vida corta, `IAsyncEnumerable<T>` para streaming desde DB o
   servicios upstream, `StringBuilder` para concatenación en loops, y decisiones
