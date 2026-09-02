@@ -158,7 +158,11 @@ Debe cubrir:
 
 Debe reutilizar las reglas agnósticas de `aspnetcore-messaging`, no duplicarlas.
 
-### 6. `cqrs-read-models-projections`
+### 6. `cqrs-read-models-projections` — ✅ escrita
+
+Vive en [`.github/skills/cqrs-read-models-projections/`](../../.github/skills/cqrs-read-models-projections/SKILL.md).
+
+Decisiones fijadas al escribirla: CQRS **selectivo** (read model solo cuando una query no puede resolverse en el servicio propietario), proyecciones alimentadas solo por eventos, projectors idempotentes con checkpoint, rebuild en colección nueva con cambio de puntero, y **prohibición explícita de contar `UNKNOWN` como cero** con denominador y excluidos visibles en toda métrica.
 
 **Necesaria antes de:** `W2-ANA-01`, Party360/Property360 y dashboards.
 
@@ -174,7 +178,11 @@ Debe cubrir:
 - UNKNOWN vs cero;
 - read models como derivados, nunca fuente de verdad.
 
-### 7. `multitenancy-authorization`
+### 7. `multitenancy-authorization` — ✅ escrita
+
+Vive en [`.github/skills/multitenancy-authorization/`](../../.github/skills/multitenancy-authorization/SKILL.md).
+
+Decisiones fijadas al escribirla: `tenantId` derivado **solo** del contexto autenticado, permisos como acción + recurso + scope resueltos por `access-service`, `404` en vez de `403` ante recurso ajeno, overrides con motivo/aprobador/vigencia, caché con TTL corto, y **cuatro tests obligatorios** por task que toque datos de negocio.
 
 **Necesaria antes de:** FND-006.
 
@@ -190,7 +198,11 @@ Debe cubrir:
 - service-to-service actor context;
 - auditoría de overrides y reasignaciones.
 
-### 8. `oidc-keycloak-aspnetcore`
+### 8. `oidc-keycloak-aspnetcore` — ✅ escrita
+
+Vive en [`.github/skills/oidc-keycloak-aspnetcore/`](../../.github/skills/oidc-keycloak-aspnetcore/SKILL.md).
+
+Decisiones fijadas al escribirla: Keycloak **26.7.x** (mínimo 26.7.2 por CVEs), **un realm de plataforma** con el tenant como claim, Authorization Code + PKCE terminado en el **BFF** con cookie `HttpOnly` (los tokens nunca llegan al navegador), validación de emisor/audiencia/firma/vigencia en cada servicio, realm versionado como código, y cero reglas de negocio dentro de Keycloak.
 
 **Necesaria antes de:** FND-005/FND-006.
 
@@ -228,9 +240,9 @@ Como mínimo habrá que verificar cobertura de:
 3. ~~`mongodb-dotnet-driver`~~ ✅
 4. ~~`event-driven-outbox-inbox`~~ ✅
 5. ~~`rabbitmq-dotnet`~~ ✅
-6. `multitenancy-authorization`
-7. `oidc-keycloak-aspnetcore`
-8. `cqrs-read-models-projections`
+6. ~~`multitenancy-authorization`~~ ✅
+7. ~~`oidc-keycloak-aspnetcore`~~ ✅
+8. ~~`cqrs-read-models-projections`~~ ✅
 9. revisar/agregar set React/Next.js
 
 ## Regla de autoría

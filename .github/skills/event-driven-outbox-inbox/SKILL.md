@@ -59,7 +59,7 @@ Fuentes: [`ARCHITECTURE.md`](../../../ARCHITECTURE.md) §8,
   `rabbitmq-dotnet` y `aspnetcore-messaging`).
 - Forma de los documentos de negocio (ver `mongodb-document-modeling`).
 - Qué evento corresponde emitir según el dominio (ver `ddd-hexagonal-architecture`).
-- Read models y proyecciones (ver `cqrs-read-models-projections`, pendiente).
+- Read models y proyecciones (ver `cqrs-read-models-projections`).
 
 ## Decisiones del proyecto
 
@@ -352,5 +352,5 @@ después de 7 días vuelve a procesarse. Es un compromiso deliberado.
 | `mongodb-dotnet-driver` | Sesiones, transacciones y manejo del duplicate key en C#. |
 | `rabbitmq-dotnet` | Exchanges, bindings, publisher confirms, ack manual, DLQ, prefetch. |
 | `aspnetcore-messaging` | Reglas agnósticas de consumo: shutdown graceful, backpressure, `CancellationToken`. |
-| `cqrs-read-models-projections` | *Pendiente.* Los projectors son consumidores: mismo inbox, mismas reglas. |
+| `cqrs-read-models-projections` | Los projectors son consumidores: mismo inbox, mismas reglas. |
 | `aspnetcore-error-and-observability` | Trazas del relay, métricas de pendientes, sin PII en los logs de evento. |

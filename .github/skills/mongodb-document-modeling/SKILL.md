@@ -56,7 +56,7 @@ Fuentes: [`ARCHITECTURE.md`](../../../ARCHITECTURE.md) §7,
 - API concreta del driver: `MongoClient`, serializers, `CancellationToken`,
   proyecciones (ver `mongodb-dotnet-driver`).
 - Reglas de negocio e invariantes (ver `ddd-hexagonal-architecture`).
-- Proyecciones y read models (ver `cqrs-read-models-projections`, pendiente).
+- Proyecciones y read models (ver `cqrs-read-models-projections`).
 - Mensajería, outbox y consumidores.
 
 ## Decisiones del proyecto
@@ -321,7 +321,7 @@ var pipeline = new BsonDocument("$lookup", new BsonDocument
 |---|---|
 | `ddd-hexagonal-architecture` | Define el límite del aggregate. Esta skill lo traduce a documento; nunca al revés. |
 | `mongodb-dotnet-driver` | API del driver, serializers, proyecciones, testing con Testcontainers. |
-| `multitenancy-authorization` | *Pendiente.* De dónde sale el `tenantId` que acá se da por presente. |
-| `cqrs-read-models-projections` | *Pendiente.* Colecciones derivadas, checkpoints y rebuild. |
+| `multitenancy-authorization` | De dónde sale el `tenantId` que acá se da por presente. |
+| `cqrs-read-models-projections` | Colecciones derivadas, checkpoints y rebuild. |
 | `event-driven-outbox-inbox` | La colección de outbox pertenece al mismo servicio y se escribe junto al aggregate. Única excepción a la regla de transacciones. |
 | `dotnet-adversarial-testing` | Escrituras concurrentes, documentos en el límite y datos malformados. |

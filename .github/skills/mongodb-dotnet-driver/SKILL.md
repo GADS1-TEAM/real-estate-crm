@@ -369,5 +369,5 @@ catch (MongoWriteException ex)
 | `dotnet-unit-testing` | Tests de repositorio con Testcontainers; los mocks van en el puerto. |
 | `aspnetcore-config-and-secrets` | El connection string es un secreto: viene de configuración, nunca hardcodeado. |
 | `aspnetcore-error-and-observability` | Trazas del driver vía OpenTelemetry; sin PII en los logs de query. |
-| `multitenancy-authorization` | *Pendiente.* De dónde sale el `tenantId` que acá se exige en cada filtro. |
+| `multitenancy-authorization` | De dónde sale el `tenantId` que acá se exige en cada filtro. |
 | `event-driven-outbox-inbox` | La escritura del outbox comparte la transacción con el aggregate. |

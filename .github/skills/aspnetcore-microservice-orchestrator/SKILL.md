@@ -73,6 +73,9 @@ Siempre que se trabaje sobre un microservicio ASP.NET Core bajo `epa-net-paas`:
 | N-10 | [`aspnetcore-error-and-observability`](../aspnetcore-error-and-observability/SKILL.md)       | Tipos de log EPA, MASKED_DATA, Jaeger OTLP, excepciones tipadas             |
 | N-11 | [`aspnetcore-config-and-secrets`](../aspnetcore-config-and-secrets/SKILL.md)                 | IOptions, appsettings, env vars EPA, secretos                               |
 | N-12 | [`aspnetcore-security-owasp-baseline`](../aspnetcore-security-owasp-baseline/SKILL.md)       | OWASP Top 10 — transversal, siempre activo                                  |
+| N-12b| [`multitenancy-authorization`](../multitenancy-authorization/SKILL.md)                       | tenantId, RBAC + scope, ownership, overrides, aislamiento — siempre activo  |
+| N-12c| [`oidc-keycloak-aspnetcore`](../oidc-keycloak-aspnetcore/SKILL.md)                           | OIDC con Keycloak, patrón BFF, PKCE, validación de tokens                   |
+| N-12d| [`cqrs-read-models-projections`](../cqrs-read-models-projections/SKILL.md)                   | Read models derivados, projectors idempotentes, rebuild, lineage           |
 | N-13 | [`dotnet-unit-testing`](../dotnet-unit-testing/SKILL.md)                                     | xUnit, Moq, WebApplicationFactory                                           |
 | N-14 | [`dotnet-adversarial-testing`](../dotnet-adversarial-testing/SKILL.md)                       | Inputs hostiles, fallas de dependencias                                     |
 | N-15 | [`dotnet-code-documentation-xmldoc`](../dotnet-code-documentation-xmldoc/SKILL.md)           | Documentación XML doc de API pública                                        |

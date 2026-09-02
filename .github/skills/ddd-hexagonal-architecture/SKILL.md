@@ -326,7 +326,7 @@ await _publisher.PublishAsync(new PartyRegistered(partyId, tenantId, occurredAt)
 | `aspnetcore-messaging` | Patrones agnósticos de consumo. El *qué* se publica lo define esta skill. |
 | `dotnet-parsing-and-validation` | Valida forma del input en el borde. Las invariantes de negocio son de esta skill. |
 | `dotnet-unit-testing` | Los aggregates son el mejor lugar para testear sin infraestructura. |
-| `mongodb-document-modeling` | *Pendiente.* Traduce estas fronteras a documentos, embed vs reference e índices. |
+| `mongodb-document-modeling` | Traduce estas fronteras a documentos, embed vs reference e índices. |
 | `event-driven-outbox-inbox` | Cómo se publica confiablemente lo que este skill decide publicar. |
-| `multitenancy-authorization` | *Pendiente.* De dónde sale `tenantId` y cómo se autoriza. |
-| `cqrs-read-models-projections` | *Pendiente.* Cuándo un read model se justifica y cómo se reconstruye. |
+| `multitenancy-authorization` | De dónde sale `tenantId` y cómo se autoriza. |
+| `cqrs-read-models-projections` | Cuándo un read model se justifica y cómo se reconstruye. |
