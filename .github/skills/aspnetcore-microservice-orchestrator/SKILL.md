@@ -65,7 +65,7 @@ Siempre que se trabaje sobre un microservicio ASP.NET Core bajo `epa-net-paas`:
 | N-5  | [`dotnet-performance-and-memory`](../dotnet-performance-and-memory/SKILL.md)                 | Span/Memory, ArrayPool, boxing, GC de .NET                                  |
 | N-6  | [`dotnet-parsing-and-validation`](../dotnet-parsing-and-validation/SKILL.md)                 | Validación en bordes, DataAnnotations, FluentValidation                     |
 | N-7  | [`aspnetcore-outgoing-http`](../aspnetcore-outgoing-http/SKILL.md)                           | IHttpClientFactory, named clients EPA, Polly, APIM                          |
-| N-8  | _acceso a datos_ — **pendiente**                                                             | MongoDB: ver `docs/skills/SKILL_GAPS.md`. EF Core archivada, no usar        |
+| N-8  | [`mongodb-document-modeling`](../mongodb-document-modeling/SKILL.md)                         | Documento vs aggregate, embed/reference, índices, concurrencia optimista    |
 | N-9  | [`aspnetcore-messaging`](../aspnetcore-messaging/SKILL.md)                                   | Mensajería agnóstica, idempotencia, DLQ. Broker del proyecto: RabbitMQ      |
 | N-10 | [`aspnetcore-error-and-observability`](../aspnetcore-error-and-observability/SKILL.md)       | Tipos de log EPA, MASKED_DATA, Jaeger OTLP, excepciones tipadas             |
 | N-11 | [`aspnetcore-config-and-secrets`](../aspnetcore-config-and-secrets/SKILL.md)                 | IOptions, appsettings, env vars EPA, secretos                               |

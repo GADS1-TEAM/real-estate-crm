@@ -54,7 +54,9 @@ Hasta entonces, un agente que active una de estas skills debe tomar sus reglas g
 
 ## Skills específicas faltantes
 
-### 1. `mongodb-document-modeling`
+### 1. `mongodb-document-modeling` — ✅ escrita
+
+Vive en [`.github/skills/mongodb-document-modeling/`](../../.github/skills/mongodb-document-modeling/SKILL.md).
 
 **Necesaria antes de:** `W1-PTY-01`, `W1-PRP-01`, `W1-DEM-01`.
 
@@ -210,7 +212,7 @@ Como mínimo habrá que verificar cobertura de:
 ## Orden sugerido para crear skills
 
 1. ~~`ddd-hexagonal-architecture`~~ ✅
-2. `mongodb-document-modeling`
+2. ~~`mongodb-document-modeling`~~ ✅
 3. `mongodb-dotnet-driver`
 4. `event-driven-outbox-inbox`
 5. `rabbitmq-dotnet`
