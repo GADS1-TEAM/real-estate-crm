@@ -1,29 +1,4 @@
 {
   "version": "2.0.0",
-  "tasks": [
-    {
-      "label": "PRP: Cerrar PRP actual (post-merge)",
-      "type": "shell",
-      "command": "npm run prp:done",
-      "group": "none",
-      "presentation": {
-        "reveal": "always",
-        "panel": "shared",
-        "focus": true
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "PRP: Dry-run cierre (ver qué movería sin ejecutar)",
-      "type": "shell",
-      "command": "npm run prp:done:dry",
-      "group": "none",
-      "presentation": {
-        "reveal": "always",
-        "panel": "shared",
-        "focus": true
-      },
-      "problemMatcher": []
-    }
-  ]
+  "tasks": []
 }
