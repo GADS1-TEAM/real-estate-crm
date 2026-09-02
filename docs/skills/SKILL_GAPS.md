@@ -88,7 +88,9 @@ Debe cubrir:
 - testing con MongoDB real/Testcontainers;
 - manejo de errores/retries sin duplicar writes.
 
-### 3. `ddd-hexagonal-architecture`
+### 3. `ddd-hexagonal-architecture` — ✅ escrita
+
+Vive en [`.github/skills/ddd-hexagonal-architecture/`](../../.github/skills/ddd-hexagonal-architecture/SKILL.md).
 
 **Necesaria antes de:** FND-001/FND-003 y todo servicio de dominio.
 
@@ -207,7 +209,7 @@ Como mínimo habrá que verificar cobertura de:
 
 ## Orden sugerido para crear skills
 
-1. `ddd-hexagonal-architecture`
+1. ~~`ddd-hexagonal-architecture`~~ ✅
 2. `mongodb-document-modeling`
 3. `mongodb-dotnet-driver`
 4. `event-driven-outbox-inbox`

@@ -57,6 +57,7 @@ Siempre que se trabaje sobre un microservicio ASP.NET Core bajo `epa-net-paas`:
 | ID   | Skill                                                                                        | Capa que cubre                                                              |
 | ---- | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | T-1  | [`prp-feature-discovery-dotnet`](../prp-feature-discovery-dotnet/SKILL.md)                   | Discovery + generación del PRP antes de implementar                         |
+| T-2  | [`ddd-hexagonal-architecture`](../ddd-hexagonal-architecture/SKILL.md)                       | Dónde vive cada cosa: aggregates, capas, ownership, eventos                 |
 | N-1  | [`aspnetcore-rest-layer`](../aspnetcore-rest-layer/SKILL.md)                                 | Controllers, endpoints, IResponseBuilder, formato meta-data-error           |
 | N-2  | [`aspnetcore-di-and-middleware-pipeline`](../aspnetcore-di-and-middleware-pipeline/SKILL.md) | DI, lifetimes, pipeline de middleware, AddPaaS/UsePaas                      |
 | N-3  | [`dotnet-async-and-concurrency`](../dotnet-async-and-concurrency/SKILL.md)                   | async/await, CancellationToken, Task.WhenAll, SemaphoreSlim                 |
