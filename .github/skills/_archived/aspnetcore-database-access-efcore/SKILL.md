@@ -1,23 +1,23 @@
 ---
 name: aspnetcore-database-access-efcore
 description: |
-  Activa cuando se trabaja con acceso a base de datos en un microservicio ASP.NET
-  Core 8 con EF Core 8, en el contexto del arquetipo epa-net-paas. Triggers:
-  "DbContext", "EF Core", "Entity Framework", "DbSet<T>", "IRepository",
-  "Repository", "migration", "Add-Migration", "Update-Database", "Migrate()",
-  "N+1", "Include", "ThenInclude", "AsNoTracking", "projection", "Select new",
-  "Skip", "Take", "paginación", "SaveChangesAsync", "BeginTransactionAsync",
-  "IDbContextTransaction", "DbUpdateException", "DbUpdateConcurrencyException",
-  "optimistic concurrency", "RowVersion", "ConcurrencyToken", "Fluent API",
-  "OnModelCreating", "IEntityTypeConfiguration", "FromSqlRaw", "FromSqlInterpolated",
-  "Dapper", "ADO.NET", "SqlCommand", "connection pool", "DatabaseException",
-  "repositorio", "client-side evaluation", "IQueryable fuera del repo",
-  "ExecuteUpdateAsync", "ExecuteDeleteAsync", "AsNoTrackingWithIdentityResolution".
-  Garantiza acceso a DB correcto: sin N+1, DbContext Scoped, migraciones
-  versionadas, projections para lecturas, paginación obligatoria y errores
-  mapeados a DatabaseException EPA. NO activar para: lógica de negocio pura,
-  llamadas HTTP salientes ni mensajería.
+  ARCHIVADA. No activar. La persistencia de este proyecto es MongoDB
+  (ver docs/implementation/POC_TECH_DECISIONS.md). Esta skill enseña EF Core sobre
+  bases relacionales y proviene de otro proyecto. Se conserva solo como referencia
+  por si algún servicio futuro justifica una base relacional mediante ADR.
+  Para acceso a datos usar las skills de MongoDB (ver docs/skills/SKILL_GAPS.md).
 ---
+
+> **⚠️ SKILL ARCHIVADA — NO USAR**
+>
+> Este proyecto persiste en **MongoDB**, no en una base relacional. Las reglas de
+> abajo asumen EF Core, `DbContext`, migraciones y joins, y llevan al anti-patrón
+> explícito de *modelar MongoDB como SQL*.
+>
+> Reemplazada por `mongodb-document-modeling` y `mongodb-dotnet-driver`, pendientes
+> de escribir (`docs/skills/SKILL_GAPS.md`).
+>
+> Reactivar solo si un ADR aprueba una base relacional para algún servicio.
 
 # ASP.NET Core Database Access (EF Core)
 

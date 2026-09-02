@@ -4,14 +4,15 @@ description: |
   Meta-skill SIEMPRE ACTIVO al trabajar en un microservicio ASP.NET Core. No define
   reglas propias: indexa los demás skills del set .NET, decide cuáles se activan para
   una tarea, en qué orden, y cómo resolver conflictos entre ellos. Contexto:
-  microservicios ASP.NET Core 8 con arquetipo epa-net-paas.
+  microservicios ASP.NET Core 10 de este repositorio; el stack obligatorio lo define
+  AGENTS.md.
   Triggers: cualquier tarea de feature, fix, refactor o test en un microservicio
   .NET/ASP.NET Core; también cuando el agente arranca conversación nueva sin saber
   qué skills aplican. Palabras clave: "microservicio ASP.NET Core", "arquitectura
-  del servicio .NET", "qué skill aplica", "epa-net-paas", "conflicto entre reglas",
+  del servicio .NET", "qué skill aplica", "conflicto entre reglas",
   "implementá", "agregá", "refactor", "armemos", "test", "fix", "diseñemos",
   "necesito", "endpoint", "consumer", "producer", "Controller", "IHttpClientFactory",
-  "EF Core", "DbContext", "IOptions", "Minimal API", "ASP.NET Core".
+  "IOptions", "Minimal API", "ASP.NET Core".
   Garantiza que el agente: (1) corre el discovery (T-1) antes de escribir código
   no trivial; (2) activa los skills de borde correctos según las capas que toca;
   (3) aplica siempre los skills transversales; (4) resuelve conflictos con la
@@ -31,7 +32,7 @@ entre ellos. No agrega reglas nuevas: orquesta las existentes.
 Resuelve el problema de "tengo 16 skills, ¿cuáles aplican acá?" sin obligar al
 dev a recordarlas todas.
 
-Contexto de arquitectura: microservicios ASP.NET Core 8 sobre el arquetipo
+Contexto de arquitectura: microservicios ASP.NET Core 10 sobre el arquetipo
 `epa-net-paas`. Los skills cubren la superficie completa del arquetipo: capa REST,
 DI y pipeline, concurrencia, thread safety, performance, validación, HTTP saliente,
 acceso a datos con EF Core, mensajería, observabilidad, configuración, seguridad OWASP,
@@ -63,8 +64,8 @@ Siempre que se trabaje sobre un microservicio ASP.NET Core bajo `epa-net-paas`:
 | N-5  | [`dotnet-performance-and-memory`](../dotnet-performance-and-memory/SKILL.md)                 | Span/Memory, ArrayPool, boxing, GC de .NET                                  |
 | N-6  | [`dotnet-parsing-and-validation`](../dotnet-parsing-and-validation/SKILL.md)                 | Validación en bordes, DataAnnotations, FluentValidation                     |
 | N-7  | [`aspnetcore-outgoing-http`](../aspnetcore-outgoing-http/SKILL.md)                           | IHttpClientFactory, named clients EPA, Polly, APIM                          |
-| N-8  | [`aspnetcore-database-access-efcore`](../aspnetcore-database-access-efcore/SKILL.md)         | EF Core 8, DbContext scoped, N+1, AsNoTracking                              |
-| N-9  | [`aspnetcore-messaging`](../aspnetcore-messaging/SKILL.md)                                   | Mensajería (stack no confirmado), idempotencia, DLQ                         |
+| N-8  | _acceso a datos_ — **pendiente**                                                             | MongoDB: ver `docs/skills/SKILL_GAPS.md`. EF Core archivada, no usar        |
+| N-9  | [`aspnetcore-messaging`](../aspnetcore-messaging/SKILL.md)                                   | Mensajería agnóstica, idempotencia, DLQ. Broker del proyecto: RabbitMQ      |
 | N-10 | [`aspnetcore-error-and-observability`](../aspnetcore-error-and-observability/SKILL.md)       | Tipos de log EPA, MASKED_DATA, Jaeger OTLP, excepciones tipadas             |
 | N-11 | [`aspnetcore-config-and-secrets`](../aspnetcore-config-and-secrets/SKILL.md)                 | IOptions, appsettings, env vars EPA, secretos                               |
 | N-12 | [`aspnetcore-security-owasp-baseline`](../aspnetcore-security-owasp-baseline/SKILL.md)       | OWASP Top 10 — transversal, siempre activo                                  |
