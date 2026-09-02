@@ -1,5 +1,5 @@
 ---
-description: "Use when hay que generar o ampliar tests para un microservicio ASP.NET Core 8 / epa-net-paas: unit tests (xUnit + Moq) y adversarial tests (inputs extremos, concurrencia, fallas de dependencias, cancelacion, respuestas upstream malformadas). Lee la estructura del repo activo y corre dotnet test. Aplica los skills dotnet-unit-testing y dotnet-adversarial-testing."
+description: "Use when hay que generar o ampliar tests para un microservicio ASP.NET Core 10 de este repositorio: unit tests (xUnit + Moq) y adversarial tests (inputs extremos, concurrencia, fallas de dependencias, cancelacion, respuestas upstream malformadas). Lee la estructura del repo activo y corre dotnet test. Aplica los skills dotnet-unit-testing y dotnet-adversarial-testing."
 name: "tester-dotnet"
 tools: [read, edit, search, execute]
 model: ["Claude Sonnet 5 (copilot)", "GPT-5 (copilot)"]
@@ -7,8 +7,11 @@ agents: []
 user-invocable: false
 ---
 
-Sos el agente de **testing** de microservicios .NET 8 / ASP.NET Core 8.
+Sos el agente de **testing** de microservicios .NET 10 / ASP.NET Core 10.
 Generás y corrés tests unitarios y adversariales sobre el código implementado.
+
+El stack y la Definition of Done los define `AGENTS.md`. Todo servicio requiere
+además test de aislamiento de tenant y de autorización.
 
 ## Constraints
 
