@@ -1,6 +1,6 @@
 # Template de task ejecutable
 
-> Las tasks de este repositorio son unidades de ejecución. El detalle de dominio se completa leyendo únicamente la task, `README.md`, `ARCHITECTURE.md`, `AGENTS.md`, `docs/implementation/POC_TECH_DECISIONS.md` y los contratos de dependencias directas.
+> Las tasks de este repositorio son unidades de ejecución. El detalle de dominio se completa leyendo únicamente la task, `README.md`, `ARCHITECTURE.md`, `AGENTS.md`, `docs/implementation/POC_TECH_DECISIONS.md`, los contratos de dependencias directas y las **skills aplicables**.
 
 ## Identidad
 
@@ -14,6 +14,15 @@
 ## Resultado esperado
 
 Qué capacidad observable debe existir al terminar.
+
+## Skills aplicables
+
+Listar las skills que el agente debe cargar, derivadas de [`SKILL_ROUTING.md`](../skills/SKILL_ROUTING.md).
+
+- núcleo transversal (siempre): `aspnetcore-microservice-orchestrator`, `ddd-hexagonal-architecture`, `multitenancy-authorization`, `aspnetcore-security-owasp-baseline`;
+- por borde tocado: `<skills según la tabla de ruteo>`.
+
+Sus MUST y MUST NOT son condición de aceptación de la task. Si la task necesita más de ~6 skills, revisar si no está sobredimensionada.
 
 ## Alcance trazable
 
@@ -37,6 +46,7 @@ Registrar aquí cualquier decisión que difiera de la arquitectura objetivo: mob
 ## Definition of Done
 
 - [ ] Todos los UCs listados están implementados y trazables.
+- [ ] Los checklists de las skills aplicables están cumplidos.
 - [ ] Build/lint/typecheck/tests aplicables en verde.
 - [ ] Unit/integration/contract/adversarial tests según los bordes tocados.
 - [ ] Tenant isolation, autorización, observabilidad y manejo de errores validados.

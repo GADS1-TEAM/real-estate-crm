@@ -6,6 +6,8 @@
 2. `ARCHITECTURE.md` — arquitectura y casos de uso.
 3. work package actual — alcance de implementación.
 
+Las **skills** (`.github/skills/`) traducen esas fuentes a reglas accionables. Cuando una skill contradice a los documentos, ganan los documentos: varias fueron heredadas de otro proyecto.
+
 No reinterpretar decisiones globales desde código existente si contradicen esas fuentes.
 
 ## Regla principal
@@ -42,15 +44,17 @@ Implementá **solo** el work package asignado. No optimices ni refactorices áre
 
 ## Antes de programar
 
-1. Listar UCs del paquete.
-2. Listar aggregates/entidades owner.
-3. Listar APIs/eventos consumidos/producidos.
-4. Confirmar write zones.
-5. Escribir criterios/tests de aceptación.
+1. Cargar las skills aplicables según `docs/skills/SKILL_ROUTING.md`.
+2. Listar UCs del paquete.
+3. Listar aggregates/entidades owner.
+4. Listar APIs/eventos consumidos/producidos.
+5. Confirmar write zones.
+6. Escribir criterios/tests de aceptación.
 
 ## Definition of Done
 
 - casos de uso del paquete cubiertos;
+- checklists de las skills aplicables cumplidos;
 - tests unit/application/integration/contract según aplique;
 - tenant/authorization test;
 - telemetría básica;
@@ -65,4 +69,4 @@ Simple by default, powerful by exception. Quick capture primero. Progressive dis
 
 ## Escalamiento
 
-Abrir ADR request antes de cambiar ownership, invariante, microservicio, datastore, consistencia cross-service o contrato público.
+Abrir ADR antes de cambiar ownership, invariante, microservicio, datastore, consistencia cross-service o contrato público. Proceso y plantilla en `docs/adr/README.md`. Un agente **no aprueba un ADR**: lo deja en `PROPOSED` y frena la task.

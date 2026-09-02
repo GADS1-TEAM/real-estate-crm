@@ -31,7 +31,8 @@ Para el flujo de trabajo (ramas, commits, PRs y escalamiento) ver
 
 ## Skills
 
-- [`skills/SKILL_GAPS.md`](skills/SKILL_GAPS.md) — capacidades ya cubiertas y skills específicas que faltan para este proyecto.
+- [`skills/SKILL_ROUTING.md`](skills/SKILL_ROUTING.md) — **qué skills carga un agente y cuándo**, con mapeo concreto para las Olas 0 y 1.
+- [`skills/SKILL_GAPS.md`](skills/SKILL_GAPS.md) — estado de cada skill, alineación de las heredadas y deuda abierta.
 
 Las skills ejecutables viven en [`.github/skills/`](../.github/skills/).
 
@@ -53,6 +54,6 @@ Las instrucciones operativas globales están en [`../AGENTS.md`](../AGENTS.md). 
 2. task asignada
 3. secciones relevantes de `README.md`
 4. `ARCHITECTURE.md`
-5. skills aplicables
+5. skills aplicables según [`skills/SKILL_ROUTING.md`](skills/SKILL_ROUTING.md)
 
 No es necesario cargar todo el repositorio documental en contexto para implementar una task acotada.
