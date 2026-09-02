@@ -1,237 +1,264 @@
 ---
 name: aspnetcore-di-and-middleware-pipeline
 description: |
-  Activa cuando se trabaja con el contenedor de inyección de dependencias de
-  ASP.NET Core o con el pipeline de middleware en Program.cs: registrar servicios,
-  configurar lifetimes, ordenar middleware, o resolver problemas del contenedor.
-  Triggers: "IServiceCollection", "AddTransient", "AddScoped", "AddSingleton",
-  "AddPaaS", "UsePaas", "middleware", "pipeline", "Program.cs", "IOptions<T>",
-  "IHostedService", "BackgroundService", "captive dependency", "dependencia
-  capturada", "Scoped en Singleton", "IDisposable", "lifetime", "DI container",
-  "inyección de dependencias", "registrar servicio", "DependencyInjectionException",
-  "ObjectDisposedException", "IServiceScopeFactory". Garantiza lifetimes correctos,
-  pipeline de middleware con AddPaaS/UsePaas en la posición correcta, ausencia de
-  captive dependencies, y gestión explícita del ciclo de vida de recursos. NO
-  activar para: lógica de negocio dentro del service, acceso a DB, ni llamadas HTTP.
+  Activa cuando se registra un servicio en el contenedor de DI o se arma el pipeline
+  de un servicio o BFF de este CRM. Triggers: "Program.cs", "composition root",
+  "AddScoped", "AddSingleton", "AddTransient", "IServiceCollection",
+  "IServiceProvider", "CreateScope", "IServiceScopeFactory", "lifetime",
+  "captive dependency", "inyección de dependencias", "registrar el servicio",
+  "middleware", "pipeline", "UseRouting", "UseAuthentication", "UseAuthorization",
+  "UseExceptionHandler", "app.Use", "orden del middleware", "IMiddleware",
+  "IHostedService", "BackgroundService", "extension method de registro",
+  "AddCrmPlatform", "IOptions<T>", "service locator".
+  Garantiza lifetimes correctos, ausencia de captive dependencies, orden del
+  pipeline válido y registro centralizado en un building block compartido en vez de
+  repetido en veinte servicios. NO activar para: reglas de dominio, contratos HTTP
+  ni acceso a datos.
 ---
 
-# ASP.NET Core DI & Middleware Pipeline
+# DI y Pipeline de Middleware
 
 ## Objetivo
 
-El contenedor de inyección de ASP.NET Core es el **esqueleto del microservicio**:
-crea los servicios, resuelve las dependencias, y gestiona su ciclo de vida.
-Usarlo mal genera captive dependencies (un Scoped que se convierte en Singleton
-involuntariamente), servicios con estado mutable no thread-safe, I/O en el
-constructor que falla silenciosamente en startup, y memory leaks por recursos no
-liberados. El orden del pipeline de middleware también es crítico: un middleware
-en la posición incorrecta puede hacer que error handling, auth o logging fallen.
-Este skill define cómo registrar servicios correctamente, elegir el lifetime
-adecuado, ordenar el pipeline con `AddPaaS`/`UsePaas`, y gestionar el ciclo de
-vida de recursos.
+El `Program.cs` es el **composition root**: el único lugar donde se decide qué
+implementación concreta satisface cada puerto. Dos errores lo arruinan y ninguno
+falla al compilar:
+
+- **Lifetime equivocado.** Un `Scoped` capturado por un `Singleton` sobrevive al
+  request que lo creó. Con MongoDB y contexto de tenant, eso significa que un
+  request puede terminar operando con el `ActorContext` de otro.
+- **Orden del pipeline equivocado.** Autorizar antes de autenticar deja pasar
+  requests que debían rechazarse.
+
+Con veinte servicios, la otra regla es que **nadie arme su propio bootstrap**: la
+plataforma se registra una sola vez en un building block compartido.
+
+Fuentes: [`ARCHITECTURE.md`](../../../ARCHITECTURE.md) §2 y §5.
 
 ## Cuándo activar
 
-- Se registra un nuevo servicio en `IServiceCollection`.
-- Se elige el lifetime de un servicio o se detecta un problema relacionado.
-- Se detecta una captive dependency (Scoped inyectado en Singleton).
-- Se configura el pipeline de middleware en `Program.cs`.
-- Se posiciona `AddPaaS(builder.Configuration)`/`app.UsePaas()` del arquetipo.
-- Se implementa `IHostedService` o `BackgroundService`.
-- Se configura `IOptions<T>` para binding de configuración tipada.
-- Hay un `ObjectDisposedException` o un `DependencyInjectionException` del arquetipo.
+- Se escribe o modifica `Program.cs`.
+- Se registra un servicio, repositorio, adapter o `BackgroundService`.
+- Se elige o discute un lifetime.
+- Se agrega o reordena middleware.
+- Se crea un extension method de registro.
 
 ## Cuándo NO activar
 
-- Lógica de negocio dentro de los métodos del service.
-- Acceso a DB con EF Core o ADO.NET (ver el skill de acceso a datos).
-- Llamadas HTTP salientes (ver `aspnetcore-outgoing-http`).
-
-## Estado actual vs target
-
-- **Target:** ASP.NET Core 10, inyección por constructor con primary constructors
-  (C# 14) o constructor explícito, servicios Singleton con estado inmutable,
-  `IHostedService`/`BackgroundService` para tareas de background o startup,
-  `IOptions<T>` para binding de config, `IDisposable`/`IAsyncDisposable` para
-  cleanup de recursos.
-- Las reglas aplican a cualquier versión de ASP.NET Core 6+.
+- Invariantes y reglas de negocio (ver `ddd-hexagonal-architecture`).
+- Forma de los endpoints (ver `aspnetcore-rest-layer`).
+- Contenido de la configuración (ver `aspnetcore-config-and-secrets`).
 
 ## Decisiones del proyecto
 
-- **Inyección por constructor siempre** (no `IServiceProvider.GetService<T>()` en
-  código de producción ni service locator). Con C# primary constructors el
-  boilerplate se reduce al mínimo.
-- **Lifetimes:**
-  - `AddSingleton` para servicios stateless thread-safe o con estado inmutable
-    (clientes HTTP vía `IHttpClientFactory`, caché, configuración).
-  - `AddScoped` para servicios con estado por request (Unit of Work, `DbContext`).
-  - `AddTransient` para servicios stateless ligeros que no acumulan recursos.
-- **`AddPaaS(builder.Configuration)` primero** en la sección de servicios, antes
-  de registrar servicios de aplicación que dependan de abstracciones del arquetipo
-  (`IResponseBuilder`, `BaseErrorBuilder`, etc.).
-- **`app.UsePaas()` después de `app.UseRouting()`** y antes de
-  `app.UseAuthorization()` / `app.MapControllers()` para que los middlewares
-  del arquetipo (error handling, correlation id, meta-data wrapping) estén en la
-  posición correcta del pipeline.
-- **Captive dependency es un bug silencioso:** un Singleton que inyecta un Scoped
-  captura esa instancia en su creación; vive todo el tiempo de vida del Singleton,
-  no se libera por request, y puede acumular estado entre requests.
-- **Resolución de captive deps:** usar `IServiceScopeFactory` para crear un scope
-  explícito y acotado dentro del Singleton cuando necesite consumir un Scoped.
+| Tema | Decisión |
+|---|---|
+| Bootstrap | Un building block compartido expone `AddCrmPlatform()` / `UseCrmPlatform()`: telemetría, handler de errores, health, autenticación y contexto de actor |
+| Composition root | `Program.cs` de cada servicio. Es el único lugar que conoce implementaciones concretas |
+| `IMongoClient` | **Singleton** |
+| Repositorios y handlers | **Scoped** |
+| `ActorContext` | **Scoped**, resuelto una vez en el borde |
+| Relay de outbox y consumidores | `BackgroundService`, con scope propio por mensaje |
+| Caché de autorización | `IMemoryCache` singleton, con TTL corto |
+| Registro por capa | Cada proyecto expone su `Add<Capa>()`; `Program.cs` los compone |
+
+### Orden del pipeline
+
+```csharp
+var app = builder.Build();
+
+app.UseCrmPlatform();        // errores, telemetría, correlationId
+app.UseRouting();
+app.UseAuthentication();     // primero: quién sos
+app.UseAuthorization();      // después: qué podés
+app.MapControllers();
+app.MapHealthChecks("/health/live");
+app.MapHealthChecks("/health/ready");
+```
+
+El manejo de errores va **primero** para que capture todo lo que ocurra después.
+Autenticación **antes** de autorización, siempre.
+
+## Estado actual vs target
+
+- **Estado:** no hay servicios. `FND-001` crea la estructura, `FND-007` la
+  plataforma compartida.
+- **Target:** el `Program.cs` de cada servicio es corto y legible: llama a
+  `AddCrmPlatform()`, registra sus capas y compone el pipeline.
 
 ## Reglas obligatorias
 
 ### MUST
 
-1. **MUST usar inyección por constructor** para dependencias obligatorias del
-   servicio. No `IServiceProvider.GetService<T>()` (service locator) en código
-   de producción.
-
-2. **MUST elegir el lifetime correcto:**
-   - `AddScoped` para `DbContext` y cualquier clase que represente una unidad de
-     trabajo por request.
-   - `AddSingleton` solo para servicios stateless o con estado thread-safe.
-   - `AddTransient` para servicios sin estado y sin recursos pesados.
-
-3. **MUST colocar `AddPaaS(builder.Configuration)` antes de los registros de
-   servicios de aplicación** que dependan de abstracciones del arquetipo
-   (`IResponseBuilder`, `BaseErrorBuilder`, excepciones EPA, etc.).
-
-4. **MUST colocar `app.UsePaas()` después de `app.UseRouting()`** y antes de
-   `app.UseAuthorization()` y `app.MapControllers()` para que el pipeline de
-   middlewares del arquetipo procese el request en el orden correcto.
-
-5. **MUST implementar `IDisposable` o `IAsyncDisposable`** en servicios que
-   contengan recursos no manejados (conexiones, channels, timers, `HttpClient`
-   manual). El DI container invoca `Dispose()` automáticamente al final del
-   lifetime del servicio.
-
-6. **MUST usar `IHostedService` o `BackgroundService`** para tareas de background
-   o inicialización que requieran acceso a servicios del container. No I/O en
-   el constructor de un servicio.
+- **MUST** registrar `IMongoClient` como **singleton**, y los repositorios como
+  **scoped**.
+- **MUST** resolver el `ActorContext` como **scoped**, una vez por request.
+- **MUST** crear un scope explícito por mensaje en `BackgroundService` y
+  consumidores: no hay request que lo provea.
+- **MUST** ubicar `UseAuthentication()` antes de `UseAuthorization()`.
+- **MUST** registrar el manejo de errores al principio del pipeline.
+- **MUST** registrar los adapters contra sus **puertos**, no contra clases
+  concretas.
+- **MUST** exponer el registro de cada capa como un extension method
+  (`AddPartyDomain()`, `AddPartyInfrastructure()`).
+- **MUST** validar la configuración al arranque, para que el servicio no levante con
+  config inválida.
 
 ### MUST NOT
 
-7. **MUST NOT inyectar un servicio Scoped en un Singleton directamente.**
-   Es una captive dependency: el Scoped se convierte efectivamente en Singleton,
-   con riesgo de state leak entre requests. Usar `IServiceScopeFactory` si el
-   Singleton necesita consumir un Scoped.
+- **MUST NOT** inyectar un `Scoped` dentro de un `Singleton`: es una captive
+  dependency y con tenancy es un bug de aislamiento.
+- **MUST NOT** usar `IServiceProvider` como service locator dentro de la lógica de
+  negocio.
+- **MUST NOT** repetir el bootstrap de plataforma en cada servicio: va en el
+  building block.
+- **MUST NOT** registrar como singleton nada que guarde estado por request o por
+  tenant.
+- **MUST NOT** hacer trabajo bloqueante ni de red en el constructor de un servicio.
+- **MUST NOT** registrar el mismo puerto dos veces con implementaciones distintas
+  sin que sea deliberado y documentado.
 
-8. **MUST NOT hacer I/O en el constructor de un servicio** (conexiones a DB,
-   llamadas HTTP, lectura de archivos). El DI container construye los servicios
-   durante el startup y una excepción aquí cancela el arranque completo.
+## Recomendaciones
 
-9. **MUST NOT registrar el mismo servicio múltiples veces con lifetimes
-   contradictorios** (Scoped y Singleton para la misma interfaz) sin una
-   justificación documentada.
+### SHOULD
 
-10. **MUST NOT usar `builder.Build()` seguido de `app.Services.GetService<T>()`**
-    dentro de `Program.cs` para resolver servicios en la fase de configuración.
-    Genera un segundo contenedor que no comparte estado con el principal.
+- **SHOULD** mantener `Program.cs` corto: si crece, faltan extension methods.
+- **SHOULD** preferir `Scoped` como default y subir a `Singleton` solo con motivo.
+- **SHOULD** mantener los singletons **inmutables** o con estado protegido.
+- **SHOULD** registrar los `BackgroundService` al final, después de sus dependencias.
+- **SHOULD** verificar el grafo de DI en un test de arranque: que el host construya
+  y resuelva todo.
+
+### SHOULD NOT
+
+- **SHOULD NOT** usar `Transient` para algo caro de construir.
+- **SHOULD NOT** poner lógica condicional compleja en el composition root: si el
+  registro depende de muchos flags, hay un problema de diseño.
 
 ## Anti-patrones prohibidos
 
-❌ Captive dependency (Scoped inyectado en Singleton):
+### 1. Captive dependency
 
 ```csharp
-// Registros en Program.cs:
-builder.Services.AddSingleton<INotificacionService, NotificacionService>();
-builder.Services.AddScoped<IUnitOfWork, UnitOfWork>(); // Scoped: una instancia por request
-
-// Singleton que captura el Scoped en construcción:
-public class NotificacionService(IUnitOfWork unitOfWork) : INotificacionService
-{
-    // ❌ IUnitOfWork es Scoped pero este Singleton lo captura al crearse;
-    //    la misma instancia se reutiliza en todos los requests → state leak.
-}
+// ❌ El singleton captura un scoped: el ActorContext de un request queda
+//    congelado y otro request opera con el tenant equivocado.
+builder.Services.AddSingleton<PortfolioCache>();   // recibe IActorContext scoped
+builder.Services.AddScoped<IActorContext, ActorContext>();
 ```
 
-✅ Singleton crea scope explícito cuando necesita un Scoped:
-
 ```csharp
-public class NotificacionService(IServiceScopeFactory scopeFactory) : INotificacionService
+// ✅ El singleton pide un scope cuando lo necesita.
+public sealed class PortfolioCache(IServiceScopeFactory scopeFactory)
 {
-    public async Task EnviarAsync(Notificacion notif, CancellationToken ct)
+    public async Task<Portfolio> GetAsync(TenantId tenant, CancellationToken ct)
     {
-        await using var scope = scopeFactory.CreateAsyncScope(); // ✅ scope acotado al método
-        var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-        await unitOfWork.NotificacionesRepository.InsertarAsync(notif, ct);
-        await unitOfWork.CommitAsync(ct);
-    } // ✅ el scope (y el UnitOfWork) se dispone al salir del bloque using
-}
-```
-
-❌ I/O en el constructor:
-
-```csharp
-public class ConfiguracionRemota(HttpClient client)
-{
-    private readonly Dictionary<string, string> _config;
-    public ConfiguracionRemota(HttpClient client)
-    {
-        // ❌ I/O bloqueante en constructor; si el servicio remoto no responde,
-        //    el startup del microservicio falla con excepción no controlada
-        _config = client.GetFromJsonAsync<Dictionary<string, string>>("/config").Result;
+        using var scope = scopeFactory.CreateScope();
+        var repo = scope.ServiceProvider.GetRequiredService<IPortfolioRepository>();
+        return await repo.LoadAsync(tenant, ct);
     }
 }
 ```
 
-✅ I/O en IHostedService durante el startup:
+### 2. Consumidor sin scope por mensaje
 
 ```csharp
-public class ConfiguracionRemotaLoader(
-    HttpClient client,
-    IConfiguracionCache cache) : IHostedService
+// ❌ Un BackgroundService es singleton: los scoped que resuelva viven para siempre.
+public sealed class OutboxRelay(IPartyRepository repo) : BackgroundService { }
+```
+
+```csharp
+// ✅ Un scope por mensaje, como un request.
+public sealed class OutboxRelay(IServiceScopeFactory scopeFactory) : BackgroundService
 {
-    public async Task StartAsync(CancellationToken ct)
+    protected override async Task ExecuteAsync(CancellationToken ct)
     {
-        var config = await client
-            .GetFromJsonAsync<Dictionary<string, string>>("/config", ct); // ✅ async, cancelable
-        cache.Inicializar(config);
+        while (!ct.IsCancellationRequested)
+        {
+            using var scope = scopeFactory.CreateScope();
+            var publisher = scope.ServiceProvider.GetRequiredService<IOutboxPublisher>();
+            await publisher.PublishPendingAsync(ct);
+        }
     }
-    public Task StopAsync(CancellationToken ct) => Task.CompletedTask;
-}
-
-// Registro:
-builder.Services.AddHostedService<ConfiguracionRemotaLoader>(); // ✅
-```
-
-❌ Singleton con estado mutable no thread-safe:
-
-```csharp
-// Registrado como Singleton:
-public class ContadorService
-{
-    private int _contador = 0; // ❌ estado mutable en Singleton; race condition bajo concurrencia
-    public void Incrementar() => _contador++;
-    public int ObtenerValor() => _contador;
 }
 ```
 
-✅ Estado mutable con tipos thread-safe:
+### 3. Orden del pipeline inválido
 
 ```csharp
-public class ContadorService
+// ❌ Autoriza antes de saber quién es el usuario.
+app.UseAuthorization();
+app.UseAuthentication();
+```
+
+```csharp
+// ✅ Autenticación primero.
+app.UseAuthentication();
+app.UseAuthorization();
+```
+
+### 4. Service locator en el dominio
+
+```csharp
+// ❌ El dominio pasa a depender del contenedor y deja de ser testeable solo.
+public void Activate(IServiceProvider services)
 {
-    private int _contador = 0;
-    public void Incrementar() => Interlocked.Increment(ref _contador); // ✅ operación atómica
-    public int ObtenerValor() => Volatile.Read(ref _contador);         // ✅ lectura con visibilidad garantizada
+    var clock = services.GetRequiredService<IClock>();
 }
+```
+
+```csharp
+// ✅ Dependencias explícitas por constructor o parámetro.
+public void Activate(DateOnly today) { /* ... */ }
+```
+
+### 5. Bootstrap duplicado en cada servicio
+
+```csharp
+// ❌ Veinte servicios configurando telemetría, errores y auth a su manera.
+builder.Services.AddOpenTelemetry()/* 40 líneas */;
+builder.Services.AddAuthentication()/* 30 líneas */;
+```
+
+```csharp
+// ✅ Una sola implementación compartida.
+builder.Services.AddCrmPlatform(builder.Configuration);
+builder.Services.AddPartyDomain();
+builder.Services.AddPartyInfrastructure(builder.Configuration);
+```
+
+### 6. Registro contra la clase concreta
+
+```csharp
+// ❌ La capa de aplicación termina conociendo infraestructura.
+builder.Services.AddScoped<MongoPartyRepository>();
+```
+
+```csharp
+// ✅ Se registra el puerto; el dominio solo conoce la interfaz.
+builder.Services.AddScoped<IPartyRepository, MongoPartyRepository>();
 ```
 
 ## Checklist antes de devolver código
 
-- [ ] Todos los servicios nuevos usan inyección por constructor.
-- [ ] `AddScoped` para `DbContext` y unidades de trabajo por request.
-- [ ] `AddPaaS(builder.Configuration)` está antes de los registros de servicios de aplicación.
-- [ ] `app.UsePaas()` está después de `UseRouting()` y antes de `UseAuthorization()`.
-- [ ] No hay captive dependencies (Scoped inyectado directamente en Singleton).
-- [ ] Servicios con recursos implementan `IDisposable`/`IAsyncDisposable`.
-- [ ] No hay I/O en constructores de servicios.
+- [ ] `IMongoClient` singleton; repositorios y handlers scoped.
+- [ ] Ningún scoped inyectado en un singleton.
+- [ ] `BackgroundService` y consumidores crean scope por mensaje.
+- [ ] `UseAuthentication()` antes de `UseAuthorization()`.
+- [ ] Manejo de errores al principio del pipeline.
+- [ ] Adapters registrados contra puertos.
+- [ ] Sin service locator en dominio ni aplicación.
+- [ ] Sin bootstrap de plataforma duplicado.
+- [ ] Configuración validada al arranque.
+- [ ] Hay test de que el host construye y resuelve el grafo.
 
 ## Conexiones con otros skills
 
-- `dotnet-thread-safety-and-shared-state` — estado mutable en servicios Singleton.
-- `aspnetcore-config-and-secrets` — `IOptions<T>` como forma correcta de inyectar config.
-- `aspnetcore-outgoing-http` — clientes HTTP deben registrarse vía `IHttpClientFactory` (Singleton).
-- `aspnetcore-rest-layer` — inyección del service en el controller, orden del pipeline.
+| Skill | Relación |
+|---|---|
+| `ddd-hexagonal-architecture` | El composition root es el único que conoce implementaciones concretas. |
+| `aspnetcore-rest-layer` | Registro del handler global de errores y su posición. |
+| `aspnetcore-config-and-secrets` | Validación de configuración al arranque. |
+| `mongodb-dotnet-driver` | Lifetime del cliente y registro de serializadores. |
+| `multitenancy-authorization` | `ActorContext` scoped, resuelto en el borde. |
+| `dotnet-thread-safety-and-shared-state` | Los singletons deben ser inmutables o proteger su estado. |
+| `oidc-keycloak-aspnetcore` | Registro de autenticación y su orden en el pipeline. |

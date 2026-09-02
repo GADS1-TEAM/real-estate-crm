@@ -8,6 +8,15 @@
 - `CLS-003`: contraoferta crea nueva Proposal vinculada; nunca sobrescribe anterior.
 - `CLS-008`: consultar secuencia completa con actor/provenance.
 
+## Skills aplicables
+
+Derivadas de [`SKILL_ROUTING.md`](../../skills/SKILL_ROUTING.md).
+
+- **Núcleo transversal (siempre):** `aspnetcore-microservice-orchestrator`, `ddd-hexagonal-architecture`, `multitenancy-authorization`, `aspnetcore-security-owasp-baseline`
+- **Por borde tocado:** `mongodb-document-modeling`, `mongodb-dotnet-driver`, `aspnetcore-rest-layer`, `event-driven-outbox-inbox`, `dotnet-parsing-and-validation`
+
+Sus MUST y MUST NOT son condición de aceptación de esta task.
+
 ## Reglas
 Historial append-style, términos complejos reutilizan `CommercialTerms`; tenant/scope y auditoría obligatorios.
 

@@ -3,6 +3,15 @@
 **Dependencias:** `W2-SUP-03`, `W2-DEM-03`, `W2-MAT-02`  
 **Casos de uso:** `ANA-001`, `ANA-002`, `ANA-003`
 
+## Skills aplicables
+
+Derivadas de [`SKILL_ROUTING.md`](../../skills/SKILL_ROUTING.md).
+
+- **Núcleo transversal (siempre):** `aspnetcore-microservice-orchestrator`, `ddd-hexagonal-architecture`, `multitenancy-authorization`, `aspnetcore-security-owasp-baseline`
+- **Por borde tocado:** `cqrs-read-models-projections`, `mongodb-document-modeling`, `mongodb-dotnet-driver`, `event-driven-outbox-inbox`
+
+Sus MUST y MUST NOT son condición de aceptación de esta task.
+
 ## Casos de uso
 
 - `ANA-001` **Ver AgentToday** (Agente): Obtener lista priorizada de acciones de hoy derivada de SLA, agenda, scores, workflows y eventos. Servicios: analytics-copilot-service. Objetos: AgentToday. Eventos: —.

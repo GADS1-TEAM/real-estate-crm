@@ -3,6 +3,15 @@
 **Dependencias:** `W3-SUP-02`  
 **Casos de uso:** `SUP-013`, `SUP-014`, `SUP-015`
 
+## Skills aplicables
+
+Derivadas de [`SKILL_ROUTING.md`](../../skills/SKILL_ROUTING.md).
+
+- **Núcleo transversal (siempre):** `aspnetcore-microservice-orchestrator`, `ddd-hexagonal-architecture`, `multitenancy-authorization`, `aspnetcore-security-owasp-baseline`
+- **Por borde tocado:** `mongodb-document-modeling`, `mongodb-dotnet-driver`, `aspnetcore-rest-layer`, `event-driven-outbox-inbox`
+
+Sus MUST y MUST NOT son condición de aceptación de esta task.
+
 ## Casos de uso
 
 - `SUP-013` Marcar captación `CAPTURED` cuando existe autorización suficiente y habilitar Listing; `CaptationCaptured`.

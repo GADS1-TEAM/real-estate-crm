@@ -33,14 +33,14 @@ Resuelve el problema de "tengo 16 skills, ¿cuáles aplican acá?" sin obligar a
 dev a recordarlas todas.
 
 Contexto de arquitectura: microservicios ASP.NET Core 10 sobre el arquetipo
-`epa-net-paas`. Los skills cubren la superficie completa del arquetipo: capa REST,
+de este repositorio. Los skills cubren la superficie completa del servicio: capa REST,
 DI y pipeline, concurrencia, thread safety, performance, validación, HTTP saliente,
 acceso a datos con EF Core, mensajería, observabilidad, configuración, seguridad OWASP,
 testing unitario y testing adversarial.
 
 ## Cuándo activar
 
-Siempre que se trabaje sobre un microservicio ASP.NET Core bajo `epa-net-paas`:
+Siempre que se trabaje sobre un microservicio ASP.NET Core de este repositorio:
 
 - Implementar feature, fix, refactor, agregar tests, hacer review.
 - Diseñar un endpoint REST, un service, un repository, un consumer/producer de mensajería.
@@ -58,24 +58,26 @@ Siempre que se trabaje sobre un microservicio ASP.NET Core bajo `epa-net-paas`:
 | ---- | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | T-1  | [`prp-feature-discovery-dotnet`](../prp-feature-discovery-dotnet/SKILL.md)                   | Discovery + generación del PRP antes de implementar                         |
 | T-2  | [`ddd-hexagonal-architecture`](../ddd-hexagonal-architecture/SKILL.md)                       | Dónde vive cada cosa: aggregates, capas, ownership, eventos                 |
-| N-1  | [`aspnetcore-rest-layer`](../aspnetcore-rest-layer/SKILL.md)                                 | Controllers, endpoints, IResponseBuilder, formato meta-data-error           |
-| N-2  | [`aspnetcore-di-and-middleware-pipeline`](../aspnetcore-di-and-middleware-pipeline/SKILL.md) | DI, lifetimes, pipeline de middleware, AddPaaS/UsePaas                      |
+| N-1  | [`aspnetcore-rest-layer`](../aspnetcore-rest-layer/SKILL.md)                                 | Controllers, endpoints, contrato problem+json con code estable              |
+| N-2  | [`aspnetcore-di-and-middleware-pipeline`](../aspnetcore-di-and-middleware-pipeline/SKILL.md) | DI, lifetimes, orden del pipeline, composition root                         |
 | N-3  | [`dotnet-async-and-concurrency`](../dotnet-async-and-concurrency/SKILL.md)                   | async/await, CancellationToken, Task.WhenAll, SemaphoreSlim                 |
 | N-4  | [`dotnet-thread-safety-and-shared-state`](../dotnet-thread-safety-and-shared-state/SKILL.md) | Estado compartido, ConcurrentDictionary, IHttpContextAccessor en singletons |
 | N-5  | [`dotnet-performance-and-memory`](../dotnet-performance-and-memory/SKILL.md)                 | Span/Memory, ArrayPool, boxing, GC de .NET                                  |
 | N-6  | [`dotnet-parsing-and-validation`](../dotnet-parsing-and-validation/SKILL.md)                 | Validación en bordes, DataAnnotations, FluentValidation                     |
-| N-7  | [`aspnetcore-outgoing-http`](../aspnetcore-outgoing-http/SKILL.md)                           | IHttpClientFactory, named clients EPA, Polly, APIM                          |
+| N-7  | [`aspnetcore-outgoing-http`](../aspnetcore-outgoing-http/SKILL.md)                           | IHttpClientFactory, typed clients, resiliencia, adapters externos           |
 | N-8  | [`mongodb-document-modeling`](../mongodb-document-modeling/SKILL.md)                         | Documento vs aggregate, embed/reference, índices, concurrencia optimista    |
 | N-8b | [`mongodb-dotnet-driver`](../mongodb-dotnet-driver/SKILL.md)                                 | Driver 3.11.1, cliente singleton, serialización, LINQ3, Testcontainers      |
 | N-9  | [`aspnetcore-messaging`](../aspnetcore-messaging/SKILL.md)                                   | Mensajería agnóstica, idempotencia, DLQ. Broker del proyecto: RabbitMQ      |
 | N-9b | [`event-driven-outbox-inbox`](../event-driven-outbox-inbox/SKILL.md)                         | Outbox transaccional, relay, inbox, idempotencia, versionado de eventos     |
 | N-9c | [`rabbitmq-dotnet`](../rabbitmq-dotnet/SKILL.md)                                             | Cliente 7.x async, IChannel, topología, confirms, ack manual, DLQ           |
-| N-10 | [`aspnetcore-error-and-observability`](../aspnetcore-error-and-observability/SKILL.md)       | Tipos de log EPA, MASKED_DATA, Jaeger OTLP, excepciones tipadas             |
-| N-11 | [`aspnetcore-config-and-secrets`](../aspnetcore-config-and-secrets/SKILL.md)                 | IOptions, appsettings, env vars EPA, secretos                               |
+| N-10 | [`aspnetcore-error-and-observability`](../aspnetcore-error-and-observability/SKILL.md)       | Excepciones tipadas, logging sin PII, OpenTelemetry, correlación            |
+| N-11 | [`aspnetcore-config-and-secrets`](../aspnetcore-config-and-secrets/SKILL.md)                 | IOptions tipadas, validación al arranque, secretos fuera del código         |
 | N-12 | [`aspnetcore-security-owasp-baseline`](../aspnetcore-security-owasp-baseline/SKILL.md)       | OWASP Top 10 — transversal, siempre activo                                  |
 | N-12b| [`multitenancy-authorization`](../multitenancy-authorization/SKILL.md)                       | tenantId, RBAC + scope, ownership, overrides, aislamiento — siempre activo  |
 | N-12c| [`oidc-keycloak-aspnetcore`](../oidc-keycloak-aspnetcore/SKILL.md)                           | OIDC con Keycloak, patrón BFF, PKCE, validación de tokens                   |
 | N-12d| [`cqrs-read-models-projections`](../cqrs-read-models-projections/SKILL.md)                   | Read models derivados, projectors idempotentes, rebuild, lineage           |
+| F-1  | [`nextjs-frontend-architecture`](../nextjs-frontend-architecture/SKILL.md)                   | Next.js 16, App Router, datos contra el BFF, sin tokens en el browser       |
+| F-2  | [`crm-ux-quick-capture`](../crm-ux-quick-capture/SKILL.md)                                   | Captura mínima, progressive disclosure, UNKNOWN, journeys                   |
 | N-13 | [`dotnet-unit-testing`](../dotnet-unit-testing/SKILL.md)                                     | xUnit, Moq, WebApplicationFactory                                           |
 | N-14 | [`dotnet-adversarial-testing`](../dotnet-adversarial-testing/SKILL.md)                       | Inputs hostiles, fallas de dependencias                                     |
 | N-15 | [`dotnet-code-documentation-xmldoc`](../dotnet-code-documentation-xmldoc/SKILL.md)           | Documentación XML doc de API pública                                        |
@@ -88,7 +90,7 @@ Los siguientes skills aplican a casi toda tarea que toca código de red o de neg
 | Skill                                       | Razón                                                                                                                  |
 | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | N-4 `dotnet-thread-safety-and-shared-state` | Todo servicio registrado como Singleton puede ser accedido concurrentemente; `IHttpContextAccessor` es un caso crítico |
-| N-10 `aspnetcore-error-and-observability`   | Todo código de negocio necesita logging estructurado según tipos EPA, MASKED_DATA y trazas OTLP                        |
+| N-10 `aspnetcore-error-and-observability`   | Todo código de negocio necesita logging estructurado sin PII y trazas OpenTelemetry                                    |
 | N-11 `aspnetcore-config-and-secrets`        | Toda configuración de recursos debe estar externalizada con IOptions, validada y sin hardcodear secretos               |
 | N-12 `aspnetcore-security-owasp-baseline`   | Todo endpoint expuesto a la red es superficie de ataque                                                                |
 
@@ -101,7 +103,7 @@ Los siguientes skills aplican a casi toda tarea que toca código de red o de neg
 | Operaciones async, fan-out o cancelación                    | N-3, N-4       |
 | Performance / GC / `Span<T>` / `ArrayPool`                  | N-5            |
 | Validación de input externo                                 | N-6            |
-| Llamadas HTTP salientes a otros servicios o APIM            | N-7, N-3       |
+| Llamadas HTTP salientes a otros servicios o proveedores     | N-7, N-3       |
 | Acceso a base de datos con EF Core                          | N-8            |
 | Mensajes (producer o consumer)                              | N-9, N-6       |
 | Logging, errores, trazas, métricas                          | N-10           |

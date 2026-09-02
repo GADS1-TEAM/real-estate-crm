@@ -6,6 +6,15 @@
 - **UCs:** `POR-009`, `POR-010`
 - **Owner:** `scheduling-service`, `commercial-service`, `demand-service/commercial-service`.
 
+## Skills aplicables
+
+Derivadas de [`SKILL_ROUTING.md`](../../skills/SKILL_ROUTING.md).
+
+- **Núcleo transversal (siempre):** `aspnetcore-microservice-orchestrator`, `ddd-hexagonal-architecture`, `multitenancy-authorization`, `aspnetcore-security-owasp-baseline`
+- **Por borde tocado:** `aspnetcore-rest-layer`, `nextjs-frontend-architecture`, `crm-ux-quick-capture`, `mongodb-document-modeling`, `mongodb-dotnet-driver`
+
+Sus MUST y MUST NOT son condición de aceptación de esta task.
+
 ## Resultado
 Permitir confirmar visita o criterio/acción mediante link/portal.
 

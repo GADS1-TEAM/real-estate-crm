@@ -55,7 +55,7 @@ allocations en hot paths, cómo dimensionar pools y cuándo streaming con
   temporales de vida corta, `IAsyncEnumerable<T>` para streaming desde DB o
   servicios upstream, `StringBuilder` para concatenación en loops, y decisiones
   de optimización respaldadas por `BenchmarkDotNet` o `dotnet-trace`.
-- **Arquetipo `epa-net-paas`:** microservicios I/O-bound donde el cuello de botella
+- **En este proyecto:** microservicios I/O-bound donde el cuello de botella
   es red/DB; optimizar allocations y GC tiene impacto real en P99 bajo carga alta.
 
 ## Decisiones del proyecto

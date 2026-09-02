@@ -1,6 +1,6 @@
 # Ruteo de skills — qué carga un agente y cuándo
 
-Un agente **no carga las 26 skills**. Carga el núcleo transversal más las skills de
+Un agente **no carga las 28 skills**. Carga el núcleo transversal más las skills de
 los bordes que su task realmente toca.
 
 Este documento es la fuente de verdad de esa decisión. Las skills viven en
@@ -51,6 +51,15 @@ Se suman según lo que la task realmente construya.
 | Expone **API pública** que otros consumen | `dotnet-code-documentation-xmldoc` |
 | Necesita **discovery previo** por no ser trivial | `prp-feature-discovery-dotnet` |
 
+### Frontend
+
+| Si la task… | Cargar |
+|---|---|
+| Toca `crm-web` o `platform-admin-web` | `nextjs-frontend-architecture` |
+| Diseña o implementa un **formulario, pantalla o journey** | `crm-ux-quick-capture` |
+
+En tasks de frontend, el núcleo transversal de backend **no aplica**: se cargan estas dos más `multitenancy-authorization` cuando la vista depende del scope del actor.
+
 ## 3. Ola 0 — mapeo concreto
 
 La primera tanda de agentes. Núcleo transversal implícito en todas.
@@ -61,7 +70,7 @@ La primera tanda de agentes. Núcleo transversal implícito en todas.
 | `FND-002` CI y calidad | `dotnet-unit-testing` |
 | `FND-003` contratos compartidos | `dotnet-parsing-and-validation`, `event-driven-outbox-inbox`, `aspnetcore-rest-layer`, `dotnet-code-documentation-xmldoc` |
 | `FND-004` infraestructura local | `aspnetcore-config-and-secrets`, `rabbitmq-dotnet`, `oidc-keycloak-aspnetcore`, `mongodb-dotnet-driver` |
-| `FND-005` shells web + BFF | `aspnetcore-rest-layer`, `oidc-keycloak-aspnetcore`, `aspnetcore-di-and-middleware-pipeline` · *frontend: sin skill todavía, ver `SKILL_GAPS.md`* |
+| `FND-005` shells web + BFF | `aspnetcore-rest-layer`, `oidc-keycloak-aspnetcore`, `aspnetcore-di-and-middleware-pipeline`, `nextjs-frontend-architecture`, `crm-ux-quick-capture` |
 | `FND-006` seguridad y tenancy | `oidc-keycloak-aspnetcore`, `aspnetcore-di-and-middleware-pipeline`, `dotnet-adversarial-testing` |
 | `FND-007` observabilidad y resiliencia | `aspnetcore-error-and-observability`, `aspnetcore-outgoing-http`, `dotnet-async-and-concurrency` |
 | `FND-008` harness de integración | `dotnet-unit-testing`, `dotnet-adversarial-testing`, `mongodb-dotnet-driver`, `rabbitmq-dotnet` |
@@ -87,20 +96,15 @@ toma, su archivo debe declarar sus skills en la sección **Skills aplicables** d
 |---|---|
 | `aspnetcore-database-access-efcore` | **Archivada.** Enseña EF Core relacional; la persistencia es MongoDB. Ver [`_archived/README.md`](../../.github/skills/_archived/README.md). |
 
-## 6. Advertencia: skills con deuda
+## 6. Estado de las skills heredadas
 
-Estas seis conservan reglas generales válidas, pero su cuerpo todavía describe
-convenciones del arquetipo corporativo del que fueron heredadas
-(`PaasControllerBase`, `IResponseBuilder`, `meta-data-error`, env vars EPA, APIM):
+Las seis skills que arrastraban convenciones del arquetipo corporativo del que
+fueron heredadas (`PaasControllerBase`, `IResponseBuilder`, `meta-data-error`, env
+vars EPA, APIM) fueron **reescritas** contra las convenciones propias del proyecto,
+una vez que [`ADR-006`](../adr/006-contrato-de-error-publico.md) fijó el contrato de
+error.
 
-`aspnetcore-rest-layer` · `aspnetcore-error-and-observability` ·
-`aspnetcore-di-and-middleware-pipeline` · `aspnetcore-security-owasp-baseline` ·
-`aspnetcore-outgoing-http` · `aspnetcore-config-and-secrets`
-
-Un agente que las cargue debe **tomar las reglas generales e ignorar toda
-referencia a tipos o variables del arquetipo**. Se reescriben después de `FND-003`,
-que define el formato de error y el controller base propios. Detalle en
-[`SKILL_GAPS.md`](SKILL_GAPS.md).
+No queda ninguna referencia al arquetipo ajeno. Se cargan sin advertencias.
 
 ## 7. Cuando falta una skill
 

@@ -6,6 +6,15 @@
 - **UCs:** `RNT-017`, `RNT-018`, `RNT-019`, `RNT-020`
 - **Owner:** `rental-service`, `supply-service`, `closing-service`.
 
+## Skills aplicables
+
+Derivadas de [`SKILL_ROUTING.md`](../../skills/SKILL_ROUTING.md).
+
+- **Núcleo transversal (siempre):** `aspnetcore-microservice-orchestrator`, `ddd-hexagonal-architecture`, `multitenancy-authorization`, `aspnetcore-security-owasp-baseline`
+- **Por borde tocado:** `mongodb-document-modeling`, `mongodb-dotnet-driver`, `aspnetcore-rest-layer`, `event-driven-outbox-inbox`, `dotnet-parsing-and-validation`
+
+Sus MUST y MUST NOT son condición de aceptación de esta task.
+
 ## Resultado
 Resolver lifecycle contractual, venta con locación y export contable.
 

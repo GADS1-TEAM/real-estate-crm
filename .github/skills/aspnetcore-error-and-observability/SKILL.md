@@ -1,341 +1,287 @@
 ---
 name: aspnetcore-error-and-observability
 description: |
-  Activa cuando se maneja errores, se escribe logs, se configuran métricas o trazas,
-  o se define qué se devuelve al cliente ante un fallo en un microservicio ASP.NET
-  Core 10. Triggers: "ILogger", "ILogger<T>",
-  "Console.WriteLine en producción", "log", "logging", "ISSUE_LOG",
-  "APPLICATION_DEFAULT", "REQUEST", "RESPONSE", "OUTGOING_RESPONSE", "MASKED_DATA",
-  "PII", "datos sensibles", "ofuscar", "enmascarar", "APP_ID en log", "APP_KEY log",
-  "excepción tipada", "ConfigurationException",
-  "DependencyInjectionException", "DatabaseException", "IOException",
-  "NetworkException", "BusinessException", "NotFoundException",
-  "ValidationException", "excepciones tipadas EPA", "mapear excepción",
-  "IExceptionHandler", "middleware de errores", "ProblemDetails",
-  "meta-data-error", "IResponseBuilder error", "BaseErrorBuilder",
-  "try/catch vacío", "tragar excepción", "catch vacío", "Jaeger",
-  "JAEGER_COLLECTOR_HOST", "JAEGER_COLLECTOR_PORT", "OTLP", "gRPC tracing",
-  "AddOtlpExporter", "tracing distribuido", "correlation id", "TraceId",
-  "span", "Activity", "OpenTelemetry .NET", "métricas", "health check",
-  "structured logging", "Serilog". Garantiza
-  logging estructurado con tipos de log EPA, excepciones tipadas mapeadas a
-  meta-data-error con IResponseBuilder, tracing Jaeger OTLP/gRPC, sin PII en
-  logs, sin catch vacíos. NO activar para
-  lógica de negocio sin dimensión de error/observabilidad.
+  Activa cuando se maneja un error, se escribe un log, se configuran métricas o
+  trazas, o se define qué se devuelve al cliente ante un fallo en un servicio de
+  este CRM. Triggers: "ILogger", "ILogger<T>", "log", "logging", "structured
+  logging", "Serilog", "Console.WriteLine en producción", "LogInformation",
+  "LogWarning", "LogError", "PII", "datos sensibles", "ofuscar", "enmascarar",
+  "excepción tipada", "ValidationException", "NotFoundException",
+  "ConflictException", "BusinessRuleViolationException",
+  "DependencyUnavailableException", "IExceptionHandler", "AddProblemDetails",
+  "ProblemDetails", "middleware de errores", "mapear excepción", "try/catch vacío",
+  "tragar excepción", "catch vacío", "OpenTelemetry", "OTLP", "tracing distribuido",
+  "traza", "span", "Activity", "correlationId", "TraceId", "métricas", "RED",
+  "health check", "readiness", "liveness", "alerta".
+  Garantiza logging estructurado sin PII, excepciones tipadas mapeadas a Problem
+  Details en un handler global, trazas con OpenTelemetry, correlación de punta a
+  punta y ningún error tragado en silencio. NO activar para: lógica de negocio sin
+  dimensión de error ni decisiones de autorización.
 ---
 
-# ASP.NET Core Error Handling & Observability
+# Errores y Observabilidad
 
 ## Objetivo
 
-Cuando algo falla en producción a las 3am, la diferencia entre un incidente de 5
-minutos y uno de 5 horas es la **observabilidad**: logs estructurados con correlation
-id y tipos de log EPA, trazas distribuidas en Jaeger, y métricas de los caminos
-críticos. Y la diferencia entre un fallo controlado y una caída en cascada es el
-**manejo de errores**: excepciones tipadas EPA traducidas a un contrato uniforme
-(`meta-data-error` con `IResponseBuilder`), sin tragar errores en silencio, sin
-filtrar detalles internos al cliente. Este skill define ambas cosas para
-microservicios ASP.NET Core 10 con el arquetipo `epa-net-paas`.
+Cuando algo falla en un sistema de veinte servicios, la pregunta no es *"¿hubo un
+error?"* sino *"¿qué operación de negocio se rompió, para qué tenant, y qué cadena
+de llamadas la produjo?"*.
+
+Eso exige tres cosas que se diseñan juntas: **errores tipados** que sobreviven el
+viaje entre capas, **logs estructurados** que se pueden filtrar, y **trazas
+correlacionadas** que atan una acción del usuario con todo lo que disparó.
+
+Y una prohibición: **nada de esto puede filtrar datos de las personas**. Un CRM
+inmobiliario maneja documentos de identidad, teléfonos, domicilios e importes.
+
+Fuentes: [`ARCHITECTURE.md`](../../../ARCHITECTURE.md) §8 y §19,
+[`ADR-006`](../../../docs/adr/006-contrato-de-error-publico.md).
 
 ## Cuándo activar
 
-- Se escribe o revisa código de logging.
-- Se lanza o captura una excepción.
-- Se define el contrato de error devuelto al cliente.
-- Se configura tracing (Jaeger, OpenTelemetry), métricas o health checks.
-- Se decide si un dato es logueable (PII, secreto, credencial).
-- Se detecta un `catch` vacío o un `Console.WriteLine` en código de producción.
+- Se maneja o se lanza una excepción.
+- Se escribe un log.
+- Se configura tracing, métricas o health checks.
+- Se define qué recibe el cliente ante un fallo.
+- Se diagnostica un incidente.
 
 ## Cuándo NO activar
 
-- Lógica de negocio pura sin dimensión de error/observabilidad.
-- Strings de UI o mensajes de presentación.
-
-## Estado actual vs target
-
-- **Target:** `ILogger<T>` con provider de logging estructurado (Serilog o
-  `Microsoft.Extensions.Logging` con JSON formatter), tipos de log EPA
-  correctamente usados (`ISSUE_LOG` para Warning/Error,
-  `APPLICATION_DEFAULT` para el resto, `REQUEST`/`RESPONSE`/`OUTGOING_RESPONSE`
-  para trazas de red). Env var `MASKED_DATA` para enmascarar PII configurada en
-  el arquetipo. Excepciones tipadas EPA mapeadas en un `IExceptionHandler` global
-  a respuestas `meta-data-error` con `IResponseBuilder`/`BaseErrorBuilder`.
-  Tracing distribuido con Jaeger via OTLP/gRPC: env var `JAEGER_COLLECTOR_HOST`
-  (incluir prefijo `http://`) y `JAEGER_COLLECTOR_PORT` (default `4317`).
-  `ProblemDetails` como formato HTTP estándar de errores.
-- **Arquetipo `epa-net-paas`:** los headers `APP_ID`/`APP_KEY` se auto-ofuscan
-  en logs cuando pasan por el pipeline del arquetipo. El resto del PII es
-  responsabilidad del desarrollador: el código no debe enviar el dato sensible
-  al logger en primer lugar.
+- Lógica de negocio sin dimensión de error.
+- Forma de los endpoints (ver `aspnetcore-rest-layer`).
+- Decisión de si el actor puede hacer algo (ver `multitenancy-authorization`).
 
 ## Decisiones del proyecto
 
-- **Tipos de log EPA bien usados:**
-  - `ISSUE_LOG`: `LogWarning` y `LogError` — condiciones que deben alertar
-    operacionalmente (fallas de upstream, errores de negocio graves, configuración
-    incorrecta).
-  - `APPLICATION_DEFAULT`: `LogInformation` y `LogDebug` — flujo normal de la
-    aplicación.
-  - `REQUEST` / `RESPONSE`: log del request HTTP entrante y la respuesta saliente.
-  - `OUTGOING_RESPONSE`: log de la respuesta de calls HTTP salientes.
-- **`MASKED_DATA`** (env var del arquetipo): enumera los campos cuyos valores
-  deben enmascararse en logs. El desarrollador es responsable de no pasar datos
-  sensibles al logger aunque no estén en `MASKED_DATA`.
-- **Excepciones tipadas EPA** como contrato entre capas:
-  - `ValidationException` → 400 Bad Request.
-  - `NotFoundException` → 404 Not Found.
-  - `BusinessException` → 422 Unprocessable Entity.
-  - `NetworkException` → 500 Internal Server Error (falla de upstream HTTP).
-  - `IOException` → 500 Internal Server Error (I/O genérico).
-  - `DatabaseException` → 500 Internal Server Error.
-  - `ConfigurationException` → 500 Internal Server Error (config incorrecta en startup).
-  - `DependencyInjectionException` → 500 Internal Server Error.
-- **Tracing con Jaeger via OTLP/gRPC:** configurar el exporter de OpenTelemetry
-  con `JAEGER_COLLECTOR_HOST` (con prefijo `http://`) y `JAEGER_COLLECTOR_PORT`
-  (default `4317`). Propagar el `TraceId` activo como campo en los logs para
-  correlacionar logs con trazas en Jaeger.
-- **Sin catch vacíos.** Un `catch (Exception) {}` en producción es un bug: oculta
-  fallas, dificulta el debugging y hace imposible el alerting.
+| Tema | Decisión |
+|---|---|
+| Contrato de error | `problem+json` RFC 9457 con `code` estable. Ver [ADR-006](../../../docs/adr/006-contrato-de-error-publico.md) |
+| Mapeo | Un `IExceptionHandler` global registrado con `AddProblemDetails()` |
+| Excepciones | Tipadas en `building-blocks`, con `code` propio |
+| Logging | Estructurado en JSON, vía `Microsoft.Extensions.Logging` |
+| Tracing | **OpenTelemetry**. Los drivers de MongoDB y RabbitMQ ya exponen instrumentación |
+| Correlación | `correlationId` en logs, trazas, eventos y respuestas de error |
+| Métricas | RED en endpoints y consumidores; retraso de relay y de projectors |
+| Health | `/health/live` y `/health/ready` en todo servicio |
+| PII | **Nunca** en logs, trazas ni respuestas |
+
+### Contexto obligatorio en todo log
+
+```text
+correlationId   hilo de negocio completo
+tenantId        tenant afectado
+actor           usuario o sistema que provocó la acción
+service         servicio que emite
+```
+
+Sin `tenantId` y `correlationId`, un log de este sistema es inútil: no se puede
+filtrar ni reconstruir qué pasó.
+
+## Estado actual vs target
+
+- **Estado:** no implementado. `FND-003` crea las excepciones tipadas; `FND-007`
+  observabilidad y resiliencia.
+- **Target:** un building block compartido registra handler, logging y OpenTelemetry;
+  ningún servicio los configura por su cuenta.
 
 ## Reglas obligatorias
 
 ### MUST
 
-1. **MUST usar `ILogger<T>` para todo logging.** Nunca `Console.WriteLine`,
-   `Debug.WriteLine`, ni logging directo a archivos. El logger se inyecta por DI.
-
-2. **MUST usar los tipos de log EPA correctos:**
-   - `ISSUE_LOG`: `LogWarning` y `LogError` (condiciones que deben alertar).
-   - `APPLICATION_DEFAULT`: `LogInformation` y `LogDebug` (flujo normal).
-     Configurar el tipo de log como campo estructurado (`LogType`) en el logger
-     provider o vía la configuración del arquetipo.
-
-3. **MUST NUNCA loggear:** números de cuenta completos, PAN/CVV, contraseñas,
-   tokens de autenticación, datos biométricos, ni ningún dato personal sensible.
-   Enmascarar o excluir explícitamente. Confiar en `MASKED_DATA` solo para los
-   campos ya configurados; el código no debe enviar el dato en primer lugar si
-   no está cubierto.
-
-4. **MUST usar excepciones tipadas EPA** para comunicar errores entre capas:
-   lanzar `DatabaseException` desde el repositorio, `NetworkException` desde el
-   cliente HTTP saliente, `ValidationException` desde la validación de negocio,
-   `NotFoundException` cuando no se encuentra un recurso.
-
-5. **MUST centralizar el mapeo de excepciones EPA a respuestas HTTP** en un
-   `IExceptionHandler` registrado en `Program.cs`. Usar `IResponseBuilder` /
-   `BaseErrorBuilder` del arquetipo para construir la respuesta `meta-data-error`.
-   No hay `try/catch` en los controllers para excepciones EPA.
-
-6. **MUST configurar el tracing con Jaeger via OTLP/gRPC** usando:
-   - `JAEGER_COLLECTOR_HOST`: host del collector (**incluir el prefijo `http://`**).
-   - `JAEGER_COLLECTOR_PORT`: puerto (default `4317`).
-     Usar el SDK de OpenTelemetry .NET con `AddOtlpExporter` y protocolo gRPC.
-
-7. **MUST propagar el `TraceId` de la traza activa como campo en los logs** para
-   poder correlacionar logs con trazas en Jaeger. Agregar
-   `Activity.Current?.TraceId` al log scope o configurar el enriquecedor
-   correspondiente en Serilog / `ILogger`.
-
-8. **MUST NUNCA tragar una excepción en silencio.** Un `catch` que no relanza,
-   no loggea, y no toma ninguna acción es un bug. Si se captura y se maneja,
-   loggear o transformar la excepción; si no se puede manejar, relanzar.
+- **MUST** usar excepciones **tipadas** para comunicar errores entre capas, cada una
+  con su `code` estable.
+- **MUST** centralizar el mapeo excepción → respuesta en un `IExceptionHandler`
+  global.
+- **MUST** incluir `correlationId`, `tenantId` y `actor` en el contexto de todo log
+  de negocio.
+- **MUST** propagar el `correlationId` a través de HTTP, eventos y trazas, sin
+  cambiarlo.
+- **MUST** loguear con parámetros estructurados, no concatenando strings.
+- **MUST** loguear en `Error` toda excepción no esperada, con su stack, **del lado
+  del servidor**.
+- **MUST** exponer `/health/live` y `/health/ready`, y que readiness verifique las
+  dependencias que el servicio realmente necesita.
+- **MUST** instrumentar con OpenTelemetry y usar la instrumentación nativa de los
+  drivers en vez de escribir spans a mano.
+- **MUST** emitir métricas de retraso del relay de outbox y de los projectors: un
+  outbox que crece es la señal temprana de que el broker está caído.
 
 ### MUST NOT
 
-9. **MUST NOT usar `Console.WriteLine`** en código de producción. No aparece en
-   el log centralizado del arquetipo y no tiene contexto estructurado.
-
-10. **MUST NOT loggear el stack trace completo para errores de negocio esperados**
-    (404, 400, 422). Solo loggear el stack trace (nivel Error) para errores
-    inesperados (5xx).
-
-11. **MUST NOT exponer mensajes de excepción de EF Core, SQL Server, o librerías
-    internas** al cliente. Traducir siempre a un mensaje seguro con
-    `IResponseBuilder`/`BaseErrorBuilder`.
-
-12. **MUST NOT devolver `ex.Message` crudo al cliente** en el `IExceptionHandler`.
-    Puede contener detalles de la query SQL, nombres de tablas, stack traces o
-    información de la infraestructura.
+- **MUST NOT** tragar excepciones: un `catch` vacío o que solo loguea en `Debug`
+  está prohibido.
+- **MUST NOT** loguear PII: nombre completo, documento, CUIT, teléfono, email,
+  domicilio, importes de una operación concreta.
+- **MUST NOT** loguear secretos, tokens, connection strings ni headers de
+  autorización.
+- **MUST NOT** devolver al cliente stack traces, nombres de índice, mensajes del
+  driver ni rutas internas.
+- **MUST NOT** usar `Console.WriteLine` para logging.
+- **MUST NOT** hacer que un health check ejecute lógica de negocio o consultas
+  costosas.
+- **MUST NOT** perder el `correlationId` al reaccionar a un evento: se propaga.
 
 ## Recomendaciones
 
 ### SHOULD
 
-- Usar Serilog con sink de OpenTelemetry o con JSON formatter para integración
-  directa con el stack de observabilidad del arquetipo y con agregadores como
-  Elasticsearch o Splunk.
-- Agregar el `TraceId` y `SpanId` activos al scope del logger (`ILogger.BeginScope`)
-  para que aparezcan automáticamente en cada log dentro de una request.
-- Instrumentar endpoints críticos y llamadas salientes con `Activity`
-  (OpenTelemetry) para generar spans con nombre en Jaeger.
-- Configurar un health check (`IHealthCheck`) para cada dependencia externa (DB,
-  upstreams HTTP, broker de mensajería) y exponerlo en `/health`.
+- **SHOULD** loguear el `code` del error junto con la excepción: permite contar
+  fallos por tipo sin parsear mensajes.
+- **SHOULD** loguear IDs y no contenidos: `partyId` sí, nombre y documento no.
+- **SHOULD** usar `LogWarning` para lo que puede resolverse solo (un reintento que
+  funcionó) y `LogError` para lo que requiere intervención.
+- **SHOULD** alertar sobre tasa de DLQ, retraso del relay y proyecciones atrasadas,
+  no solo sobre errores HTTP.
+- **SHOULD** incluir el `traceId` en la respuesta de error para que el usuario pueda
+  reportarlo.
+- **SHOULD** medir los caminos de negocio críticos: creación de Party, matching,
+  cierre de operación.
 
 ### SHOULD NOT
 
-- No usar `LogError(ex.ToString())` para loggear excepciones; usar la sobrecarga
-  `LogError(ex, "mensaje con {Campo}", valor)` que serializa el stack trace como
-  campo estructurado separado.
-- No loggear al nivel `LogWarning` eventos que son normales del negocio (ej.
-  "cliente no encontrado" en un GET del usuario); usar `LogInformation` para esos
-  casos; `LogWarning` es para condiciones que deben ser revisadas.
+- **SHOULD NOT** loguear en `Information` dentro de un bucle por elemento.
+- **SHOULD NOT** crear una métrica por cada cosa medible: cada una tiene costo y
+  alguien tiene que mirarla.
 
 ## Anti-patrones prohibidos
 
-❌ `Console.WriteLine` en producción (no llega al log centralizado):
+### 1. Excepción tragada
 
 ```csharp
-public class SaldoService
-{
-    public async Task<SaldoDto> ObtenerAsync(int cuentaId, CancellationToken ct)
-    {
-        Console.WriteLine($"Obteniendo saldo de cuenta {cuentaId}"); // ❌ no va al log del arquetipo
-        return await _repo.GetAsync(cuentaId, ct);
-    }
-}
-```
-
-✅ `ILogger<T>` con structured logging:
-
-```csharp
-public class SaldoService
-{
-    private readonly ILogger<SaldoService> _logger;
-
-    public SaldoService(ILogger<SaldoService> logger) => _logger = logger;
-
-    public async Task<SaldoDto> ObtenerAsync(int cuentaId, CancellationToken ct)
-    {
-        _logger.LogInformation("Obteniendo saldo. CuentaId: {CuentaId}", cuentaId); // ✅ structured log APPLICATION_DEFAULT
-        return await _repo.GetAsync(cuentaId, ct);
-    }
-}
-```
-
-❌ Catch vacío que traga el error:
-
-```csharp
+// ❌ El error desaparece. Nadie se entera hasta que un dato falta.
 try
 {
-    await _saldoService.ActualizarAsync(cuentaId, monto, ct);
+    await _publisher.PublishAsync(envelope, ct);
 }
 catch (Exception)
 {
-    // ❌ excepción tragada silenciosamente: nadie sabe que falló; alerting imposible
+    // ignorado
 }
 ```
 
-✅ Log del error y relanzar con excepción EPA:
-
 ```csharp
+// ✅ Se loguea con contexto y se decide qué hacer.
 try
 {
-    await _saldoService.ActualizarAsync(cuentaId, monto, ct);
+    await _publisher.PublishAsync(envelope, ct);
 }
-catch (DatabaseException ex)
+catch (Exception ex)
 {
-    _logger.LogError(ex, // ✅ ISSUE_LOG: LogError → stack trace como campo estructurado
-        "Error de DB actualizando saldo. CuentaId: {CuentaId}", cuentaId);
-    throw; // ✅ relanzar para que IExceptionHandler construya la respuesta meta-data-error
+    _logger.LogError(ex,
+        "Fallo al publicar {EventName} {EventId} del tenant {TenantId}",
+        envelope.Name, envelope.EventId, envelope.TenantId);
+    throw;   // el outbox lo reintenta
 }
 ```
 
-❌ Detalle interno de EF Core / SQL expuesto al cliente:
+### 2. PII en el log
 
 ```csharp
-public async ValueTask<bool> TryHandleAsync(HttpContext ctx, Exception ex, CancellationToken ct)
-{
-    ctx.Response.StatusCode = 500;
-    await ctx.Response.WriteAsJsonAsync(new { error = ex.Message }, ct);
-    // ❌ ex.Message puede ser "Invalid column name 'SaldoViejo'" → fuga de infraestructura
-    return true;
-}
+// ❌ El nombre, el DNI y el teléfono quedan en el sistema de logs para siempre.
+_logger.LogInformation("Party creada: {@Party}", party);
 ```
 
-✅ `IResponseBuilder` con excepción EPA opaca al cliente:
-
 ```csharp
-public async ValueTask<bool> TryHandleAsync(HttpContext ctx, Exception ex, CancellationToken ct)
-{
-    if (ex is not DatabaseException dbEx) return false;
-
-    _logger.LogError(dbEx, "Falla de base de datos no manejada."); // ✅ log interno con detalle completo
-    var error = _errorBuilder
-        .WithCode("DB_ERROR")
-        .WithReason("Error interno de base de datos.")
-        .WithErrorType(ErrorType.TECHNICAL)
-        .Build();
-    ctx.Response.StatusCode = StatusCodes.Status500InternalServerError;
-    await ctx.Response.WriteAsJsonAsync(
-        _responseBuilder.AddError(error).BuildResponse(StatusCodes.Status500InternalServerError), ct);
-    return true; // ✅ respuesta opaca con formato meta-data-error; sin detalles de EF Core
-}
-```
-
-❌ PII en logs:
-
-```csharp
+// ✅ Identificadores y metadatos, no contenidos.
 _logger.LogInformation(
-    "Procesando pago. Cliente: {Nombre}, CBU: {Cbu}, Monto: {Monto}",
-    cliente.NombreCompleto, cliente.Cbu, pago.Monto);
-// ❌ nombre completo y CBU son PII / datos financieros sensibles
+    "Party creada {PartyId} kind={Kind} tenant={TenantId} corr={CorrelationId}",
+    party.Id, party.Kind, party.TenantId, correlationId);
 ```
 
-✅ Log con identificadores no sensibles:
+### 3. Detalle interno devuelto al cliente
 
 ```csharp
-_logger.LogInformation(
-    "Procesando pago. ClienteId: {ClienteId}, PagoId: {PagoId}, Monto: {Monto}",
-    cliente.Id, pago.Id, pago.Monto);
-// ✅ IDs internos opacos; el monto puede ser aceptable según política del banco
+// ❌ Revela infraestructura y da pistas a un atacante.
+return StatusCode(500, ex.ToString());
 ```
 
-❌ Tracing configurado sin exportador OTLP (las trazas nunca llegan a Jaeger):
-
 ```csharp
-// Program.cs — falta el exporter
-builder.Services.AddOpenTelemetry()
-    .WithTracing(t => t.AddAspNetCoreInstrumentation());
-// ❌ sin AddOtlpExporter las trazas se generan localmente y se descartan
+// ✅ El cliente recibe un código y una traza; el detalle queda en el servidor.
+// { "status": 500, "code": "INTERNAL_ERROR", "correlationId": "0f9c…" }
+_logger.LogError(ex, "Error no manejado corr={CorrelationId}", ctx.TraceIdentifier);
 ```
 
-✅ Tracing con Jaeger OTLP/gRPC usando env vars del arquetipo:
+### 4. Log sin contexto
 
 ```csharp
-// Program.cs
-var jaegerHost = builder.Configuration["JAEGER_COLLECTOR_HOST"]; // ej: "http://jaeger-collector"
-var jaegerPort = builder.Configuration["JAEGER_COLLECTOR_PORT"] ?? "4317";
+// ❌ Con veinte servicios y varios tenants, esto no sirve para nada.
+_logger.LogError("Error al guardar");
+```
 
-builder.Services.AddOpenTelemetry()
-    .WithTracing(tracing => tracing
-        .AddAspNetCoreInstrumentation()
-        .AddHttpClientInstrumentation() // ✅ instrumenta llamadas salientes automáticamente
-        .AddOtlpExporter(otlp =>
-        {
-            otlp.Endpoint = new Uri($"{jaegerHost}:{jaegerPort}");
-            otlp.Protocol = OtlpExportProtocol.Grpc; // ✅ OTLP/gRPC a Jaeger
-        }));
-// JAEGER_COLLECTOR_HOST debe incluir el prefijo http:// — ej: "http://jaeger-collector"
-// JAEGER_COLLECTOR_PORT default: 4317
+```csharp
+// ✅ Filtrable y reconstruible.
+_logger.LogError(ex,
+    "Error al guardar {Aggregate} {AggregateId} tenant={TenantId} corr={CorrelationId}",
+    nameof(Party), party.Id, party.TenantId, correlationId);
+```
+
+### 5. Concatenación en vez de parámetros estructurados
+
+```csharp
+// ❌ Se pierde la estructura: no se puede filtrar por partyId.
+_logger.LogInformation("Procesando party " + partyId + " del tenant " + tenantId);
+```
+
+```csharp
+// ✅ Campos consultables en el sistema de logs.
+_logger.LogInformation("Procesando {PartyId} tenant={TenantId}", partyId, tenantId);
+```
+
+### 6. Health check que hace trabajo real
+
+```csharp
+// ❌ El orquestador reinicia el servicio porque una query pesada tardó.
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = _ => true   // incluye un check que cuenta documentos
+});
+```
+
+```csharp
+// ✅ Readiness verifica que las dependencias respondan, nada más.
+builder.Services.AddHealthChecks()
+    .AddMongoDb(tags: ["ready"])
+    .AddRabbitMQ(tags: ["ready"]);
+```
+
+### 7. Correlación perdida al reaccionar a un evento
+
+```csharp
+// ❌ La cadena se corta: el evento derivado nace sin hilo.
+await _publisher.PublishAsync(new MatchGenerated(matchId), ct);
+```
+
+```csharp
+// ✅ correlationId se propaga; causationId apunta al evento que lo causó.
+await _publisher.PublishAsync(new MatchGenerated(matchId)
+{
+    CorrelationId = incoming.CorrelationId,
+    CausationId = incoming.EventId
+}, ct);
 ```
 
 ## Checklist antes de devolver código
 
-- [ ] Todo logging usa `ILogger<T>`; no hay `Console.WriteLine` en producción.
-- [ ] Se usan los tipos de log EPA correctos (`ISSUE_LOG` para Warning/Error, `APPLICATION_DEFAULT` para el resto).
-- [ ] No hay PII, secretos, tokens, ni números de cuenta completos en los logs.
-- [ ] Las excepciones tipadas EPA se lanzan desde la capa correcta (repo → `DatabaseException`, HTTP client → `NetworkException`, etc.).
-- [ ] Hay un `IExceptionHandler` global que mapea excepciones EPA a respuestas `meta-data-error` con `IResponseBuilder`.
-- [ ] El cliente nunca recibe un stack trace ni un mensaje de error de EF Core/SQL.
-- [ ] El tracing de Jaeger está configurado con `JAEGER_COLLECTOR_HOST` (prefijo `http://`) y `JAEGER_COLLECTOR_PORT`.
-- [ ] El `TraceId` activo se propaga como campo en los logs.
-- [ ] No hay `catch` vacíos en el código.
-- [ ] `APP_ID`/`APP_KEY` se auto-ofuscan vía arquetipo; el código no los loggea manualmente.
+- [ ] Ningún `catch` vacío ni que solo silencie.
+- [ ] Excepciones tipadas con `code` estable.
+- [ ] Mapeo de errores centralizado en el handler global.
+- [ ] Todo log de negocio lleva `correlationId`, `tenantId` y `actor`.
+- [ ] Logging estructurado, sin concatenación.
+- [ ] Ninguna PII, secreto ni token en logs o trazas.
+- [ ] Ningún detalle interno en la respuesta al cliente.
+- [ ] `/health/live` y `/health/ready` expuestos, readiness sin trabajo pesado.
+- [ ] OpenTelemetry configurado, usando la instrumentación de los drivers.
+- [ ] `correlationId` propagado a eventos derivados, con `causationId`.
+- [ ] Métricas de relay y projectors donde correspondan.
 
 ## Conexiones con otros skills
 
-- `aspnetcore-rest-layer` — el `IExceptionHandler` es la pieza que une el manejo de errores EPA con el contrato de respuesta HTTP y `IResponseBuilder`.
-- `aspnetcore-outgoing-http` — logging de fallas de upstream con tipo `ISSUE_LOG`; las llamadas salientes generan spans en Jaeger via `AddHttpClientInstrumentation`.
-- `aspnetcore-database-access-efcore` — mapear `DbUpdateException` a `DatabaseException`; métricas de latencia de queries con OpenTelemetry.
-- `aspnetcore-di-and-middleware-pipeline` — registro del `IExceptionHandler` en el pipeline; orden del middleware de errores respecto a otros middlewares.
-- `aspnetcore-security-owasp-baseline` — no exponer detalles de implementación en respuestas de error ni en logs públicos.
+| Skill | Relación |
+|---|---|
+| `aspnetcore-rest-layer` | Define el contrato de error; esta skill, cómo se produce y se registra. |
+| `ddd-hexagonal-architecture` | Las excepciones de dominio nacen en el aggregate y viajan tipadas. |
+| `multitenancy-authorization` | `tenantId` y `actor` en el contexto de log; recurso ajeno da 404. |
+| `event-driven-outbox-inbox` | Propagación de `correlationId`/`causationId` y métricas del relay. |
+| `mongodb-dotnet-driver` | Tracing nativo del driver; errores traducidos a excepciones de dominio. |
+| `rabbitmq-dotnet` | Métricas de queue y DLQ. |
+| `aspnetcore-config-and-secrets` | Endpoints de telemetría y niveles de log son configuración. |

@@ -34,7 +34,7 @@ código trabaje con datos que se sabe que son correctos. Este skill define cómo
 validar con DataAnnotations y FluentValidation en ASP.NET Core 10, cuándo usar
 `IValidatableObject` para validación cross-field, cómo parsear de forma segura con
 `TryParse`, y cómo deserializar JSON con `System.Text.Json` con opciones estrictas.
-La `ValidationException` del arquetipo `epa-net-paas` es el mecanismo estándar para
+La `ValidationException` de `building-blocks` es el mecanismo estándar para
 reportar errores de validación al cliente.
 
 ## Cuándo activar
@@ -59,11 +59,11 @@ reportar errores de validación al cliente.
   `[ApiController]` activa la validación automática de modelo devolviendo 400 antes
   de llegar al action, FluentValidation con `IValidator<T>` para validaciones
   complejas o condicionales, `IValidatableObject` para validaciones cross-field en
-  el mismo DTO, `ValidationException` EPA para errores de negocio que requieren
+  el mismo DTO, `ValidationException` para errores de negocio que requieren
   acceso a la DB o lógica del service layer.
-- **Arquetipo `epa-net-paas`:** `ValidationException` es la excepción tipada EPA
+- **En este proyecto:** `ValidationException` es la excepción tipada
   para errores de validación; el middleware global la traduce a 400 con el formato
-  `meta-data-error`. No hacer `try/catch` de `ValidationException` en el controller.
+  `problem+json` (ver ADR-006). No hacer `try/catch` de `ValidationException` en el controller.
 
 ## Decisiones del proyecto
 
@@ -96,9 +96,9 @@ reportar errores de validación al cliente.
    service. Las validaciones estructurales (campo requerido, longitud, formato,
    rango) van en la clase DTO con anotaciones.
 
-3. **MUST lanzar `ValidationException` EPA** cuando la validación de negocio
+3. **MUST lanzar `ValidationException`** cuando la validación de negocio
    falla en el service layer (ej. "el CUIT ya existe", "la fecha de vencimiento
-   es anterior a hoy"). El middleware global la traduce a 400 con formato EPA.
+   es anterior a hoy"). El handler global la traduce a 400 en formato problem+json.
 
 4. **MUST tratar los campos opcionales de upstreams como opcionales** en el DTO
    de mapeo. Usar tipos nullable (`string?`, `int?`) o `JsonIgnoreCondition` con
@@ -123,7 +123,7 @@ reportar errores de validación al cliente.
 
 9. **MUST NOT devolver mensajes de error de validación que incluyan** valores
    internos, stack traces, o información sobre el modelo de datos interno. El
-   middleware EPA filtra esto, pero no lanzar excepciones con mensajes internos.
+   el handler global filtra esto, pero no lanzar excepciones con mensajes internos.
 
 10. **MUST NOT asumir que los tipos de los campos de un JSON externo son los
     esperados.** Configurar `System.Text.Json` con las opciones correctas y
@@ -144,7 +144,7 @@ reportar errores de validación al cliente.
   no expresan las anotaciones estándar (ej. "la fecha de fin debe ser posterior
   a la de inicio").
 - Centralizar el manejo de `ValidationProblemDetails` en el `IExceptionHandler`
-  global para respuestas de error consistentes en formato EPA.
+  global para respuestas de error consistentes en formato problem+json.
 - Usar `[JsonPropertyName]` en los DTOs de respuesta para controlar exactamente
   los nombres de campo serializados, independientemente de la convención de nombres
   del proyecto.
@@ -303,7 +303,7 @@ public async Task<IActionResult> Importar([FromBody] ImportRequest req, Cancella
 - [ ] Los campos opcionales de upstreams son tipos nullable con manejo explícito.
 - [ ] Se usa `TryParse` (no `Parse`) para parsear strings de fuentes externas.
 - [ ] La deserialización de upstreams tiene manejo de `JsonException`.
-- [ ] Se lanza `ValidationException` EPA (no `ArgumentException` ni `InvalidOperationException`)
+- [ ] Se lanza `ValidationException` del proyecto (no `ArgumentException` ni `InvalidOperationException`)
       para errores de validación de negocio en el service layer.
 - [ ] Los mensajes de error de validación no exponen detalles internos.
 - [ ] Hay un límite de tamaño configurado para endpoints que reciben payloads grandes.
@@ -311,10 +311,10 @@ public async Task<IActionResult> Importar([FromBody] ImportRequest req, Cancella
 ## Conexiones con otros skills
 
 - `aspnetcore-rest-layer` — `[ApiController]` activa la validación automática de
-  DataAnnotations; `IExceptionHandler` maneja la `ValidationException` EPA.
+  DataAnnotations; `IExceptionHandler` maneja la `ValidationException`.
 - `aspnetcore-security-owasp-baseline` — validar en el borde es la primera línea
   de defensa contra inyección y payloads maliciosos.
 - `aspnetcore-error-and-observability` — los errores de validación se loggean con
-  correlation id; el formato EPA de respuesta es controlado por el arquetipo.
+  correlationId; el formato de respuesta es problem+json (ver ADR-006).
 - `dotnet-parsing-and-validation` — consumir mensajes de mensajería también
   requiere validar el payload antes de procesarlo.

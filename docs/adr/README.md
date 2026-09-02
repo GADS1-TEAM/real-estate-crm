@@ -49,4 +49,9 @@ con el contexto que reunió y escala. `AGENTS.md` §Escalamiento.
 
 | ADR | Título | Estado | Fecha |
 |---|---|---|---|
-| — | Todavía no hay ADRs registrados. | — | — |
+| [001](001-mongodb-replica-set-nodo-unico.md) | Levantar MongoDB como replica set de un nodo | `ACCEPTED` | 2026-09-02 |
+| [002](002-outbox-transaccional-coleccion-separada.md) | Outbox transaccional en colección separada | `ACCEPTED` | 2026-09-02 |
+| [003](003-driver-mongodb-y-representacion-de-ids.md) | Driver MongoDB 3.11.1 exacta e IDs como GUID binario | `ACCEPTED` | 2026-09-02 |
+| [004](004-topologia-rabbitmq.md) | Topología RabbitMQ: exchange por servicio publicador | `ACCEPTED` | 2026-09-02 |
+| [005](005-keycloak-realm-unico-y-patron-bff.md) | Un realm de Keycloak y tokens retenidos en el BFF | `ACCEPTED` | 2026-09-02 |
+| [006](006-contrato-de-error-publico.md) | Contrato de error público: Problem Details + código estable | `ACCEPTED` | 2026-09-02 |

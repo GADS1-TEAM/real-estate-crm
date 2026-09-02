@@ -5,6 +5,15 @@
 **Dependencias:** `W4-COMI-01`, `W4-CLS-04`  
 **Casos de uso:** `COMI-003`, `COMI-004`, `COMI-005`, `COMI-006`
 
+## Skills aplicables
+
+Derivadas de [`SKILL_ROUTING.md`](../../skills/SKILL_ROUTING.md).
+
+- **Núcleo transversal (siempre):** `aspnetcore-microservice-orchestrator`, `ddd-hexagonal-architecture`, `multitenancy-authorization`, `aspnetcore-security-owasp-baseline`
+- **Por borde tocado:** `mongodb-document-modeling`, `mongodb-dotnet-driver`, `aspnetcore-rest-layer`, `event-driven-outbox-inbox`, `dotnet-parsing-and-validation`
+
+Sus MUST y MUST NOT son condición de aceptación de esta task.
+
 ## Resultado esperado
 
 Calcular comisión, splits, ajustes y estimación.

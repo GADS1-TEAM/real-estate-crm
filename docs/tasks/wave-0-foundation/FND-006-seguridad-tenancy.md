@@ -4,6 +4,15 @@
 **Estado inicial:** `TODO`  
 **Dependencias:** `FND-003`, `FND-004`
 
+## Skills aplicables
+
+Derivadas de [`SKILL_ROUTING.md`](../../skills/SKILL_ROUTING.md).
+
+- **Núcleo transversal (siempre):** `aspnetcore-microservice-orchestrator`, `ddd-hexagonal-architecture`, `multitenancy-authorization`, `aspnetcore-security-owasp-baseline`
+- **Por borde tocado:** `oidc-keycloak-aspnetcore`, `aspnetcore-di-and-middleware-pipeline`, `dotnet-adversarial-testing`
+
+Sus MUST y MUST NOT son condición de aceptación de esta task.
+
 ## Resultado esperado
 
 Fijar `tenantId`, actor context, OIDC adapter, authorization port, audit envelope y propagación de `correlationId`.

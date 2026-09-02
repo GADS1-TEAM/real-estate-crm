@@ -3,6 +3,15 @@
 **Dependencias:** `W2-PRP-01`, `W3-DOC-01`  
 **Casos de uso:** `PRP-006`, `PRP-007`, `PRP-008`, `PRP-009`
 
+## Skills aplicables
+
+Derivadas de [`SKILL_ROUTING.md`](../../skills/SKILL_ROUTING.md).
+
+- **Núcleo transversal (siempre):** `aspnetcore-microservice-orchestrator`, `ddd-hexagonal-architecture`, `multitenancy-authorization`, `aspnetcore-security-owasp-baseline`
+- **Por borde tocado:** `mongodb-document-modeling`, `mongodb-dotnet-driver`, `aspnetcore-rest-layer`, `event-driven-outbox-inbox`
+
+Sus MUST y MUST NOT son condición de aceptación de esta task.
+
 ## Casos de uso
 
 - `PRP-006` Registrar `PropertyInterest`: dominio, usufructo, nuda propiedad, fideicomiso u otro derecho/interés con participación/vigencia; `PropertyInterestAdded`.

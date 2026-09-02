@@ -6,6 +6,15 @@
 - **UCs:** `INT-005`, `INT-006`, `INT-007`, `INT-008`
 - **Owner:** `interaction-service`, `documents-compliance-service`, `asset-service`, `automation-ai-service`.
 
+## Skills aplicables
+
+Derivadas de [`SKILL_ROUTING.md`](../../skills/SKILL_ROUTING.md).
+
+- **Núcleo transversal (siempre):** `aspnetcore-microservice-orchestrator`, `ddd-hexagonal-architecture`, `multitenancy-authorization`, `aspnetcore-security-owasp-baseline`
+- **Por borde tocado:** `mongodb-document-modeling`, `mongodb-dotnet-driver`, `aspnetcore-rest-layer`, `event-driven-outbox-inbox`, `rabbitmq-dotnet`, `aspnetcore-messaging`, `aspnetcore-outgoing-http`
+
+Sus MUST y MUST NOT son condición de aceptación de esta task.
+
 ## Resultado
 Iniciar/registrar llamada, grabar con consentimiento y transcribir.
 

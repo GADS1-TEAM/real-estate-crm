@@ -3,6 +3,15 @@
 **Dependencias:** `W3-VIS-01`, `W2-MAT-02`  
 **Casos de uso:** `VIS-007`, `VIS-008`, `VIS-009`, `VIS-012`, `VIS-013`
 
+## Skills aplicables
+
+Derivadas de [`SKILL_ROUTING.md`](../../skills/SKILL_ROUTING.md).
+
+- **Núcleo transversal (siempre):** `aspnetcore-microservice-orchestrator`, `ddd-hexagonal-architecture`, `multitenancy-authorization`, `aspnetcore-security-owasp-baseline`
+- **Por borde tocado:** `mongodb-document-modeling`, `mongodb-dotnet-driver`, `aspnetcore-rest-layer`, `event-driven-outbox-inbox`, `aspnetcore-outgoing-http`
+
+Sus MUST y MUST NOT son condición de aceptación de esta task.
+
 ## Casos de uso
 
 - `VIS-007` Crear `Visit` asociada a Listing/Property, participantes y ScheduleItem; `VisitScheduled`.

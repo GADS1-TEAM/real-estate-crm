@@ -3,6 +3,15 @@
 **Dependencias:** `W1-ORG-02`, `W1-PLT-01`  
 **Casos de uso:** `ORG-005`, `ORG-006`, `ORG-010`, `ORG-011`
 
+## Skills aplicables
+
+Derivadas de [`SKILL_ROUTING.md`](../../skills/SKILL_ROUTING.md).
+
+- **Núcleo transversal (siempre):** `aspnetcore-microservice-orchestrator`, `ddd-hexagonal-architecture`, `multitenancy-authorization`, `aspnetcore-security-owasp-baseline`
+- **Por borde tocado:** `mongodb-document-modeling`, `mongodb-dotnet-driver`, `aspnetcore-rest-layer`, `event-driven-outbox-inbox`
+
+Sus MUST y MUST NOT son condición de aceptación de esta task.
+
 ## Objetivo
 
 Soportar permisos excepcionales y configuración organizacional sin romper el modelo de rol + scope.

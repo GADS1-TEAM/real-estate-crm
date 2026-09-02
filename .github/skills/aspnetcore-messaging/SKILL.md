@@ -35,7 +35,7 @@ procesarse (poison messages) deben ir a una Dead Letter Queue (DLQ) en lugar de
 bloquear el consumer indefinidamente. El shutdown del proceso debe ser graceful:
 no perder mensajes en tránsito al apagar el pod.
 
-> **⚠️ Nota de incertidumbre:** El README del arquetipo `epa-net-paas` (v1.1.8)
+> **⚠️ Nota:** Esta skill cubre patrones agnósticos al broker. El README original
 > **no documenta explícitamente** el stack de mensajería. Las reglas de este skill
 > cubren patrones aplicables tanto a **Kafka (Confluent .NET)** como a
 > **Azure Service Bus**. Si el proyecto confirma uno u otro broker, adaptar la
@@ -59,7 +59,7 @@ no perder mensajes en tránsito al apagar el pod.
 
 ## Estado actual vs target
 
-- **Stack no confirmado:** el arquetipo `epa-net-paas` no especifica el broker.
+- **Broker del proyecto:** RabbitMQ (ver `rabbitmq-dotnet` y ADR-004).
   Los patrones de este skill son agnósticos; los ejemplos de código usan Confluent
   Kafka (.NET) como referencia principal con notas equivalentes para Service Bus.
 - **Target comportamental:** consumers implementados como `BackgroundService` con
@@ -299,7 +299,7 @@ public class EventConsumer : BackgroundService
 - [ ] El graceful shutdown espera a que el mensaje en curso termine antes de cerrar el consumer.
 - [ ] Se loggea el message key/ID y offset al procesar.
 - [ ] Los parámetros del broker vienen de env vars (no hardcodeados).
-- [ ] Se confirmó con el equipo de plataforma qué broker usa el arquetipo `epa-net-paas`.
+- [ ] Se aplicaron las reglas específicas de `rabbitmq-dotnet` además de estas.
 
 ## Conexiones con otros skills
 

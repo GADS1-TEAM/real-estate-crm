@@ -35,22 +35,20 @@ Las skills y agentes provienen de otro proyecto, con arquetipo corporativo `epa-
 - `aspnetcore-database-access-efcore` movida a [`.github/skills/_archived/`](../../.github/skills/_archived/README.md): enseña EF Core relacional y sus triggers coinciden con los de cualquier task de datos, lo que empujaba al anti-patrón de modelar MongoDB como SQL;
 - los agentes apuntan a `AGENTS.md` como fuente de verdad del stack.
 
-### Deuda abierta
+### Deuda saldada
 
-El **cuerpo** de seis skills sigue describiendo convenciones del arquetipo ajeno:
+Las seis skills cuyo cuerpo describía convenciones del arquetipo ajeno fueron **reescritas** una vez que [`ADR-006`](../adr/006-contrato-de-error-publico.md) definió el contrato de error propio:
 
-| Skill | Qué contiene que no aplica |
+| Skill | Qué reemplazó al arquetipo |
 |---|---|
-| `aspnetcore-rest-layer` | `PaasControllerBase`, `IResponseBuilder`, formato `meta-data-error` |
-| `aspnetcore-error-and-observability` | tipos de log EPA, excepciones tipadas EPA, headers `APP_ID`/`APP_KEY` |
-| `aspnetcore-di-and-middleware-pipeline` | pipeline `AddPaaS`/`UsePaas` |
-| `aspnetcore-security-owasp-baseline` | APIM delante del microservicio, env vars de CORS del arquetipo |
-| `aspnetcore-outgoing-http` | named clients `SERVICES:DATAS`, credenciales APIM |
-| `aspnetcore-config-and-secrets` | env vars EPA |
+| `aspnetcore-rest-layer` | `ControllerBase` estándar y `problem+json` con `code` estable |
+| `aspnetcore-error-and-observability` | Excepciones tipadas propias, logging sin PII, OpenTelemetry |
+| `aspnetcore-di-and-middleware-pipeline` | `AddCrmPlatform()` / `UseCrmPlatform()` del building block propio |
+| `aspnetcore-security-owasp-baseline` | BFF en vez de APIM, CORS por configuración tipada |
+| `aspnetcore-outgoing-http` | Typed clients con resiliencia y adapters detrás de puertos |
+| `aspnetcore-config-and-secrets` | Options tipadas con `ValidateOnStart()` |
 
-No se reescriben todavía porque **dependen de `FND-003`**: hay que definir primero el formato de error público, el controller base y la convención de configuración de este proyecto. Reescribirlas antes obligaría a hacerlo dos veces.
-
-Hasta entonces, un agente que active una de estas skills debe tomar sus reglas generales (controllers delgados, validación en el borde, sin PII en logs, timeouts acotados) e **ignorar toda referencia a tipos o env vars del arquetipo**.
+También se limpiaron las menciones residuales en las otras skills. **El repositorio ya no contiene ninguna referencia al arquetipo `epa-net-paas`.**
 
 ## Skills específicas faltantes
 
@@ -217,21 +215,20 @@ Debe cubrir:
 - logout;
 - no codificar reglas organizacionales complejas en Keycloak.
 
-## Skills frontend
+## Skills frontend — ✅ escritas
 
-No se crean todavía. Se incorporarán cuando se agregue al repositorio el set React/Next.js existente y se pueda revisar su estructura para evitar duplicaciones.
+| Skill | Cubre |
+|---|---|
+| [`nextjs-frontend-architecture`](../../.github/skills/nextjs-frontend-architecture/SKILL.md) | Next.js 16 Active LTS, App Router, TypeScript estricto, datos contra el BFF, estado, sesión sin tokens en el navegador, testing |
+| [`crm-ux-quick-capture`](../../.github/skills/crm-ux-quick-capture/SKILL.md) | Journeys en vez de CRUD, captura mínima, progressive disclosure, tratamiento de `UNKNOWN`, completitud que sugiere, sugerencias explicables, accesibilidad |
 
-Como mínimo habrá que verificar cobertura de:
+Se escribieron sin esperar el set React/Next.js externo: las decisiones que importan
+(hablar solo con el BFF, ningún token en el browser, captura mínima) salen de
+`ARCHITECTURE.md` §4 y §14 y de [`ADR-005`](../adr/005-keycloak-realm-unico-y-patron-bff.md),
+no de un set genérico.
 
-- Next.js/React architecture;
-- TypeScript;
-- state/data fetching;
-- forms y validation;
-- accessibility;
-- testing;
-- design system;
-- progressive disclosure / quick capture;
-- seguridad frontend/OIDC.
+Si más adelante aparece el set existente, se revisa contra estas dos para evitar
+duplicaciones.
 
 ## Orden sugerido para crear skills
 
@@ -243,7 +240,7 @@ Como mínimo habrá que verificar cobertura de:
 6. ~~`multitenancy-authorization`~~ ✅
 7. ~~`oidc-keycloak-aspnetcore`~~ ✅
 8. ~~`cqrs-read-models-projections`~~ ✅
-9. revisar/agregar set React/Next.js
+9. ~~set React/Next.js~~ ✅ (`nextjs-frontend-architecture`, `crm-ux-quick-capture`)
 
 ## Regla de autoría
 

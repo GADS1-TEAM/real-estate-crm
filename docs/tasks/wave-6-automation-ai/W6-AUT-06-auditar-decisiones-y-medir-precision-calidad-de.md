@@ -6,6 +6,15 @@
 - **UCs:** `AUT-014`, `AUT-015`
 - **Owner:** `automation-ai-service`, `audit-service`, `analytics-copilot-service`.
 
+## Skills aplicables
+
+Derivadas de [`SKILL_ROUTING.md`](../../skills/SKILL_ROUTING.md).
+
+- **Núcleo transversal (siempre):** `aspnetcore-microservice-orchestrator`, `ddd-hexagonal-architecture`, `multitenancy-authorization`, `aspnetcore-security-owasp-baseline`
+- **Por borde tocado:** `mongodb-document-modeling`, `mongodb-dotnet-driver`, `event-driven-outbox-inbox`, `rabbitmq-dotnet`, `aspnetcore-messaging`
+
+Sus MUST y MUST NOT son condición de aceptación de esta task.
+
 ## Resultado
 Auditar decisiones y medir precisión/calidad de automatización.
 

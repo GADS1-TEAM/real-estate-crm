@@ -84,7 +84,7 @@ Código bueno:
 
 ```csharp
 /// <summary>
-/// Busca un cliente por su CUIL consultando el core bancario vía named client EPA.
+/// Busca un cliente por su CUIL consultando otro servicio vía typed client.
 /// </summary>
 /// <param name="cuil">CUIL sin guiones (11 dígitos), validado en el borde.</param>
 /// <param name="ct">Token de cancelación propagado hasta el HttpClient.</param>
@@ -96,7 +96,7 @@ public Task<Cliente?> BuscarPorCuilAsync(string cuil, CancellationToken ct) { /*
 ## Checklist antes de devolver código
 
 - [ ] Toda API pública nueva tiene XML doc con `<summary>` y contrato.
-- [ ] `<exception>` documenta los errores relevantes (excepciones tipadas EPA incluidas).
+- [ ] `<exception>` documenta los errores relevantes (excepciones tipadas del proyecto incluidas).
 - [ ] No hay docs triviales ni mera repetición de la firma; se usa `<inheritdoc/>` cuando aplica.
 - [ ] El XML doc refleja el comportamiento actual.
 - [ ] Nada documentado por adivinación sobre código no comprendido.
@@ -130,6 +130,6 @@ Criterio de completitud:
 ## Conexiones con otros skills
 
 - `aspnetcore-microservice-orchestrator` — arbitra cuándo aplica.
-- `aspnetcore-error-and-observability` — coherencia entre `<exception>` y las excepciones tipadas EPA.
+- `aspnetcore-error-and-observability` — coherencia entre `<exception>` y las excepciones tipadas del proyecto.
 - `dotnet-async-and-concurrency` — documentar propagación de `CancellationToken`.
 - `dotnet-unit-testing` — los ejemplos deben ser consistentes con los tests.

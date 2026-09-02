@@ -57,7 +57,7 @@ corresponde.
   `Task.WhenAll` solo para número fijo y pequeño de tasks conocidos,
   `SemaphoreSlim` o `Parallel.ForEachAsync` con `MaxDegreeOfParallelism` para
   listas dinámicas, nunca `async void` salvo event handlers de UI.
-- **Arquetipo `epa-net-paas`:** los controllers reciben `CancellationToken` desde
+- **En este proyecto:** los controllers reciben `CancellationToken` desde
   el framework; ese token debe propagarse hasta la capa de repositorio y las
   llamadas HTTP salientes.
 

@@ -5,6 +5,15 @@
 **Dependencias:** `W4-DOC-01`  
 **Casos de uso:** `DOC-011`, `DOC-014`
 
+## Skills aplicables
+
+Derivadas de [`SKILL_ROUTING.md`](../../skills/SKILL_ROUTING.md).
+
+- **Núcleo transversal (siempre):** `aspnetcore-microservice-orchestrator`, `ddd-hexagonal-architecture`, `multitenancy-authorization`, `aspnetcore-security-owasp-baseline`
+- **Por borde tocado:** `mongodb-document-modeling`, `mongodb-dotnet-driver`, `aspnetcore-rest-layer`, `event-driven-outbox-inbox`, `aspnetcore-config-and-secrets`
+
+Sus MUST y MUST NOT son condición de aceptación de esta task.
+
 ## Resultado esperado
 
 Registrar beneficiario final y reconstruir expediente documental.

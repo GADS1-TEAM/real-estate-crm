@@ -4,6 +4,15 @@
 **Estado inicial:** `TODO`  
 **Dependencias:** `FND-002`, `FND-003`, `FND-004`
 
+## Skills aplicables
+
+Derivadas de [`SKILL_ROUTING.md`](../../skills/SKILL_ROUTING.md).
+
+- **Núcleo transversal (siempre):** `aspnetcore-microservice-orchestrator`, `ddd-hexagonal-architecture`, `multitenancy-authorization`, `aspnetcore-security-owasp-baseline`
+- **Por borde tocado:** `dotnet-unit-testing`, `dotnet-adversarial-testing`, `mongodb-dotnet-driver`, `rabbitmq-dotnet`
+
+Sus MUST y MUST NOT son condición de aceptación de esta task.
+
 ## Resultado esperado
 
 Crear Testcontainers/fixtures, consumer-driven contracts y pruebas de eventos/APIs para que los vertical slices puedan integrarse sin infraestructura externa.

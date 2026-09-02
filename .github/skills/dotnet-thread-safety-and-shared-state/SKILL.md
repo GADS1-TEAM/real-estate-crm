@@ -30,7 +30,7 @@ todos comparten los mismos servicios registrados como `Singleton` en el DI
 container. Un campo mutable en un servicio singleton es un campo mutable
 compartido entre todos los requests simultáneos. Esto es invisible en desarrollo
 (un request a la vez) y explosivo en producción (N requests concurrentes). El
-anti-patrón estrella del arquetipo `epa-net-paas` es **capturar
+anti-patrón estrella en microservicios ASP.NET Core es **capturar
 `IHttpContextAccessor` o `HttpContext` en un singleton**: `HttpContext` es
 per-request y accederlo desde un singleton puede devolver el contexto de otro
 request o `null`. Este skill define cómo gestionar estado compartido de forma
@@ -62,7 +62,7 @@ segura.
   contadores, o un store externo (Redis, DB). `IHttpContextAccessor` solo en
   servicios `Scoped` o `Transient`, nunca en `Singleton`. `AsyncLocal<T>` para
   contexto de tracing; siempre con cleanup.
-- **Arquetipo `epa-net-paas`:** `HttpContext` es per-request. Acceder a
+- **En este proyecto:** `HttpContext` es per-request. Acceder a
   `IHttpContextAccessor.HttpContext` desde un singleton puede retornar el
   contexto de otro request concurrente o `null` en contextos background.
 

@@ -3,6 +3,15 @@
 **Dependencias:** `W2-SUP-01`  
 **Casos de uso:** `SUP-016`, `SUP-017`, `SUP-018`, `SUP-019`
 
+## Skills aplicables
+
+Derivadas de [`SKILL_ROUTING.md`](../../skills/SKILL_ROUTING.md).
+
+- **Núcleo transversal (siempre):** `aspnetcore-microservice-orchestrator`, `ddd-hexagonal-architecture`, `multitenancy-authorization`, `aspnetcore-security-owasp-baseline`
+- **Por borde tocado:** `mongodb-document-modeling`, `mongodb-dotnet-driver`, `aspnetcore-rest-layer`, `event-driven-outbox-inbox`
+
+Sus MUST y MUST NOT son condición de aceptación de esta task.
+
 ## Casos de uso
 
 - `SUP-016` Crear `Listing` mínimo para una Property con operación + términos; evento `ListingCreated`.

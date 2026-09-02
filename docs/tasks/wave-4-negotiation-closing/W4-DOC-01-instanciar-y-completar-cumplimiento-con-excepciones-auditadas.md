@@ -5,6 +5,15 @@
 **Dependencias:** `W3-DOC-02`, `W3-PLT-01`  
 **Casos de uso:** `DOC-007`, `DOC-008`, `DOC-009`, `DOC-010`
 
+## Skills aplicables
+
+Derivadas de [`SKILL_ROUTING.md`](../../skills/SKILL_ROUTING.md).
+
+- **Núcleo transversal (siempre):** `aspnetcore-microservice-orchestrator`, `ddd-hexagonal-architecture`, `multitenancy-authorization`, `aspnetcore-security-owasp-baseline`
+- **Por borde tocado:** `mongodb-document-modeling`, `mongodb-dotnet-driver`, `aspnetcore-rest-layer`, `event-driven-outbox-inbox`, `aspnetcore-config-and-secrets`
+
+Sus MUST y MUST NOT son condición de aceptación de esta task.
+
 ## Resultado esperado
 
 Instanciar y completar cumplimiento con excepciones auditadas.

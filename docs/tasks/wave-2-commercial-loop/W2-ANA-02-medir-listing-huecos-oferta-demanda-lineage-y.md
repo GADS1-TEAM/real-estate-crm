@@ -3,6 +3,15 @@
 **Dependencias:** `W2-ANA-01`  
 **Casos de uso:** `ANA-005`, `ANA-007`, `ANA-008`, `ANA-010`, `ANA-011`
 
+## Skills aplicables
+
+Derivadas de [`SKILL_ROUTING.md`](../../skills/SKILL_ROUTING.md).
+
+- **Núcleo transversal (siempre):** `aspnetcore-microservice-orchestrator`, `ddd-hexagonal-architecture`, `multitenancy-authorization`, `aspnetcore-security-owasp-baseline`
+- **Por borde tocado:** `cqrs-read-models-projections`, `mongodb-document-modeling`, `mongodb-dotnet-driver`, `event-driven-outbox-inbox`
+
+Sus MUST y MUST NOT son condición de aceptación de esta task.
+
 ## Casos de uso
 
 - `ANA-005` **Analizar rendimiento de Listing** (Agente/Manager): Ver días activo, inquiries, parties únicas, matches, presentaciones, visitas, propuestas y cambios de precio. Servicios: analytics-copilot-service. Objetos: ListingPerformance. Eventos: —.

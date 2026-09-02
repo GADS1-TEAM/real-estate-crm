@@ -4,7 +4,7 @@ description: |
   Activa cuando el usuario pide implementar una feature, refactor, integración o
   cualquier cambio no trivial en un microservicio ASP.NET Core antes de que se
   escriba código. Triggers: "nueva feature .NET", "endpoint nuevo", "microservicio
-  EPA", "antes de implementar en C#", "necesito implementar X", "vamos a hacer Y",
+  "antes de implementar en C#", "necesito implementar X", "vamos a hacer Y",
   "armemos Z", "tengo que agregar", "diseñemos", "refactor de", "integrar con",
   "nuevo consumer", "nuevo servicio", "agregar soporte para", o cuando el pedido
   implica cambios en múltiples archivos, un contrato de API nuevo, mensajería, o
@@ -25,7 +25,7 @@ proceso corto de descubrimiento estructurado (5 preguntas obligatorias + 0 a 3
 condicionales) que termina en un archivo PRP versionado, aprobado por el dev, y
 que sirve como contrato para la implementación posterior.
 
-En el contexto de microservicios ASP.NET Core con el arquetipo `epa-net-paas` el
+En el contexto de los microservicios ASP.NET Core de este repositorio el
 discovery es especialmente importante porque un cambio puede impactar: contratos
 de API REST consumidos por otros servicios, esquemas de mensajería, modelos de
 datos con migraciones de BD, configuración en appsettings/Key Vault, o contratos
@@ -57,7 +57,7 @@ El skill se activa cuando el pedido cumple AL MENOS uno de:
 
 - **Target:** PRP en `PRPs/_backlog/` con contexto, scope, diseño técnico y
   criterios de aceptación antes de escribir código.
-- **Cualquier microservicio ASP.NET Core con epa-net-paas:** aplica siempre el
+- **Cualquier microservicio ASP.NET Core de este repositorio:** aplica siempre el
   proceso de discovery. El PRP documenta decisiones técnicas y queda como
   historial en `PRPs/_done/`.
 

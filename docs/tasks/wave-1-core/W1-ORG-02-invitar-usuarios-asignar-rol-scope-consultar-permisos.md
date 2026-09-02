@@ -3,6 +3,15 @@
 **Dependencias:** `W1-ORG-01`  
 **Casos de uso:** `ORG-003`, `ORG-004`, `ORG-009`, `ORG-012`
 
+## Skills aplicables
+
+Derivadas de [`SKILL_ROUTING.md`](../../skills/SKILL_ROUTING.md).
+
+- **Núcleo transversal (siempre):** `aspnetcore-microservice-orchestrator`, `ddd-hexagonal-architecture`, `multitenancy-authorization`, `aspnetcore-security-owasp-baseline`
+- **Por borde tocado:** `mongodb-document-modeling`, `mongodb-dotnet-driver`, `aspnetcore-rest-layer`, `event-driven-outbox-inbox`
+
+Sus MUST y MUST NOT son condición de aceptación de esta task.
+
 ## Objetivo
 
 Permitir invitar usuarios, asignar rol/scope, consultar autorización efectiva y desactivar accesos sin borrar historia.

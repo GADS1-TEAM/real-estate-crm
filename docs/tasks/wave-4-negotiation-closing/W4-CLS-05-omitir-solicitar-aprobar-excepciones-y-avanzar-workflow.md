@@ -8,6 +8,15 @@
 - `CLS-019`: manager/director aprueba o rechaza según scope/policy; `WorkflowExceptionApproved/Rejected`.
 - `CLS-020`: avanzar etapa semántica solo con invariantes aplicables satisfechas; `TransactionStageChanged`.
 
+## Skills aplicables
+
+Derivadas de [`SKILL_ROUTING.md`](../../skills/SKILL_ROUTING.md).
+
+- **Núcleo transversal (siempre):** `aspnetcore-microservice-orchestrator`, `ddd-hexagonal-architecture`, `multitenancy-authorization`, `aspnetcore-security-owasp-baseline`
+- **Por borde tocado:** `mongodb-document-modeling`, `mongodb-dotnet-driver`, `aspnetcore-rest-layer`, `event-driven-outbox-inbox`, `dotnet-parsing-and-validation`
+
+Sus MUST y MUST NOT son condición de aceptación de esta task.
+
 ## Reglas
 Excepción nunca elimina evidencia del requisito. Etapas visuales configurables no cambian semántica core.
 

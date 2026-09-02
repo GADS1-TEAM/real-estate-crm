@@ -3,6 +3,15 @@
 **Dependencias:** `FND-003`, `FND-005`  
 **Casos de uso:** `PLT-001`, `PLT-004`, `PLT-006`, `PLT-014`
 
+## Skills aplicables
+
+Derivadas de [`SKILL_ROUTING.md`](../../skills/SKILL_ROUTING.md).
+
+- **Núcleo transversal (siempre):** `aspnetcore-microservice-orchestrator`, `ddd-hexagonal-architecture`, `multitenancy-authorization`, `aspnetcore-security-owasp-baseline`
+- **Por borde tocado:** `mongodb-document-modeling`, `mongodb-dotnet-driver`, `aspnetcore-rest-layer`
+
+Sus MUST y MUST NOT son condición de aceptación de esta task.
+
 ## Objetivo
 
 Dar al backoffice de plataforma la primera capacidad real de configurar defaults versionados sin convertirlo en editor del dominio core.

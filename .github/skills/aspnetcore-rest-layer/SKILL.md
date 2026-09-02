@@ -1,255 +1,303 @@
 ---
 name: aspnetcore-rest-layer
 description: |
-  Activa cuando se crea o modifica la capa REST de un microservicio ASP.NET Core 10:
-  controllers, endpoints, el pipeline de request
-  (middleware, filtros) o el contrato de respuesta. Triggers: "[ApiController]",
-  "[Route]", "[HttpGet]/[HttpPost]/[HttpPut]/[HttpDelete]/[HttpPatch]", "endpoint",
-  "ruta", "[FromBody]", "[FromQuery]", "[FromRoute]", "[FromHeader]", "DTO",
-  "DataAnnotations", "FluentValidation", "PaasControllerBase", "IResponseBuilder",
-  "meta-data-error", "IActionResult", "Task<IActionResult>", "CancellationToken",
-  "contrato de respuesta", "status code", "versionado de API", "serializar respuesta",
-  "manejar el request", "ProblemDetail", "RFC 7807", "ValidationException",
-  "NotFoundException", "BusinessException". Garantiza controllers
-  delgados (sin lógica de negocio), validación en el borde, manejo de excepciones
-  EPA centralizado con IResponseBuilder, y contratos de respuesta consistentes con
-  el formato meta-data-error. NO activar para: lógica de negocio en services,
-  acceso a datos, ni llamadas salientes HTTP.
+  Activa cuando se crea o modifica la capa REST de un servicio o BFF de este CRM:
+  controllers, endpoints, el pipeline de request y el contrato de respuesta.
+  Triggers: "[ApiController]", "[Route]", "[HttpGet]", "[HttpPost]", "[HttpPut]",
+  "[HttpDelete]", "[HttpPatch]", "endpoint", "ruta", "[FromBody]", "[FromQuery]",
+  "[FromRoute]", "[FromHeader]", "DTO", "request model", "response model",
+  "DataAnnotations", "FluentValidation", "ControllerBase", "IActionResult",
+  "Task<IActionResult>", "ActionResult<T>", "Minimal API", "contrato de respuesta",
+  "status code", "404", "409", "422", "versionado de API", "paginación",
+  "serializar respuesta", "ProblemDetails", "problem+json", "RFC 9457",
+  "IExceptionHandler", "AddProblemDetails", "manejo de errores HTTP",
+  "código de error", "error code", "controller delgado".
+  Garantiza controllers sin lógica de negocio, validación en el borde, errores
+  siempre en formato Problem Details con código estable, y status codes correctos.
+  NO activar para: reglas de dominio, acceso a datos, mensajería ni decisiones de
+  autorización.
 ---
 
-# ASP.NET Core REST Layer
+# Capa REST en ASP.NET Core
 
 ## Objetivo
 
-El controller es el **borde HTTP** del microservicio: traduce un request en una
-llamada a un service y devuelve una respuesta con el contrato correcto. Nada más.
-La lógica de negocio, las llamadas a otros servicios y el acceso a datos viven en
-services y repositories. Este skill define cómo estructurar la capa REST de
-ASP.NET Core 10 con el arquetipo `epa-net-paas`: controllers delgados, validación
-en el borde con DataAnnotations o FluentValidation, manejo centralizado de
-excepciones EPA en middleware global, y contratos de respuesta consistentes usando
-`IResponseBuilder` y el formato `meta-data-error`.
+El controller es un **traductor**: convierte HTTP en un command o una query, y el
+resultado en una respuesta. Nada más.
+
+Cuando se le agrega lógica, esa lógica queda fuera del dominio, sin tests de
+aggregate y sin poder reutilizarse desde un consumidor de eventos o desde el BFF.
+
+Y cuando cada endpoint arma sus errores a mano, el frontend termina manejando
+veinte formatos distintos para lo mismo.
+
+Fuentes: [`ARCHITECTURE.md`](../../../ARCHITECTURE.md) §5,
+[`ADR-006`](../../../docs/adr/006-contrato-de-error-publico.md).
 
 ## Cuándo activar
 
-- Se crea o modifica un controller con `[ApiController]`.
-- Se define o modifica una ruta (`[HttpGet]`, `[HttpPost]`, etc.).
-- Se configura validación de entrada (DataAnnotations, FluentValidation).
-- Se define el shape de la respuesta, status codes o contratos de error.
-- Se usa `IResponseBuilder`, `PaasControllerBase` o excepciones EPA.
-- Se configura versionado de API, content negotiation o serialización JSON.
+- Se crea o modifica un controller, un endpoint o una ruta.
+- Se definen DTOs de request o response.
+- Se decide qué status code corresponde.
+- Se toca el manejo global de errores.
+- Se versiona una API pública.
 
 ## Cuándo NO activar
 
-- Lógica de negocio en services (responsabilidad del service layer).
-- Acceso a DB con EF Core o ADO.NET.
-- Llamadas HTTP salientes a otros servicios (ver `aspnetcore-outgoing-http`).
-- Mensajería (ver el skill de mensajería correspondiente).
-
-## Estado actual vs target
-
-- **Target:** ASP.NET Core 10, `[ApiController]` con validación automática de
-  modelo, `IResponseBuilder` del arquetipo `epa-net-paas` para construir
-  respuestas en formato `meta-data-error`, excepciones tipadas EPA mapeadas
-  centralmente en `IExceptionHandler` o middleware global, DTOs/records
-  inmutables para contratos de entrada y salida, `async Task<IActionResult>`
-  con `CancellationToken` en todos los endpoints.
-- Las reglas (controller delgado, validar en el borde, filtro global de errores,
-  contrato uniforme) aplican a cualquier versión de ASP.NET Core.
+- Reglas de negocio e invariantes (ver `ddd-hexagonal-architecture`).
+- Acceso a datos (ver las skills de MongoDB).
+- Mensajería y eventos.
+- Decisión de si el actor puede hacer algo (ver `multitenancy-authorization`).
 
 ## Decisiones del proyecto
 
-- **Controllers delgados:** reciben el request, validan (vía DataAnnotations +
-  `[ApiController]`), delegan al service, devuelven usando `IResponseBuilder`.
-  Cero lógica de negocio, cero acceso a datos directo.
-- **Validación automática de modelo con `[ApiController]`:** cuando la validación
-  de DataAnnotations falla, ASP.NET Core devuelve 400 automáticamente; no hace
-  falta `ModelState.IsValid` explícito en el controller.
-- **Errores centralizados** en `IExceptionHandler` (ASP.NET Core 10) o middleware
-  de excepciones que traduce excepciones EPA a respuestas uniformes con
-  `IResponseBuilder`/`BaseErrorBuilder`. El cliente nunca recibe un stack trace.
-- **Formato `meta-data-error`** controlado por el arquetipo: el `ObjectResult`
-  se auto-envuelve; las env vars `DISABLE_META_DATA`, `WRAP_CONTROLLED_RESPONSES`
-  y `WRAP_UNHANDLED_EXCEPTION` controlan el comportamiento en cada entorno.
-- **`PaasControllerBase`** es la base opcional que simplifica el uso de
-  `IResponseBuilder`; usarla cuando el controller emite múltiples respuestas con
-  shapes diferentes.
-- **Status codes correctos:** 200/201/204 según corresponda, 4xx para errores de
-  cliente, 5xx para fallas internas.
-- **`CancellationToken`** en todos los endpoints async para honrar cancelaciones
-  del cliente (timeout, desconexión).
+| Tema | Decisión |
+|---|---|
+| Base | `ControllerBase` de ASP.NET Core. **No hay clase base propia** |
+| Estilo | Controllers con `[ApiController]`. Minimal API solo para health y endpoints técnicos |
+| Errores | `application/problem+json` según **RFC 9457**, con extensión `code` estable. Ver [ADR-006](../../../docs/adr/006-contrato-de-error-publico.md) |
+| Mapeo de errores | Centralizado en un `IExceptionHandler` con `AddProblemDetails()`. Los controllers no arman errores |
+| Excepciones | Tipadas, en `building-blocks`: `ValidationException`, `NotFoundException`, `ForbiddenException`, `ConflictException`, `BusinessRuleViolationException`, `DependencyUnavailableException` |
+| Recurso ajeno | **404, no 403** (ver `multitenancy-authorization`) |
+| BFF | Compone experiencia; no decide reglas de dominio ni toca MongoDB |
+
+### Formato de error
+
+```json
+{
+  "type": "https://crm.local/errors/party-already-exists",
+  "title": "La Party ya existe en esta organización.",
+  "status": 409,
+  "detail": "Ya hay una Party con ese CUIT en el tenant.",
+  "instance": "/parties",
+  "code": "PARTY_ALREADY_EXISTS",
+  "correlationId": "0f9c…"
+}
+```
+
+`code` es estable y accionable por el cliente. `title` y `detail` pueden cambiar de
+redacción sin romper a nadie.
+
+### Mapeo excepción → status
+
+| Excepción | Status |
+|---|---|
+| `ValidationException` | 400 |
+| `UnauthenticatedException` | 401 |
+| `ForbiddenException` | 403 |
+| `NotFoundException` | 404 |
+| `ConflictException` | 409 |
+| `BusinessRuleViolationException` | 422 |
+| `DependencyUnavailableException` | 503 |
+
+## Estado actual vs target
+
+- **Estado:** no hay controllers. `FND-003` crea las excepciones y el handler;
+  `FND-005` los shells y BFFs.
+- **Target:** todo servicio registra el mismo handler de errores; ningún controller
+  contiene `try/catch` de mapeo ni lógica de negocio.
 
 ## Reglas obligatorias
 
 ### MUST
 
-1. **MUST mantener el controller delgado:** solo orquesta (recibe, valida vía
-   `[ApiController]`, llama al service, devuelve con `IResponseBuilder` o
-   `IActionResult`). Cero lógica de negocio.
-
-2. **MUST validar todo input en el borde** con DataAnnotations en los DTOs.
-   `[ApiController]` activa la validación automática de modelo; para validaciones
-   complejas o condicionales, usar FluentValidation con un `IValidator<T>`
-   registrado en el DI container.
-
-3. **MUST centralizar el manejo de excepciones EPA** en `IExceptionHandler` o
-   middleware global. Nunca hacer `try/catch` en el controller para
-   `ValidationException`, `NotFoundException`, `BusinessException` ni
-   `NetworkException`.
-
-4. **MUST devolver contratos de error usando `IResponseBuilder`/`BaseErrorBuilder`:**
-   `WithCode`, `WithReason`, `WithErrorType(TECHNICAL/FUNCTIONAL/INTERNAL)`,
-   `WithDetail`, `WithMessage`, `.Build()`; luego
-   `_responseBuilder.AddError(error).BuildResponse(statusCode)`.
-   El cliente nunca recibe mensajes internos ni stack traces.
-
-5. **MUST usar los status codes correctos:**
-   - `200 OK` para lecturas exitosas con cuerpo.
-   - `201 Created` para recursos creados.
-   - `204 No Content` para operaciones sin cuerpo de respuesta.
-   - `400 Bad Request` para validación fallida (`ValidationException`).
-   - `404 Not Found` para recursos inexistentes (`NotFoundException`).
-   - `409 Conflict` para conflictos de estado.
-   - `422 Unprocessable Entity` para errores de reglas de negocio (`BusinessException`).
-   - `500 Internal Server Error` para errores internos (`IOException`, `NetworkException`).
-
-6. **MUST no exponer tipos internos** (entidades EF Core, modelos de dominio)
-   como respuesta. Usar DTOs de respuesta o `record` de C# dedicados.
-
-7. **MUST declarar `CancellationToken cancellationToken` como parámetro en todos
-   los métodos async** y propagarlo hacia el service y el repositorio.
+- **MUST** mantener el controller delgado: valida forma, traduce a command o query,
+  devuelve.
+- **MUST** centralizar el mapeo de excepciones en un `IExceptionHandler` global.
+- **MUST** devolver todos los errores como `application/problem+json` con `code`
+  estable.
+- **MUST** validar la forma del input en el borde con DataAnnotations o
+  FluentValidation.
+- **MUST** propagar `CancellationToken` desde la acción hasta la capa de aplicación.
+- **MUST** usar status codes semánticamente correctos según la tabla de arriba.
+- **MUST** devolver **404** cuando el recurso pertenece a otro tenant.
+- **MUST** paginar toda respuesta de colección, con límite máximo.
+- **MUST** usar DTOs propios de la capa REST: nunca exponer el aggregate.
 
 ### MUST NOT
 
-8. **MUST NOT poner lógica de negocio en el controller.** Ni validaciones de
-   negocio, ni acceso a repos, ni transformaciones de dominio.
+- **MUST NOT** poner reglas de negocio en el controller ni en el BFF.
+- **MUST NOT** hacer `try/catch` en el controller para mapear errores: eso es del
+  handler global.
+- **MUST NOT** devolver stack traces, nombres de índice, connection strings ni PII.
+- **MUST NOT** exponer entidades de dominio ni documentos de MongoDB como response.
+- **MUST NOT** acceder a MongoDB desde un controller o desde el BFF.
+- **MUST NOT** devolver 200 con un cuerpo que indique error.
+- **MUST NOT** aceptar `tenantId` como parámetro del request.
+- **MUST NOT** inventar un formato de error propio por endpoint.
 
-9. **MUST NOT devolver `null` de un endpoint.** Si no hay resultado, devolver
-   `404` o `204` según corresponda.
+## Recomendaciones
 
-10. **MUST NOT filtrar datos sensibles** silenciosamente: si un campo no debe
-    exponerse, excluirlo explícitamente del DTO de respuesta (no con
-    `[JsonIgnore]` en la entidad EF Core, que es un leak de la capa de
-    persistencia).
+### SHOULD
 
-11. **MUST NOT hacer `try/catch` en el controller** para relanzar la misma
-    excepción EPA o para construir respuestas de error ad-hoc. El middleware
-    global es el único lugar donde se manejan las excepciones EPA.
+- **SHOULD** nombrar rutas por recurso y en plural: `/parties`, `/properties`.
+- **SHOULD** devolver `201 Created` con `Location` al crear.
+- **SHOULD** mantener el catálogo de `code` del servicio versionado como código.
+- **SHOULD** usar `ActionResult<T>` para que el tipo de respuesta quede explícito.
+- **SHOULD** documentar los endpoints con XML doc y exponerlos vía OpenAPI.
+- **SHOULD** versionar la API cuando un cambio es incompatible, en vez de romper.
+
+### SHOULD NOT
+
+- **SHOULD NOT** crear un endpoint por cada campo editable: la UI es journey-driven,
+  no CRUD-driven.
+- **SHOULD NOT** usar verbos en las rutas salvo acciones de negocio que no sean CRUD
+  (`/listings/{id}/activate`).
 
 ## Anti-patrones prohibidos
 
-❌ Lógica de negocio en el controller:
+### 1. Lógica de negocio en el controller
 
 ```csharp
-[HttpPost("transferencias")]
-public async Task<IActionResult> Transferir([FromBody] TransferenciaRequest req)
+// ❌ La invariante queda fuera del dominio y no se puede testear ni reutilizar.
+[HttpPost("{id}/activate")]
+public async Task<IActionResult> Activate(Guid id, CancellationToken ct)
 {
-    // ❌ validación de negocio y acceso a repo directamente en el controller
-    if (req.Monto <= 0)
-        return BadRequest("Monto inválido");
-    await _cuentaRepository.DebitarAsync(req.CuentaOrigen, req.Monto);
+    var listing = await _repo.GetAsync(id, ct);
+    if (listing.Status == ListingStatus.Closed)
+        return BadRequest("El listing está cerrado.");
+
+    listing.Status = ListingStatus.Active;
+    await _repo.SaveAsync(listing, ct);
     return Ok();
 }
 ```
 
-✅ Controller delgado que delega al service:
-
 ```csharp
-[HttpPost("transferencias")]
-public async Task<IActionResult> Transferir(
-    [FromBody] TransferenciaRequest req,
-    CancellationToken cancellationToken)
+// ✅ Traduce y delega. La regla vive en el aggregate.
+[HttpPost("{id}/activate")]
+public async Task<IActionResult> Activate(Guid id, CancellationToken ct)
 {
-    // ✅ delega toda la lógica al service; devuelve con IResponseBuilder
-    var resultado = await _transferenciaService.EjecutarAsync(req, cancellationToken);
-    return _responseBuilder.AddData(resultado).BuildResponse(StatusCodes.Status201Created);
+    await _sender.SendAsync(new ActivateListing(id), ct);
+    return NoContent();
 }
 ```
 
-❌ Manejo de excepción EPA ad-hoc en el controller:
+### 2. Manejo de errores ad-hoc
 
 ```csharp
-[HttpGet("cuentas/{id}")]
-public async Task<IActionResult> ObtenerCuenta(int id, CancellationToken ct)
+// ❌ Cada endpoint inventa su formato; el frontend maneja veinte variantes.
+try
 {
-    try
+    await _sender.SendAsync(cmd, ct);
+    return Ok();
+}
+catch (Exception ex)
+{
+    return BadRequest(new { error = ex.Message });
+}
+```
+
+```csharp
+// ✅ El controller no atrapa nada. El handler global traduce.
+await _sender.SendAsync(cmd, ct);
+return NoContent();
+```
+
+```csharp
+// Registrado una sola vez, en building-blocks.
+public sealed class DomainExceptionHandler : IExceptionHandler
+{
+    public async ValueTask<bool> TryHandleAsync(
+        HttpContext ctx, Exception ex, CancellationToken ct)
     {
-        var cuenta = await _cuentaService.ObtenerAsync(id, ct);
-        return Ok(cuenta); // ❌ no usa IResponseBuilder; formato no garantizado
+        var (status, code) = ex switch
+        {
+            ValidationException            => (400, "VALIDATION_FAILED"),
+            NotFoundException n            => (404, n.Code),
+            ForbiddenException             => (403, "FORBIDDEN"),
+            ConflictException c            => (409, c.Code),
+            BusinessRuleViolationException b => (422, b.Code),
+            DependencyUnavailableException => (503, "DEPENDENCY_UNAVAILABLE"),
+            _                              => (500, "INTERNAL_ERROR")
+        };
+
+        var problem = new ProblemDetails
+        {
+            Type = $"https://crm.local/errors/{code.ToLowerInvariant().Replace('_','-')}",
+            Title = _titles.For(code),
+            Status = status,
+            Instance = ctx.Request.Path
+        };
+        problem.Extensions["code"] = code;
+        problem.Extensions["correlationId"] = ctx.TraceIdentifier;
+
+        ctx.Response.StatusCode = status;
+        await ctx.Response.WriteAsJsonAsync(problem, ct);
+        return true;
     }
-    catch (NotFoundException ex)
-    {
-        return NotFound(ex.Message); // ❌ respuesta ad-hoc, expone mensaje interno
-    }
 }
 ```
 
-✅ Excepción EPA propagada al middleware global con IResponseBuilder:
+### 3. Exponer el aggregate
 
 ```csharp
-// En IExceptionHandler registrado en Program.cs:
-public async ValueTask<bool> TryHandleAsync(HttpContext ctx, Exception ex, CancellationToken ct)
-{
-    if (ex is not NotFoundException nfe) return false;
-    var error = _errorBuilder
-        .WithCode("NOT_FOUND")
-        .WithReason(nfe.Message)
-        .WithErrorType(ErrorType.FUNCTIONAL)
-        .Build();
-    ctx.Response.StatusCode = StatusCodes.Status404NotFound;
-    await ctx.Response.WriteAsJsonAsync(
-        _responseBuilder.AddError(error).BuildResponse(StatusCodes.Status404NotFound), ct);
-    return true; // ✅ centralizado, formato meta-data-error consistente
-}
+// ❌ El contrato público queda atado a la forma interna del dominio.
+[HttpGet("{id}")]
+public async Task<ActionResult<Party>> Get(Guid id, CancellationToken ct)
+    => Ok(await _repo.GetAsync(id, ct));
+```
 
-// Controller sin try/catch:
-[HttpGet("cuentas/{id}")]
-public async Task<IActionResult> ObtenerCuenta(int id, CancellationToken ct)
+```csharp
+// ✅ DTO propio de la capa REST.
+[HttpGet("{id}")]
+public async Task<ActionResult<PartyResponse>> Get(Guid id, CancellationToken ct)
+    => Ok(await _queries.GetPartyAsync(id, ct));
+```
+
+### 4. Colección sin paginar
+
+```csharp
+// ❌ Una inmobiliaria con 40.000 propiedades tumba la respuesta.
+[HttpGet]
+public async Task<IActionResult> List(CancellationToken ct)
+    => Ok(await _queries.ListAllAsync(ct));
+```
+
+```csharp
+// ✅ Paginación obligatoria con tope.
+[HttpGet]
+public async Task<ActionResult<PagedResponse<PropertySummary>>> List(
+    [FromQuery] PageRequest page, CancellationToken ct)
+    => Ok(await _queries.ListAsync(page.Normalized(maxPageSize: 100), ct));
+```
+
+### 5. Detalle interno filtrado al cliente
+
+```csharp
+// ❌ Revela el nombre del índice, la colección y la estructura interna.
+catch (MongoWriteException ex)
 {
-    var cuenta = await _cuentaService.ObtenerAsync(id, ct); // ✅ propaga NotFoundException
-    return _responseBuilder.AddData(cuenta).BuildResponse(StatusCodes.Status200OK);
+    return Conflict(ex.Message); // "E11000 duplicate key ... party_taxid_unique"
 }
 ```
 
-❌ Exponer entidad EF Core directamente:
-
 ```csharp
-[HttpGet("productos/{id}")]
-public async Task<Producto> ObtenerProducto(int id)
-{
-    // ❌ retorna la entidad con navigation properties; leak de capa de persistencia
-    return await _context.Productos.Include(p => p.Categoria).FirstOrDefaultAsync(p => p.Id == id);
-}
-```
-
-✅ Usar record de respuesta dedicado:
-
-```csharp
-[HttpGet("productos/{id}")]
-public async Task<IActionResult> ObtenerProducto(int id, CancellationToken ct)
-{
-    var producto = await _productoService.ObtenerAsync(id, ct);
-    var dto = new ProductoResponse(producto.Id, producto.Nombre, producto.Precio); // ✅ record inmutable
-    return _responseBuilder.AddData(dto).BuildResponse(StatusCodes.Status200OK);
-}
-
-public record ProductoResponse(int Id, string Nombre, decimal Precio);
+// ✅ El repositorio traduce a excepción de dominio; el handler la formatea.
+throw new ConflictException("PARTY_ALREADY_EXISTS");
 ```
 
 ## Checklist antes de devolver código
 
-- [ ] El controller no tiene lógica de negocio ni acceso a repos.
-- [ ] Todos los DTOs de entrada tienen DataAnnotations o hay un `IValidator<T>` registrado.
-- [ ] Los DTOs de respuesta no son entidades EF Core.
-- [ ] Existe un `IExceptionHandler` o middleware global que maneja las excepciones EPA.
-- [ ] Se usa `IResponseBuilder` para construir respuestas (no `Ok()`/`BadRequest()` ad-hoc sin formato EPA).
-- [ ] Los status codes son semánticamente correctos y mapean a las excepciones EPA correspondientes.
-- [ ] Todos los endpoints async reciben `CancellationToken`.
-- [ ] Se verificó que el endpoint está protegido (ver `aspnetcore-security-owasp-baseline`).
+- [ ] Ningún controller contiene reglas de negocio.
+- [ ] Ningún `try/catch` de mapeo de errores en controllers.
+- [ ] Todos los errores salen como `problem+json` con `code` estable.
+- [ ] Status codes correctos según la tabla.
+- [ ] Recurso de otro tenant devuelve 404.
+- [ ] Validación de forma en el borde.
+- [ ] `CancellationToken` propagado.
+- [ ] Respuestas de colección paginadas y con tope.
+- [ ] DTOs propios; ningún aggregate ni documento expuesto.
+- [ ] Sin stack traces, nombres de índice ni PII en las respuestas.
+- [ ] Los `code` nuevos están en el catálogo del servicio.
 
 ## Conexiones con otros skills
 
-- `dotnet-parsing-and-validation` — validación de DTOs, esquemas, tipos.
-- `aspnetcore-security-owasp-baseline` — protección del endpoint, authz.
-- `aspnetcore-error-and-observability` — logging del request, correlation id, métricas.
-- `aspnetcore-di-and-middleware-pipeline` — inyección del service en el controller, orden del pipeline.
+| Skill | Relación |
+|---|---|
+| `ddd-hexagonal-architecture` | El controller traduce a command o query; la regla vive en el aggregate. |
+| `dotnet-parsing-and-validation` | Validación de forma del input en el borde. |
+| `multitenancy-authorization` | Autorización y la regla de 404 en vez de 403. |
+| `aspnetcore-error-and-observability` | El handler global, los logs y las trazas del error. |
+| `aspnetcore-di-and-middleware-pipeline` | Orden del pipeline y registro del handler. |
+| `dotnet-code-documentation-xmldoc` | Documentación de la API pública y OpenAPI. |

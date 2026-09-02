@@ -3,6 +3,15 @@
 **Dependencias:** `FND-004`, `FND-006`  
 **Casos de uso:** `DOC-001`, `DOC-002`, `DOC-003`, `DOC-004`
 
+## Skills aplicables
+
+Derivadas de [`SKILL_ROUTING.md`](../../skills/SKILL_ROUTING.md).
+
+- **Núcleo transversal (siempre):** `aspnetcore-microservice-orchestrator`, `ddd-hexagonal-architecture`, `multitenancy-authorization`, `aspnetcore-security-owasp-baseline`
+- **Por borde tocado:** `mongodb-document-modeling`, `mongodb-dotnet-driver`, `aspnetcore-rest-layer`, `event-driven-outbox-inbox`, `aspnetcore-config-and-secrets`
+
+Sus MUST y MUST NOT son condición de aceptación de esta task.
+
 ## Casos de uso
 
 - `DOC-001` **Cargar documento** (Agente/Cliente): subir archivo mediante Object Storage y crear Document/DocumentVersion vinculado a Party, Property, Transaction u otro subject. Servicios: documents-compliance-service + asset adapter. Evento `DocumentUploaded`.

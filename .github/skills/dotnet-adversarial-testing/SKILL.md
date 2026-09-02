@@ -79,14 +79,14 @@ microservicios ASP.NET Core 10.
   el token y no operar en estado corrupto tras la cancelación.
 - **FsCheck para property-based testing** de validadores y parsers: genera cientos
   de inputs al azar y verifica que se cumpla una propiedad invariante (ej.: todo
-  input procesado produce un resultado no-null o lanza una excepción tipada EPA).
+  input procesado produce un resultado no-null o lanza una excepción tipada del proyecto).
 
 ## Reglas obligatorias
 
 ### MUST
 
 1. **MUST testear `null` y strings vacíos** en todos los inputs que acepta el
-   endpoint o el service. El sistema debe rechazar (excepción EPA tipada o 400)
+   endpoint o el service. El sistema debe rechazar (excepción tipada del proyecto o 400)
    o manejar controladamente, nunca lanzar `NullReferenceException`.
 
 2. **MUST testear valores extremos** en números (`0`, `-1`, `int.MaxValue`,
@@ -100,7 +100,7 @@ microservicios ASP.NET Core 10.
 
 4. **MUST testear que los inputs con caracteres de inyección** (SQL injection strings
    como `' OR '1'='1`, XSS strings como `<script>alert(1)</script>`, path traversal
-   como `../../etc/passwd`) son rechazados en el borde (400/excepción EPA) o
+   como `../../etc/passwd`) son rechazados en el borde (400 / excepción tipada) o
    neutralizados, nunca procesados ciegamente.
 
 5. **MUST testear el comportamiento ante `CancellationToken` cancelado.** El
@@ -111,7 +111,7 @@ microservicios ASP.NET Core 10.
 6. **MUST testear respuestas upstream inesperadas:** JSON inválido (no parseable),
    campos requeridos ausentes en el payload de respuesta, tipos de datos erróneos.
    El service no debe lanzar `JsonException` sin atrapar ni propagar como
-   excepción EPA tipada.
+   excepción tipada del proyecto.
 
 ### MUST NOT
 
@@ -139,7 +139,7 @@ microservicios ASP.NET Core 10.
   combinaciones que el dev nunca imaginaría manualmente.
 - Incluir los tests adversariales en el mismo pipeline de CI que los tests
   unitarios; no son opcionales.
-- Verificar que los errores adversariales producen el tipo de excepción EPA
+- Verificar que los errores adversariales producen el tipo de excepción tipada
   correcto (`ValidationException`, `NetworkException`, `NotFoundException`) y no
   excepciones genéricas del framework.
 
@@ -177,7 +177,7 @@ public async Task Should_Throw_ValidationException_When_NombreInvalido(string? n
 {
     var request = new CuentaRequest(nombre!, "0000003100014477", 100m);
     await Assert.ThrowsAsync<ValidationException>(() =>
-        _service.CrearAsync(request, CancellationToken.None)); // ✅ rechazado con excepción EPA tipada
+        _service.CrearAsync(request, CancellationToken.None)); // ✅ rechazado con excepción tipada del proyecto
 }
 ```
 
@@ -209,7 +209,7 @@ public async Task Should_Throw_NetworkException_When_UpstreamTimesOut()
 
     // Act & Assert
     await Assert.ThrowsAsync<NetworkException>(() =>
-        service.GetSaldoAsync("ACC-001", CancellationToken.None)); // ✅ excepción EPA correcta
+        service.GetSaldoAsync("ACC-001", CancellationToken.None)); // ✅ excepción tipada correcta
 }
 
 [Fact]
@@ -301,14 +301,14 @@ public void Should_Throw_ValidationException_When_MontoInvalido(double monto)
 
 - [ ] Se testearon inputs `null`, vacíos, y con caracteres especiales (XSS, SQL injection).
 - [ ] Se testearon valores numéricos extremos (0, negativos, `int.MaxValue`, `decimal.MaxValue`).
-- [ ] Se simuló la falla del upstream (timeout, 5xx, JSON inválido) y se verificó la excepción EPA.
+- [ ] Se simuló la falla del upstream (timeout, 5xx, JSON inválido) y se verificó la excepción tipada correspondiente.
 - [ ] Se testeó el comportamiento ante `CancellationToken` cancelado.
 - [ ] Los tests adversariales están en CI junto con los unitarios.
-- [ ] Los errores producen excepciones EPA tipadas, no excepciones genéricas del framework.
+- [ ] Los errores producen excepciones tipadas del proyecto, no excepciones genéricas del framework.
 
 ## Conexiones con otros skills
 
 - `dotnet-unit-testing` — los adversariales usan las mismas herramientas (xUnit, Moq, `WebApplicationFactory`) pero con foco en inputs hostiles y fallas.
 - `aspnetcore-security-owasp-baseline` — los tests adversariales validan las defensas OWASP (injection, SSRF, IDOR).
 - `aspnetcore-outgoing-http` — testear Polly (retry, circuit breaker) y fallback con `MockHttpMessageHandler` o `WireMock.Net`.
-- `aspnetcore-error-and-observability` — verificar que los errores adversariales producen logs de nivel `LogWarning`/`LogError` con `ISSUE_LOG` EPA.
+- `aspnetcore-error-and-observability` — verificar que los errores adversariales producen logs de nivel `LogWarning`/`LogError` .
