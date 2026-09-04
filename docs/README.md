@@ -4,6 +4,7 @@ Este directorio complementa las dos fuentes principales del repositorio:
 
 - [`../README.md`](../README.md) — modelo de dominio y lenguaje ubicuo.
 - [`../ARCHITECTURE.md`](../ARCHITECTURE.md) — arquitectura de software y reglas de trazabilidad.
+- [`DOMAIN_SUMMARY.md`](DOMAIN_SUMMARY.md) — resumen operativo del modelo de dominio, con índice hacia las secciones del README completo.
 
 Para el flujo de trabajo (ramas, commits, PRs y escalamiento) ver
 [`../CONTRIBUTING.md`](../CONTRIBUTING.md).
@@ -52,7 +53,7 @@ Las instrucciones operativas globales están en [`../AGENTS.md`](../AGENTS.md). 
 
 1. `AGENTS.md`
 2. task asignada
-3. secciones relevantes de `README.md`
+3. [`DOMAIN_SUMMARY.md`](DOMAIN_SUMMARY.md) y, si hace falta más detalle, las secciones relevantes de `README.md`
 4. `ARCHITECTURE.md`
 5. skills aplicables según [`skills/SKILL_ROUTING.md`](skills/SKILL_ROUTING.md)
 
