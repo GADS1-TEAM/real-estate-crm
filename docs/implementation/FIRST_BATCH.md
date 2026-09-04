@@ -1,5 +1,7 @@
 # Primera tanda de agentes
 
+> **Documento histórico.** Para el trabajo práctico vigente seguir [`IMPLEMENTATION_MASTER_PLAN.md`](IMPLEMENTATION_MASTER_PLAN.md) y [`../tasks/v2/TASK_BOARD.md`](../tasks/v2/TASK_BOARD.md). Las tasks `FND-*`, `W1-*` y la secuencia de este documento corresponden al backlog amplio anterior y no deben ejecutarse para V2.
+
 No conviene lanzar 8 agentes desde cero sobre un repositorio vacío. La primera tanda se ejecuta en tres pasos.
 
 ## Paso 1 — un solo agente

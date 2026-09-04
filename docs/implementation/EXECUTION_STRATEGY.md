@@ -1,5 +1,7 @@
 # Estrategia de ejecución paralela
 
+> **Documento histórico.** Para el trabajo práctico vigente usar [`IMPLEMENTATION_MASTER_PLAN.md`](IMPLEMENTATION_MASTER_PLAN.md) y [`../tasks/v2/TASK_BOARD.md`](../tasks/v2/TASK_BOARD.md). Los IDs `FND-*`, `W1-*` y las olas mencionadas debajo pertenecen al backlog amplio anterior y no deben ejecutarse para V2.
+
 ## Unidad de asignación
 
 Una task = un vertical slice pequeño. Un agente no recibe un microservicio entero ni una ola completa.

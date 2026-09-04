@@ -1,8 +1,11 @@
 # Backlog ejecutable
 
-`docs/tasks/` es la fuente de verdad para el backlog técnico del CRM. Contiene **92 work packages** que cubren **274 casos de uso de negocio**.
+> **Vigente para este TP:** usar [`v2/README.md`](v2/README.md) y [`v2/TASK_BOARD.md`](v2/TASK_BOARD.md). Este directorio raíz conserva el backlog amplio original como referencia histórica; sus 92 work packages no forman parte del alcance V2 y no deben ejecutarse para esta entrega.
 
-## Cómo usarlo
+`docs/tasks/` conserva la versión amplia anterior del backlog técnico del CRM:
+contiene **92 work packages** que cubren **274 casos de uso de negocio**.
+
+## Cómo usar el backlog histórico
 
 1. Elegir una task `READY` de [`TASK_BOARD.md`](TASK_BOARD.md).
 2. Leer `AGENTS.md`, la task, las secciones relevantes de `README.md` y `ARCHITECTURE.md`, y `docs/implementation/POC_TECH_DECISIONS.md`.

@@ -1,0 +1,127 @@
+# V2-PTY-001 — Party, Empresa, Contacto, relaciones y estados
+
+- **Ola:** 2 — Acceso, Party y catálogos
+- **Estado:** TODO
+- **Dependencias:** V2-FND-002, V2-ACL-001, V2-CAT-001
+- **UCs:** PTY-001, PTY-002, PTY-003, PTY-004, PTY-005, PTY-006, PTY-007
+- **Owner:** party-service
+- **Write zone:** party-service, formularios Empresa/Contacto y contratos de Party
+
+## Resultado esperado
+
+El CRM diferencia Empresa y Contacto en la experiencia, pero mantiene una
+Party única por identidad. Se pueden crear, modificar, relacionar, consultar,
+asignar y pasar a baja lógica sin perder historial.
+
+## Alcance trazable
+
+| UC | Actor | Comportamiento | Owner | Evidencia |
+|---|---|---|---|---|
+| PTY-001 | Administrador/Vendedor | Crear una Empresa como Party LEGAL_ENTITY. | party-service | Command y detalle. |
+| PTY-002 | Administrador/Vendedor | Modificar datos de Empresa sin duplicar identidad. | party-service | Update test. |
+| PTY-003 | Administrador/Vendedor | Crear un Contacto como Party NATURAL_PERSON. | party-service | Command y detalle. |
+| PTY-004 | Administrador/Vendedor | Modificar Contacto y conservar su relación histórica. | party-service | Update test. |
+| PTY-005 | Vendedor/Responsable | Relacionar Contacto con Empresa o dejarlo individual. | party-service | PartyRelationship. |
+| PTY-006 | Usuario autorizado | Consultar detalle de Empresa o Contacto. | party-service/read model | Query contract. |
+| PTY-007 | Administrador/Responsable | Cambiar estado comercial y responsable con baja lógica. | party-service + access-service | Audit/event test. |
+
+## Modelo mínimo
+
+~~~text
+Party
+- partyId
+- kind: LEGAL_ENTITY | NATURAL_PERSON
+- displayName
+- legalName? / givenNames? / familyNames?
+- taxIdentifier?
+- identityDocument?
+- email?
+- phone?
+- address?
+- industry?
+- identityStatus: PROVISIONAL | ACTIVE | ALIASED | INACTIVE | RESTRICTED
+- commercialStatus: POTENTIAL | CUSTOMER | INACTIVE | DO_NOT_CONTACT
+- responsibleUserId?
+- originCode?
+- notes?
+- createdAt
+- updatedAt
+- version
+
+PartyRelationship
+- relationshipId
+- fromPartyId
+- toPartyId
+- relationshipType: CONTACT_OF | REPRESENTS
+- validFrom
+- validTo?
+- createdBy
+~~~
+
+## Interfaces
+
+- Commands: CreateCompany, UpdateCompany, CreateContact, UpdateContact,
+  RelateContactToCompany, ChangePartyCommercialStatus y
+  AssignPartyResponsible. El ciclo `identityStatus` se conserva como estado
+  técnico del owner; no se implementa Identity Resolution automática.
+- Queries: SearchParties, GetCompanyDetail y GetContactDetail.
+- Events v1: PartyRegistered, PartyUpdated, PartyRelationshipCreated,
+  PartyCommercialStatusChanged y PartyResponsibleAssigned. Si el owner cambia
+  el ciclo técnico, el evento separado es PartyIdentityStatusChanged.
+- El origen usa CommercialOrigin de V2-CAT-001.
+
+## Reglas
+
+- Empresa no es Organization/tenant; es una Party corporativa del negocio.
+- Contacto puede existir sin Empresa.
+- Una Empresa puede tener muchos Contactos y un Contacto puede tener una
+  relación vigente con una o más Empresas si el dominio lo permite.
+- `identityStatus` y `commercialStatus` son dimensiones independientes. Una
+  Party puede ser `ACTIVE + POTENTIAL` o `ACTIVE + DO_NOT_CONTACT`.
+- El alta normal de V2 usa `identityStatus=ACTIVE` y
+  `commercialStatus=POTENTIAL`; `PROVISIONAL`, `ALIASED` y `RESTRICTED` quedan
+  disponibles para el ciclo técnico del owner y no se convierten en estados
+  comerciales.
+- POTENTIAL, CUSTOMER, INACTIVE y DO_NOT_CONTACT son los cuatro estados
+  comerciales requeridos para V2.
+- INACTIVE y DO_NOT_CONTACT no borran ni ocultan la historia.
+- Los campos opcionales se muestran como faltantes y no bloquean la captura
+  mínima; el formulario exige solo nombre y el dato de contacto definido por
+  la regla de alta.
+- No se implementa Identity Resolution automática ni se genera ALIASED desde
+  la UI; el estado técnico queda reservado para la evolución del owner.
+
+## Criterios de aceptación
+
+- [ ] Se pueden crear y modificar Empresa y Contacto desde pantallas distintas.
+- [ ] Un Contacto se puede relacionar con una Empresa y ver esa relación en
+  ambos detalles.
+- [ ] Un Contacto individual no requiere Empresa.
+- [ ] Los cuatro estados comerciales se pueden consultar y las etiquetas son claras.
+- [ ] `identityStatus` y `commercialStatus` se persisten y no se confunden en
+  commands, queries ni UI.
+- [ ] Un registro con actividad u oportunidad no se elimina físicamente.
+- [ ] El responsable y el origen se pueden consultar desde el detalle.
+- [ ] Se conserva actor y fecha en cambios de datos sensibles y estado.
+
+## Overrides POC
+
+- No hay tenantId, organizationId, sucursales ni resolución de duplicados.
+- Se permite un índice MongoDB local para nombre, email, teléfono y CUIT.
+- La vista 360 completa se compone en V2-ANA-001; esta task entrega detalle
+  base y relaciones propias.
+
+## Definition of Done
+
+- [ ] CRUD de Empresa/Contacto.
+- [ ] PartyRelationship persistida y consultable.
+- [ ] Estados técnicos/comerciales, baja lógica y no borrado cubiertos por tests.
+- [ ] Permisos y eventos documentados.
+
+## Evidencia requerida
+
+1. Flujo Empresa → Contacto → detalle de ambos.
+2. Flujo Contacto individual.
+3. Test de estado DO_NOT_CONTACT sin borrado.
+4. Test de independencia ACTIVE + POTENTIAL frente a ACTIVE + DO_NOT_CONTACT.
+5. Request de baja lógica con actor y fecha.

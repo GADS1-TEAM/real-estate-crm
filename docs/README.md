@@ -7,19 +7,24 @@ Este directorio complementa las dos fuentes principales del repositorio:
 
 ## Implementación
 
+- [`implementation/IMPLEMENTATION_MASTER_PLAN.md`](implementation/IMPLEMENTATION_MASTER_PLAN.md) — plan maestro vigente para el recorte del TP, el orden de implementación y sus entregas.
 - [`implementation/POC_TECH_DECISIONS.md`](implementation/POC_TECH_DECISIONS.md) — stack físico de la POC y decisiones diferidas.
 - [`implementation/EXECUTION_STRATEGY.md`](implementation/EXECUTION_STRATEGY.md) — cómo paralelizar agentes sin pisarse.
 - [`implementation/FIRST_BATCH.md`](implementation/FIRST_BATCH.md) — orden concreto para las primeras tandas.
 
+La decisión de alcance y la representación de oportunidades están documentadas en [`adr/ADR-001-alcance-tp-y-oportunidad-como-proyeccion.md`](adr/ADR-001-alcance-tp-y-oportunidad-como-proyeccion.md).
+
 ## Backlog técnico
 
+- [`tasks/v2/README.md`](tasks/v2/README.md) — backlog V2 vigente para este TP.
+- [`tasks/v2/TASK_BOARD.md`](tasks/v2/TASK_BOARD.md) — 17 tasks priorizadas del alcance recortado.
 - [`tasks/README.md`](tasks/README.md) — cómo consumir y ejecutar el backlog.
 - [`tasks/TASK_BOARD.md`](tasks/TASK_BOARD.md) — 92 tasks / 274 casos de uso.
 - [`tasks/TASK_TEMPLATE.md`](tasks/TASK_TEMPLATE.md) — contrato mínimo de una task.
 - [`tasks/AGENT_TASK_PROMPT.md`](tasks/AGENT_TASK_PROMPT.md) — prompt base para ejecutar una task con un agente.
 - [`tasks/VALIDATION_REPORT.md`](tasks/VALIDATION_REPORT.md) — cobertura por ola y checks estructurales.
 
-`docs/tasks/` es el **backlog maestro**. `PRPs/` es el mecanismo de ejecución cuando una task es tomada y necesita discovery/implementación detallada.
+`docs/tasks/v2/` es el **backlog vigente del TP**. `docs/tasks/` conserva el backlog amplio anterior como referencia histórica y no debe ejecutarse para este alcance. `PRPs/` es el mecanismo de ejecución cuando una task es tomada y necesita discovery/implementación detallada.
 
 ## Skills
 
