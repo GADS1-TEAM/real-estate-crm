@@ -1,0 +1,236 @@
+export type ScreenPhase = "V2" | "F2";
+export type ScreenModule =
+  | "SHL" | "AUT" | "INI" | "PTY" | "PRP" | "LST" | "CAP" | "DEM" | "MAT" | "OPP"
+  | "COM" | "ACT" | "ANA" | "IA" | "ADM" | "GLB" | "AGD" | "OMN" | "SYN" | "DOC"
+  | "CMS" | "RNT" | "MTN" | "IDR" | "PAD";
+export type RenderKey =
+  | "shell" | "auth" | "inicio" | "party" | "property" | "listing" | "captation"
+  | "demand" | "matching" | "pipeline" | "commercial" | "activity" | "analytics"
+  | "assistant" | "admin" | "global" | "deferred";
+
+export interface ScreenDefinition {
+  id: string;
+  title: string;
+  module: ScreenModule;
+  phase: ScreenPhase;
+  pattern: string;
+  task: string;
+  renderKey: RenderKey;
+  journey: "J1" | "J2" | "J3" | "J4" | "Shell" | "Transversal" | "F2";
+  deferred?: boolean;
+}
+
+const renderByModule: Record<ScreenModule, RenderKey> = {
+  SHL: "shell", AUT: "auth", INI: "inicio", PTY: "party", PRP: "property", LST: "listing",
+  CAP: "captation", DEM: "demand", MAT: "matching", OPP: "pipeline", COM: "commercial",
+  ACT: "activity", ANA: "analytics", IA: "assistant", ADM: "admin", GLB: "global",
+  AGD: "deferred", OMN: "deferred", SYN: "deferred", DOC: "deferred", CMS: "deferred",
+  RNT: "deferred", MTN: "deferred", IDR: "deferred", PAD: "deferred",
+};
+
+const journeyByModule: Record<ScreenModule, ScreenDefinition["journey"]> = {
+  SHL: "Shell", AUT: "Shell", INI: "J1", PTY: "J1", PRP: "J2", LST: "J2", CAP: "J2",
+  DEM: "J1", MAT: "J1", OPP: "J1", COM: "J4", ACT: "Transversal", ANA: "J3", IA: "J1",
+  ADM: "J4", GLB: "Transversal", AGD: "F2", OMN: "F2", SYN: "F2", DOC: "F2", CMS: "F2",
+  RNT: "F2", MTN: "F2", IDR: "F2", PAD: "F2",
+};
+
+type RawScreen = [string, string, ScreenModule, ScreenPhase, string, string];
+
+const rawScreens: RawScreen[] = [
+  ["SHL-01", "App shell: sidebar, topbar y contenido", "SHL", "V2", "Layout", "V2-FND-001"],
+  ["SHL-02", "Búsqueda global", "SHL", "V2", "Overlay", "V2-REL-001"],
+  ["SHL-03", "Command palette", "SHL", "V2", "Overlay", "V2-REL-001"],
+  ["SHL-04", "Creación rápida", "SHL", "V2", "Menú + drawer", "V2-FND-001"],
+  ["SHL-05", "Menú de usuario", "SHL", "V2", "Popover", "V2-ACL-001"],
+  ["SHL-06", "Navegación mobile", "SHL", "V2", "Bottom bar", "V2-FND-001"],
+  ["SHL-07", "Centro de novedades", "SHL", "F2", "Panel", "—"],
+  ["AUT-01", "Ingreso", "AUT", "V2", "Página", "V2-FND-002"],
+  ["AUT-02", "Sesión expirada", "AUT", "V2", "Modal", "V2-FND-002"],
+  ["AUT-03", "Usuario sin habilitación", "AUT", "V2", "Página", "V2-ACL-001"],
+  ["AUT-04", "Primer ingreso de la instalación", "AUT", "V2", "Wizard 4 pasos", "V2-CAT-001"],
+  ["INI-01", "Inicio del agente", "INI", "V2", "Dashboard denso", "V2-PIPE-001"],
+  ["INI-02", "Requiere atención", "INI", "V2", "Lista agrupada", "V2-PIPE-001"],
+  ["INI-03", "Inicio del responsable comercial", "INI", "V2", "Dashboard", "V2-ANA-001"],
+  ["PTY-01", "Empresas y contactos", "PTY", "V2", "Tabla + split view", "V2-PTY-001"],
+  ["PTY-02", "Alta rápida de contacto", "PTY", "V2", "Drawer", "V2-PTY-001"],
+  ["PTY-03", "Alta rápida de empresa", "PTY", "V2", "Drawer", "V2-PTY-001"],
+  ["PTY-04", "Alta con enriquecimiento progresivo", "PTY", "V2", "Página", "V2-PTY-001"],
+  ["PTY-05", "Contacto 360", "PTY", "V2", "Detalle con tabs", "V2-PTY-001"],
+  ["PTY-06", "Empresa 360", "PTY", "V2", "Detalle con tabs", "V2-PTY-001"],
+  ["PTY-07", "Relaciones de la Party", "PTY", "V2", "Panel dentro de 360", "V2-PTY-001"],
+  ["PTY-08", "Edición inline de ficha", "PTY", "V2", "Inline", "V2-PTY-001"],
+  ["PTY-09", "Estado comercial", "PTY", "V2", "Popover", "V2-PTY-001"],
+  ["PTY-10", "No contactar", "PTY", "V2", "Modal de confirmación", "V2-PTY-001"],
+  ["PTY-11", "Baja lógica y reactivación", "PTY", "V2", "Modal", "V2-PTY-001"],
+  ["PTY-12", "Historial de la ficha", "PTY", "V2", "Panel lateral", "V2-ACT-001"],
+  ["PTY-13", "Identidad técnica", "PTY", "V2", "Panel de solo lectura", "V2-PTY-001"],
+  ["PTY-14", "Posibles duplicados", "PTY", "F2", "Lista de revisión", "—"],
+  ["PRP-01", "Inmuebles", "PRP", "V2", "Tabla + split view", "V2-PRP-001"],
+  ["PRP-02", "Inmuebles en mapa", "PRP", "V2", "Mapa + lista", "V2-PRP-001"],
+  ["PRP-03", "Alta rápida de inmueble", "PRP", "V2", "Drawer", "V2-PRP-001"],
+  ["PRP-04", "Alta completa urbana", "PRP", "V2", "Página por bloques", "V2-PRP-001"],
+  ["PRP-05", "Alta completa rural", "PRP", "V2", "Página por bloques", "V2-PRP-001"],
+  ["PRP-06", "Property 360", "PRP", "V2", "Detalle con tabs", "V2-PRP-001"],
+  ["PRP-07", "Ubicación y geo", "PRP", "V2", "Panel + mapa", "V2-PRP-001"],
+  ["PRP-08", "Características", "PRP", "V2", "Panel de chips", "V2-PRP-001"],
+  ["PRP-09", "Multimedia", "PRP", "V2", "Grilla", "V2-PRP-001"],
+  ["PRP-10", "Propietarios e intereses", "PRP", "V2", "Panel", "V2-PRP-001"],
+  ["PRP-11", "Historia del inmueble", "PRP", "V2", "Timeline", "V2-ACT-001"],
+  ["PRP-12", "Unidades y componentes", "PRP", "V2", "Árbol + tabla", "V2-PRP-001"],
+  ["PRP-13", "Archivar inmueble", "PRP", "V2", "Modal", "V2-PRP-001"],
+  ["LST-01", "Publicaciones", "LST", "V2", "Tabla + cards", "V2-PRP-001"],
+  ["LST-02", "Crear publicación desde inmueble", "LST", "V2", "Drawer 2 pasos", "V2-PRP-001"],
+  ["LST-03", "Crear publicación desde captación", "LST", "V2", "Drawer", "V2-DMD-001"],
+  ["LST-04", "Detalle de publicación", "LST", "V2", "Detalle con tabs", "V2-PRP-001"],
+  ["LST-05", "Términos comerciales", "LST", "V2", "Panel", "V2-PRP-001"],
+  ["LST-06", "Presentación y contenido", "LST", "V2", "Panel", "V2-PRP-001"],
+  ["LST-07", "Cambios de estado de publicación", "LST", "V2", "Popover + modal", "V2-PRP-001"],
+  ["LST-08", "Rendimiento de la publicación", "LST", "V2", "Panel de métricas", "V2-ANA-001"],
+  ["LST-09", "Publicaciones del mismo inmueble", "LST", "V2", "Lista comparativa", "V2-PRP-001"],
+  ["LST-10", "Sincronización con portales", "LST", "F2", "Panel", "—"],
+  ["CAP-01", "Captaciones", "CAP", "V2", "Tablero + tabla", "V2-DMD-001"],
+  ["CAP-02", "Abrir captación", "CAP", "V2", "Drawer", "V2-DMD-001"],
+  ["CAP-03", "Captación 360", "CAP", "V2", "Detalle con tabs", "V2-DMD-001"],
+  ["CAP-04", "Tasación", "CAP", "V2", "Drawer", "V2-DMD-001"],
+  ["CAP-05", "Expectativa vs valoración", "CAP", "V2", "Panel comparativo", "V2-DMD-001"],
+  ["CAP-06", "Mandato de comercialización", "CAP", "V2", "Drawer", "V2-DMD-001"],
+  ["CAP-07", "Cerrar captación", "CAP", "V2", "Modal", "V2-DMD-001"],
+  ["CAP-08", "Reactivar captación", "CAP", "V2", "Modal", "V2-DMD-001"],
+  ["DEM-01", "Búsquedas", "DEM", "V2", "Tabla", "V2-DMD-001"],
+  ["DEM-02", "Alta rápida de búsqueda", "DEM", "V2", "Drawer", "V2-DMD-001"],
+  ["DEM-03", "Editor de criterios", "DEM", "V2", "Panel visual", "V2-DMD-001"],
+  ["DEM-04", "Búsqueda 360", "DEM", "V2", "Detalle", "V2-DMD-001"],
+  ["DEM-05", "Varias búsquedas de una Party", "DEM", "V2", "Lista dentro de 360", "V2-DMD-001"],
+  ["DEM-06", "Pausar o cerrar búsqueda", "DEM", "V2", "Modal", "V2-DMD-001"],
+  ["DEM-07", "Enriquecimiento sugerido", "DEM", "V2", "Inline", "V2-AI-001"],
+  ["MAT-01", "Compatibilidades de una búsqueda", "MAT", "V2", "Lista con score", "V2-MAT-001"],
+  ["MAT-02", "Explicación de compatibilidad", "MAT", "V2", "Panel expandible", "V2-MAT-001"],
+  ["MAT-03", "Búsquedas compatibles con una publicación", "MAT", "V2", "Lista", "V2-MAT-001"],
+  ["MAT-04", "Presentar inmueble", "MAT", "V2", "Drawer", "V2-ACT-001"],
+  ["MAT-05", "Descartes y favoritos", "MAT", "V2", "Panel", "V2-MAT-001"],
+  ["MAT-06", "Compatibilidad invalidada", "MAT", "V2", "Aviso inline", "V2-MAT-001"],
+  ["OPP-01", "Tablero de oportunidades", "OPP", "V2", "Board por etapas", "V2-PIPE-001"],
+  ["OPP-02", "Listado de oportunidades", "OPP", "V2", "Tabla", "V2-PIPE-001"],
+  ["OPP-03", "Crear oportunidad", "OPP", "V2", "Drawer", "V2-PIPE-001"],
+  ["OPP-04", "Detalle de oportunidad", "OPP", "V2", "Detalle con tabs", "V2-PIPE-001"],
+  ["OPP-05", "Cambiar etapa", "OPP", "V2", "Popover + modal", "V2-PIPE-001"],
+  ["OPP-06", "Historial de etapas", "OPP", "V2", "Timeline", "V2-PIPE-001"],
+  ["OPP-07", "Cerrar ganada", "OPP", "V2", "Modal", "V2-COM-001"],
+  ["OPP-08", "Cerrar perdida", "OPP", "V2", "Modal", "V2-PIPE-001"],
+  ["OPP-09", "Reasignar responsable", "OPP", "V2", "Drawer", "V2-ACL-001"],
+  ["OPP-10", "Filtros guardados", "OPP", "V2", "Panel", "V2-PIPE-001"],
+  ["OPP-11", "Trazabilidad de la oportunidad", "OPP", "V2", "Panel de solo lectura", "V2-PIPE-001"],
+  ["COM-01", "Registrar visita ocurrida", "COM", "V2", "Drawer", "V2-COM-001"],
+  ["COM-02", "Detalle de visita", "COM", "V2", "Detalle", "V2-COM-001"],
+  ["COM-03", "Feedback y preferencias detectadas", "COM", "V2", "Panel", "V2-AI-001"],
+  ["COM-04", "Abrir negociación", "COM", "V2", "Drawer", "V2-COM-001"],
+  ["COM-05", "Timeline de negociación", "COM", "V2", "Timeline", "V2-COM-001"],
+  ["COM-06", "Registrar propuesta", "COM", "V2", "Drawer", "V2-COM-001"],
+  ["COM-07", "Resolver propuesta", "COM", "V2", "Modal", "V2-COM-001"],
+  ["COM-08", "Crear reserva", "COM", "V2", "Drawer", "V2-COM-001"],
+  ["COM-09", "Detalle de reserva", "COM", "V2", "Detalle", "V2-COM-001"],
+  ["COM-10", "Cancelar reserva", "COM", "V2", "Modal", "V2-COM-001"],
+  ["COM-11", "Crear operación", "COM", "V2", "Drawer", "V2-COM-001"],
+  ["COM-12", "Detalle de operación", "COM", "V2", "Detalle con tabs", "V2-COM-001"],
+  ["COM-13", "Cerrar operación", "COM", "V2", "Modal", "V2-COM-001"],
+  ["COM-14", "Cancelar operación", "COM", "V2", "Modal", "V2-COM-001"],
+  ["ACT-01", "Registrar actividad", "ACT", "V2", "Drawer", "V2-ACT-001"],
+  ["ACT-02", "Timeline de la Party", "ACT", "V2", "Timeline", "V2-ACT-001"],
+  ["ACT-03", "Timeline del inmueble", "ACT", "V2", "Timeline", "V2-ACT-001"],
+  ["ACT-04", "Timeline de la oportunidad", "ACT", "V2", "Timeline", "V2-ACT-001"],
+  ["ACT-05", "Actividad reciente", "ACT", "V2", "Lista", "V2-ACT-001"],
+  ["ACT-06", "Corregir actividad", "ACT", "V2", "Drawer", "V2-ACT-001"],
+  ["ANA-01", "Panel del agente", "ANA", "V2", "Dashboard", "V2-ANA-001"],
+  ["ANA-02", "Panel del responsable comercial", "ANA", "V2", "Dashboard", "V2-ANA-001"],
+  ["ANA-03", "Panel de dirección", "ANA", "V2", "Dashboard", "V2-ANA-001"],
+  ["ANA-04", "Embudo", "ANA", "V2", "Gráfico + tabla", "V2-ANA-001"],
+  ["ANA-05", "Oferta y demanda", "ANA", "V2", "Gráfico comparado", "V2-ANA-001"],
+  ["ANA-06", "Definición de métrica", "ANA", "V2", "Panel lateral", "V2-ANA-001"],
+  ["ANA-07", "Exportar", "ANA", "V2", "Modal", "V2-ANA-001"],
+  ["IA-01", "Sugerencia contextual", "IA", "V2", "Tarjeta inline", "V2-AI-001"],
+  ["IA-02", "Explicación y evidencia", "IA", "V2", "Panel expandible", "V2-AI-001"],
+  ["IA-03", "Revisión de la sugerencia", "IA", "V2", "Modal", "V2-AI-001"],
+  ["IA-04", "Historial del asistente", "IA", "V2", "Lista", "V2-AI-001"],
+  ["IA-05", "Información faltante detectada", "IA", "V2", "Tarjeta inline", "V2-AI-001"],
+  ["ADM-01", "Usuarios", "ADM", "V2", "Tabla", "V2-ACL-001"],
+  ["ADM-02", "Invitar usuario", "ADM", "V2", "Drawer", "V2-ACL-001"],
+  ["ADM-03", "Roles y permisos", "ADM", "V2", "Tabla matriz", "V2-ACL-001"],
+  ["ADM-04", "Permisos efectivos", "ADM", "V2", "Panel", "V2-ACL-001"],
+  ["ADM-05", "Catálogos", "ADM", "V2", "Índice", "V2-CAT-001"],
+  ["ADM-06", "Etapas del embudo", "ADM", "V2", "Tabla ordenable", "V2-CAT-001"],
+  ["ADM-07", "Tipos de actividad", "ADM", "V2", "Tabla", "V2-CAT-001"],
+  ["ADM-08", "Orígenes", "ADM", "V2", "Tabla", "V2-CAT-001"],
+  ["ADM-09", "Motivos de pérdida", "ADM", "V2", "Tabla", "V2-CAT-001"],
+  ["ADM-10", "Tipos de operación", "ADM", "V2", "Tabla", "V2-CAT-001"],
+  ["ADM-11", "Tipos de inmueble", "ADM", "V2", "Tabla", "V2-CAT-001"],
+  ["ADM-12", "Versión de un catálogo", "ADM", "V2", "Panel", "V2-CAT-001"],
+  ["ADM-13", "Datos de la inmobiliaria", "ADM", "V2", "Página", "V2-CAT-001"],
+  ["GLB-01", "Instalación vacía", "GLB", "V2", "Estado", "V2-FND-001"],
+  ["GLB-02", "Empty states por módulo", "GLB", "V2", "Patrón", "V2-REL-001"],
+  ["GLB-03", "Carga inicial", "GLB", "V2", "Patrón", "V2-FND-001"],
+  ["GLB-04", "Error parcial", "GLB", "V2", "Patrón", "V2-FND-003"],
+  ["GLB-05", "Error total", "GLB", "V2", "Página", "V2-FND-003"],
+  ["GLB-06", "Sin conexión", "GLB", "V2", "Banner + cola", "V2-ACT-001"],
+  ["GLB-07", "Permiso insuficiente", "GLB", "V2", "Página o inline", "V2-ACL-001"],
+  ["GLB-08", "Solo lectura", "GLB", "V2", "Patrón", "V2-ACL-001"],
+  ["GLB-09", "Capacidad no disponible", "GLB", "V2", "Patrón", "V2-REL-001"],
+  ["GLB-10", "Dato desconocido vs negativo", "GLB", "V2", "Patrón", "V2-PRP-001"],
+  ["GLB-11", "Contenido archivado", "GLB", "V2", "Patrón", "V2-PTY-001"],
+  ["GLB-12", "Dato recalculando", "GLB", "V2", "Patrón", "V2-ANA-001"],
+  ["AGD-01", "Calendario y disponibilidad", "AGD", "F2", "Calendario", "—"],
+  ["AGD-02", "Visita programada", "AGD", "F2", "Drawer", "—"],
+  ["AGD-03", "Sincronización con Google y Outlook", "AGD", "F2", "Panel", "—"],
+  ["OMN-01", "Bandeja omnicanal", "OMN", "F2", "Split view", "—"],
+  ["OMN-02", "Conversación", "OMN", "F2", "Thread", "—"],
+  ["OMN-03", "Conversaciones que se enfrían", "OMN", "F2", "Lista", "—"],
+  ["OMN-04", "Conectores de canal", "OMN", "F2", "Panel", "—"],
+  ["SYN-01", "Publicar en portales", "SYN", "F2", "Drawer", "—"],
+  ["SYN-02", "Errores de sincronización", "SYN", "F2", "Lista", "—"],
+  ["DOC-01", "Documentos del expediente", "DOC", "F2", "Grilla", "—"],
+  ["DOC-02", "Requisitos documentales", "DOC", "F2", "Checklist", "—"],
+  ["DOC-03", "Beneficiario final", "DOC", "F2", "Formulario", "—"],
+  ["DOC-04", "Consentimientos", "DOC", "F2", "Panel", "—"],
+  ["CMS-01", "Políticas de comisión", "CMS", "F2", "Tabla", "—"],
+  ["CMS-02", "Cálculo de comisión", "CMS", "F2", "Panel", "—"],
+  ["RNT-01", "Contratos administrados", "RNT", "F2", "Tabla", "—"],
+  ["RNT-02", "Detalle del contrato", "RNT", "F2", "Detalle", "—"],
+  ["RNT-03", "Cuenta corriente y cobranzas", "RNT", "F2", "Ledger", "—"],
+  ["RNT-04", "Mora", "RNT", "F2", "Lista", "—"],
+  ["RNT-05", "Liquidación al propietario", "RNT", "F2", "Detalle", "—"],
+  ["RNT-06", "Ajustes y vencimientos", "RNT", "F2", "Lista", "—"],
+  ["MTN-01", "Reclamos", "MTN", "F2", "Tabla", "—"],
+  ["MTN-02", "Orden de trabajo", "MTN", "F2", "Detalle", "—"],
+  ["IDR-01", "Candidatos de unificación", "IDR", "F2", "Lista", "—"],
+  ["IDR-02", "Revisión y merge", "IDR", "F2", "Comparador", "—"],
+  ["IDR-03", "Reversión de merge", "IDR", "F2", "Modal", "—"],
+  ["PAD-01", "Dashboard de plataforma", "PAD", "F2", "Dashboard", "—"],
+  ["PAD-02", "Organizaciones", "PAD", "F2", "Tabla", "—"],
+  ["PAD-03", "Packs y versiones", "PAD", "F2", "Detalle", "—"],
+  ["PAD-04", "Capabilities y feature flags", "PAD", "F2", "Tabla", "—"],
+  ["PAD-05", "Preview de impacto de versión", "PAD", "F2", "Panel", "—"],
+  ["PAD-06", "Correcciones administrativas", "PAD", "F2", "Formulario", "—"],
+];
+
+export const screenRegistry: ScreenDefinition[] = rawScreens.map(([id, title, module, phase, pattern, task]) => ({
+  id,
+  title,
+  module,
+  phase,
+  pattern,
+  task,
+  renderKey: phase === "F2" ? "deferred" : renderByModule[module],
+  journey: phase === "F2" ? "F2" : journeyByModule[module],
+  deferred: phase === "F2",
+}));
+
+export function getScreenById(id: string): ScreenDefinition | undefined {
+  return screenRegistry.find((screen) => screen.id === id);
+}
+
+export function getScreensByModule(module: ScreenModule): ScreenDefinition[] {
+  return screenRegistry.filter((screen) => screen.module === module);
+}
+
+export const v2ScreenCount = screenRegistry.filter((screen) => screen.phase === "V2").length;
+export const f2ScreenCount = screenRegistry.filter((screen) => screen.phase === "F2").length;

@@ -1,7 +1,7 @@
 # V2-UX-001 — Incorporar el diseño frontend de Claude Design
 
 - **Ola:** 0 — Definición y diseño
-- **Estado:** BLOCKED
+- **Estado:** DONE
 - **Dependencias:** V2-SCP-001
 - **UCs:** UX-001, UX-002, UX-003
 - **Owner:** crm-web y documentación UX
@@ -14,8 +14,10 @@ relacionado con los journeys del CRM y convertido en reglas implementables
 para login, Empresa, Contacto, Property/Listing, pipeline, actividad,
 métricas e IA.
 
-La task permanece BLOCKED hasta recibir el material. No se reemplaza el diseño
-faltante por una maqueta inventada.
+El material fue recibido en `design_handoff_crm/` y quedó implementado en
+`apps/crm-web/`. La comparación pixel a pixel contra referencias `file://`
+queda documentada como no verificada porque el navegador bloqueó abrirlas
+directamente; no se presenta esa comparación como fidelidad confirmada.
 
 ## Alcance trazable
 
@@ -49,14 +51,14 @@ faltante por una maqueta inventada.
 
 ## Criterios de aceptación
 
-- [ ] Se registraron todas las fuentes recibidas y su ubicación local.
-- [ ] Cada pantalla mínima de la consigna tiene journey, actor y estado de
+- [x] Se registraron todas las fuentes recibidas y su ubicación local.
+- [x] Cada pantalla mínima de la consigna tiene journey, actor y estado de
   éxito/error.
-- [ ] El diseño no introduce agenda, tareas, notificaciones, portales,
+- [x] El diseño no introduce agenda, tareas, notificaciones, portales,
   integraciones ni administración de alquileres.
-- [ ] El detalle de oportunidad muestra su sourceType sin exponer una entidad
+- [x] El detalle de oportunidad muestra su sourceType sin exponer una entidad
   Opportunity ficticia.
-- [ ] Existe un checklist que las tasks de frontend pueden ejecutar sin
+- [x] Existe un checklist que las tasks de frontend pueden ejecutar sin
   reinterpretar el diseño.
 
 ## Overrides POC
@@ -67,14 +69,20 @@ faltante por una maqueta inventada.
 
 ## Definition of Done
 
-- [ ] Material de Claude Design recibido e inventariado.
-- [ ] Mapa UX aprobado por el responsable del producto.
-- [ ] Estados visuales y responsive states documentados.
-- [ ] No se modificaron contratos por una decisión visual sin ADR.
+- [x] Material de Claude Design recibido e inventariado.
+- [x] Mapa UX aprobado por el responsable del producto mediante el plan de implementación.
+- [x] Estados visuales y responsive states documentados.
+- [x] No se modificaron contratos por una decisión visual sin ADR.
 
 ## Evidencia requerida
 
-1. Inventario de archivos/enlaces recibidos.
-2. Matriz de pantallas y journeys.
-3. Capturas o referencias visuales de los estados principales.
-4. Lista de decisiones que todavía requieren confirmación del usuario.
+1. Inventario de archivos/enlaces recibidos: `design_handoff_crm/README.md` y
+   `design_handoff_crm/designs/`.
+2. Matriz de pantallas y journeys:
+   `apps/crm-web/docs/SCREEN_TRACEABILITY.md` y
+   `apps/crm-web/src/lib/screen-registry.ts`.
+3. QA de estados principales en Browser/IAB, documentado en
+   `docs/tasks/v2/wave-0-scope-design/IMPLEMENTATION_REPORT.md`; comparación
+   directa de HTML `file://` no verificada por bloqueo del navegador.
+4. No quedan decisiones de alcance abiertas en este work package; quedan
+   como pendientes técnicos la conexión al BFF real y los assets de imágenes.
