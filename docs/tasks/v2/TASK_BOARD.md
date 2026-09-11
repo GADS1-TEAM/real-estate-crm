@@ -9,7 +9,7 @@ Definition of Done y adjuntar evidencia.
 | Orden | Task | Estado | Dependencias | Entregable |
 |---:|---|---|---|---|
 | 1 | [V2-SCP-001](wave-0-scope-design/V2-SCP-001-alcance-y-modelo-v2.md) | READY | — | Alcance, relaciones del modelo y ADR |
-| 2 | [V2-UX-001](wave-0-scope-design/V2-UX-001-incorporar-diseno-claude-design.md) | BLOCKED | diseño recibido | Incorporación del diseño de Claude Design |
+| 2 | [V2-UX-001](wave-0-scope-design/V2-UX-001-incorporar-diseno-claude-design.md) | DONE | diseño recibido | Incorporación del diseño de Claude Design |
 | 3 | [V2-FND-001](wave-1-foundation/V2-FND-001-esqueleto-poc.md) | TODO | SCP-001 | Esqueleto de solución y servicios |
 | 4 | [V2-FND-002](wave-1-foundation/V2-FND-002-contratos-auth-y-persistencia.md) | TODO | FND-001 | Contratos, auth y puertos de persistencia |
 | 5 | [V2-FND-003](wave-1-foundation/V2-FND-003-infra-ci-y-observabilidad.md) | TODO | FND-001 | Compose, CI y telemetría base |

@@ -1,0 +1,41 @@
+{
+  "name": "@realstate-crm/crm-web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "dev:preview": "cross-env NEXT_PUBLIC_CRM_WEB_MODE=demo next dev",
+    "dev:demo": "cross-env NEXT_PUBLIC_CRM_WEB_MODE=demo next dev",
+    "build": "next build",
+    "build:preview": "cross-env NEXT_PUBLIC_CRM_WEB_MODE=demo next build",
+    "build:demo": "cross-env NEXT_PUBLIC_CRM_WEB_MODE=demo next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@fontsource/inter": "^5.2.6",
+    "next": "^15.5.7",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
+    "@testing-library/user-event": "^14.5.2",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.6",
+    "@types/react-dom": "^19.0.3",
+    "@vitejs/plugin-react": "^4.4.1",
+    "cross-env": "^7.0.3",
+    "eslint": "^9.17.0",
+    "eslint-config-next": "^15.5.7",
+    "jsdom": "^25.0.1",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8"
+  }
+}

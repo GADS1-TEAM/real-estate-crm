@@ -1,0 +1,69 @@
+import { expect, test } from "@playwright/test";
+
+test("recorre inicio, criterios y cambio de etapa", async ({ page }) => {
+  test.skip(test.info().project.name !== "chromium", "El journey principal se valida en desktop; el flujo mobile tiene su escenario propio.");
+  await page.goto("/inicio");
+  await expect(page.getByRole("heading", { name: "Inicio" })).toBeVisible();
+  await page.getByRole("link", { name: "Búsquedas" }).click();
+  await expect(page.getByRole("heading", { name: "Búsquedas" })).toBeVisible();
+  await page.getByRole("button", { name: /Ana busca casa/ }).first().click();
+  await expect(page.getByRole("heading", { name: /Búsqueda 360/ })).toBeVisible();
+  await page.getByRole("button", { name: "Editar criterios" }).click();
+  await expect(page.getByText("Score recalculado")).toBeVisible();
+  await page.getByRole("link", { name: "Oportunidades" }).click();
+  await expect(page.getByRole("heading", { name: "Oportunidades", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Cambiar etapa" }).first().click();
+  const stageSelect = page.getByLabel("Nueva etapa");
+  await expect(stageSelect).toBeVisible();
+  await stageSelect.selectOption("Negociación");
+  await page.getByLabel("Motivo del cambio").fill("Se confirmó una visita con la parte interesada.");
+  await page.getByRole("button", { name: "Guardar cambio de etapa" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Cambio de etapa guardado" })).toBeVisible();
+});
+
+test("registra una contrapropuesta como secuencia inmutable", async ({ page }) => {
+  test.skip(test.info().project.name !== "chromium", "La progresión comercial se valida en desktop.");
+  await page.goto("/oportunidades?screen=COM-06&entity=opp-2");
+  await expect(page.getByRole("heading", { level: 1, name: "Registrar propuesta" })).toBeVisible();
+  await page.getByLabel("Tipo de propuesta").selectOption("CONTRAPROPUESTA");
+  await page.getByLabel("Monto propuesto").fill("180000");
+  await page.getByLabel("Condiciones").fill("Entrega en 45 días.");
+  await page.getByRole("button", { name: "Registrar contrapropuesta" }).click();
+  await expect(page.getByText("Contrapropuesta #1").first()).toBeVisible();
+  await expect(page.getByText("Inmutable").first()).toBeVisible();
+});
+
+test("mobile exposes visit and offline-safe activity actions", async ({ page }) => {
+  test.skip(test.info().project.name !== "mobile", "Este escenario se valida en el proyecto mobile.");
+  await page.goto("/inicio");
+  await expect(page.locator(".mobile-bottom-nav")).toBeVisible();
+  await page.getByRole("button", { name: "Registrar", exact: true }).click({ force: true });
+  await expect(page.getByRole("dialog", { name: "Crear rápido" })).toBeVisible();
+  await page.getByRole("button", { name: /Actividad Hecho ocurrido/ }).click();
+  await expect(page.locator("h2").filter({ hasText: "Registrar actividad" })).toBeVisible();
+});
+
+test("the product shell does not expose implementation labels", async ({ page }) => {
+  await page.goto("/inicio");
+  await expect(page.getByText("Modo demo", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("BFF", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("V2", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("F2", { exact: true })).toHaveCount(0);
+  await expect(page.locator("body")).not.toContainText("work package");
+});
+
+test("business routes keep implementation terminology out of the customer-facing UI", async ({ page }) => {
+  for (const route of ["/inicio", "/contactos", "/inmuebles", "/publicaciones", "/captaciones", "/busquedas", "/compatibilidades", "/oportunidades", "/actividad", "/metricas", "/asistente", "/administracion", "/login"]) {
+    await page.goto(route, { waitUntil: "commit" });
+    await expect(page.locator("body")).toBeVisible();
+    await expect(page.locator("body")).not.toContainText(/\b(v2|f2|demo|bff)\b/i);
+  }
+});
+
+test("deferred surfaces stay visible but disabled in the design catalog", async ({ page }) => {
+  await page.goto("/__design");
+  await expect(page.getByText("172", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Diferidas" }).click();
+  await expect(page.getByText("F2", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Centro de novedades")).toBeVisible();
+});
