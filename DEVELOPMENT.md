@@ -16,9 +16,34 @@ compilar y testear lo que existe hoy en el repo.
 # Compilar toda la solución
 dotnet build RealEstateCrm.slnx
 
-# Correr los tests (por ahora, solo el test de arquitectura)
-dotnet test RealEstateCrm.slnx
+# Correr los tests SIN infraestructura externa (comando por defecto: no necesita
+# Docker/Mongo/RabbitMQ/Keycloak corriendo, y debe dar 100% verde)
+dotnet test RealEstateCrm.slnx --filter "Category!=RequiresMongo&Category!=RequiresRabbitMq&Category!=RequiresKeycloak"
 ```
+
+Algunos tests de `tests/RealEstateCrm.BuildingBlocks.Infrastructure.Tests` (agregados en
+`V2-FND-002`) corren contra Mongo/RabbitMQ/Keycloak reales en vez de mockearlos, y están
+marcados con exactamente uno de estos `[Trait("Category", "...")]`: `RequiresMongo`,
+`RequiresRabbitMq`, `RequiresKeycloak`. Si no se excluyen con el filtro de arriba, van a
+fallar (timeout de conexión) en cualquier PC sin esa infraestructura levantada. Para correrlos
+con infraestructura real (contenedores efímeros, no requiere el Compose de `V2-FND-003`):
+
+```bash
+docker run -d --rm --name mongo-standalone -p 27017:27017 mongo:7
+docker run -d --rm --name mongo-replset -p 27018:27018 mongo:7 mongod --replSet rs0 --port 27018 --bind_ip_all
+docker exec mongo-replset mongosh --port 27018 --eval 'rs.initiate({_id:"rs0", members:[{_id:0, host:"localhost:27018"}]})'
+docker run -d --rm --name rabbitmq -p 5672:5672 rabbitmq:4-management
+
+MONGO_CONNECTION_STRING=mongodb://localhost:27017 \
+MONGO_REPLICA_SET_CONNECTION_STRING="mongodb://localhost:27018/?replicaSet=rs0" \
+RABBITMQ_HOST=localhost \
+dotnet test RealEstateCrm.slnx --filter "Category!=RequiresKeycloak"
+
+docker rm -f mongo-standalone mongo-replset rabbitmq
+```
+
+`RequiresKeycloak` necesita además el realm local de desarrollo de `V2-FND-003`, que todavía
+no existe (variables de entorno documentadas en `KeycloakDevRealmTests`).
 
 ## Estructura de la solución
 
@@ -27,14 +52,25 @@ dotnet test RealEstateCrm.slnx
   `Domain` no depende de ningún otro proyecto ni paquete de infraestructura).
 - `bffs/<nombre>-bff/src/` — `operations-bff` y `platform-admin-bff`, cada uno
   con `Application` + `Api`.
-- `contracts/` — contratos compartidos entre servicios (vacío por ahora).
-- `building-blocks/` — building blocks reutilizables (vacío por ahora).
+- `contracts/RealEstateCrm.Contracts/` — contratos compartidos entre servicios
+  (`ProblemDetailsV1`, `PageV1<T>`, `ExecutionContextV1`, `EventEnvelopeV1<T>`; `V2-FND-002`).
+- `building-blocks/RealEstateCrm.BuildingBlocks/` — puertos reutilizables
+  (`IAuthenticationPort`, `IRepository<T,TId>`, `IUnitOfWork`, `IOutbox`, `IInbox`,
+  `IEventPublisher`, `IEventConsumer<T>`), sin ningún paquete de infraestructura.
+- `building-blocks/RealEstateCrm.BuildingBlocks.Infrastructure/` — adapters reales de esos
+  puertos (Mongo, RabbitMQ, Keycloak/JwtBearer; `V2-FND-002`). Solo la capa `Infrastructure`
+  de cada servicio puede referenciarlo: `Application` no debe, y el test de arquitectura lo
+  verifica.
 - `tests/RealEstateCrm.ArchitectureTests/` — reglas de dependencia: falla si
-  un proyecto `Domain` referencia MongoDB/RabbitMQ/Keycloak/ASP.NET Core, o si
-  un servicio referencia proyectos de otro servicio.
+  un proyecto `Domain` referencia MongoDB/RabbitMQ/Keycloak/ASP.NET Core, si
+  un servicio referencia proyectos de otro servicio, o si un `Application`
+  referencia `RealEstateCrm.BuildingBlocks.Infrastructure` directamente.
+- `tests/RealEstateCrm.TestSupport/` — test doubles (`FakeAuthenticationPort`), solo para uso
+  de otros proyectos de test.
 
-Ningún proyecto de este esqueleto se conecta todavía a MongoDB, RabbitMQ ni
-Keycloak: esas integraciones entran con `V2-FND-002` y `V2-FND-003`.
+Ningún servicio de dominio (`services/*`) se conecta todavía a MongoDB, RabbitMQ ni Keycloak:
+`V2-FND-002` deja los ports/adapters listos en `building-blocks/`, pero ningún aggregate real
+los usa aún (son de wave 2+). `V2-FND-003` agrega el Compose con la infraestructura real.
 
 ## Frontend (apps/)
 
