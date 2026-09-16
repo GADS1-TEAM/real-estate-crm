@@ -8,7 +8,26 @@ compilar y testear lo que existe hoy en el repo.
 
 - .NET 10 SDK (`dotnet --version` → 10.x)
 - Node 22+ y npm (`node -v`)
-- Docker Desktop (para infraestructura de `V2-FND-003`, todavía no agregada)
+- Docker Desktop (para `docker compose up`, infraestructura de `V2-FND-003`)
+
+## Infraestructura local (V2-FND-003)
+
+```bash
+docker compose up -d      # Mongo (replica set rs0), RabbitMQ, Keycloak (realm crm-dev)
+docker compose ps         # confirmar healthy
+docker compose down -v    # bajar todo (no hay volúmenes persistentes: es infra POC efímera)
+```
+
+- Mongo: un solo contenedor `mongo:7.0.43` como replica set de un nodo (`rs0`), requerido por
+  el outbox transaccional de `V2-FND-002`. Healthcheck idempotente (`rs.status()`, y solo si
+  falla corre `rs.initiate`).
+- RabbitMQ: `rabbitmq:4.3.6-management`, UI en http://localhost:15672 (guest/guest).
+- Keycloak: `quay.io/keycloak/keycloak:26.7.4`, realm `crm-dev` importado desde
+  `infra/keycloak/realm-export/crm-dev-realm.json` (client `operations-bff`, usuario
+  `dev.vendedor`/`dev.vendedor`, roles Administrador/Vendedor/Responsable Comercial como
+  identidad — los permisos los resuelve `access-service`, V2-ACL-001).
+- Variables y el porqué de `directConnection=true` en las connection strings de Mongo:
+  ver `.env.example`.
 
 ## Backend (.NET)
 
@@ -22,28 +41,23 @@ dotnet test RealEstateCrm.slnx --filter "Category!=RequiresMongo&Category!=Requi
 ```
 
 Algunos tests de `tests/RealEstateCrm.BuildingBlocks.Infrastructure.Tests` (agregados en
-`V2-FND-002`) corren contra Mongo/RabbitMQ/Keycloak reales en vez de mockearlos, y están
-marcados con exactamente uno de estos `[Trait("Category", "...")]`: `RequiresMongo`,
-`RequiresRabbitMq`, `RequiresKeycloak`. Si no se excluyen con el filtro de arriba, van a
-fallar (timeout de conexión) en cualquier PC sin esa infraestructura levantada. Para correrlos
-con infraestructura real (contenedores efímeros, no requiere el Compose de `V2-FND-003`):
+`V2-FND-002`, ampliados en `V2-FND-003`) corren contra Mongo/RabbitMQ/Keycloak reales en vez
+de mockearlos, y están marcados con exactamente uno de estos `[Trait("Category", "...")]`:
+`RequiresMongo`, `RequiresRabbitMq`, `RequiresKeycloak`. Si no se excluyen con el filtro de
+arriba, van a fallar (timeout de conexión) en cualquier PC sin esa infraestructura levantada.
+
+Dos scripts (`scripts/test-fast.{sh,ps1}` y `scripts/test-integration.{sh,ps1}`) son la fuente
+única de verdad: los mismos que corre `.github/workflows/ci.yml` se pueden correr a mano.
 
 ```bash
-docker run -d --rm --name mongo-standalone -p 27017:27017 mongo:7
-docker run -d --rm --name mongo-replset -p 27018:27018 mongo:7 mongod --replSet rs0 --port 27018 --bind_ip_all
-docker exec mongo-replset mongosh --port 27018 --eval 'rs.initiate({_id:"rs0", members:[{_id:0, host:"localhost:27018"}]})'
-docker run -d --rm --name rabbitmq -p 5672:5672 rabbitmq:4-management
+# Job rápido: build + tests sin infra + build de ambas webs (no levanta Compose)
+bash scripts/test-fast.sh
 
-MONGO_CONNECTION_STRING=mongodb://localhost:27017 \
-MONGO_REPLICA_SET_CONNECTION_STRING="mongodb://localhost:27018/?replicaSet=rs0" \
-RABBITMQ_HOST=localhost \
-dotnet test RealEstateCrm.slnx --filter "Category!=RequiresKeycloak"
-
-docker rm -f mongo-standalone mongo-replset rabbitmq
+# Job de integración: docker compose up + espera healthchecks + los 3 Category reales + compose down
+bash scripts/test-integration.sh
 ```
 
-`RequiresKeycloak` necesita además el realm local de desarrollo de `V2-FND-003`, que todavía
-no existe (variables de entorno documentadas en `KeycloakDevRealmTests`).
+En PowerShell, usar `scripts/test-fast.ps1` y `scripts/test-integration.ps1`.
 
 ## Estructura de la solución
 
@@ -58,9 +72,16 @@ no existe (variables de entorno documentadas en `KeycloakDevRealmTests`).
   (`IAuthenticationPort`, `IRepository<T,TId>`, `IUnitOfWork`, `IOutbox`, `IInbox`,
   `IEventPublisher`, `IEventConsumer<T>`), sin ningún paquete de infraestructura.
 - `building-blocks/RealEstateCrm.BuildingBlocks.Infrastructure/` — adapters reales de esos
-  puertos (Mongo, RabbitMQ, Keycloak/JwtBearer; `V2-FND-002`). Solo la capa `Infrastructure`
+  puertos (Mongo, RabbitMQ, Keycloak/JwtBearer; `V2-FND-002`) más `HealthChecks/`
+  (`/health/live`, `/health/ready`) y `Observability/` (correlationId/actorId, logs con
+  redacción de datos sensibles, OpenTelemetry; `V2-FND-003`). Solo la capa `Infrastructure`
   de cada servicio puede referenciarlo: `Application` no debe, y el test de arquitectura lo
-  verifica.
+  verifica. Ningún `Program.cs` de `services/`/`bffs/` invoca todavía `AddCrmHealthChecks` ni
+  `AddCrmObservability` (fuera de la write zone de V2-FND-003, ver
+  IMPLEMENTATION_REPORT-V2-FND-003.md).
+- `infra/keycloak/realm-export/` — realm `crm-dev` versionado como JSON (`V2-FND-003`).
+- `scripts/` — `test-fast`/`test-integration` en bash y PowerShell (`V2-FND-003`), usados
+  tanto por `.github/workflows/ci.yml` como a mano.
 - `tests/RealEstateCrm.ArchitectureTests/` — reglas de dependencia: falla si
   un proyecto `Domain` referencia MongoDB/RabbitMQ/Keycloak/ASP.NET Core, si
   un servicio referencia proyectos de otro servicio, o si un `Application`
@@ -70,7 +91,8 @@ no existe (variables de entorno documentadas en `KeycloakDevRealmTests`).
 
 Ningún servicio de dominio (`services/*`) se conecta todavía a MongoDB, RabbitMQ ni Keycloak:
 `V2-FND-002` deja los ports/adapters listos en `building-blocks/`, pero ningún aggregate real
-los usa aún (son de wave 2+). `V2-FND-003` agrega el Compose con la infraestructura real.
+los usa aún (son de wave 2+). `V2-FND-003` agrega el Compose con la infraestructura real y los
+building blocks de healthchecks/observabilidad, también sin wire-up en ningún `Program.cs`.
 
 ## Frontend (apps/)
 

@@ -70,3 +70,32 @@ request por correlationId sin registrar PII sensible.
 2. Salida de CI local y workflow.
 3. Trace/log de una request correlacionada.
 4. Resultado del test de sanitización.
+
+## Handoff
+
+**Qué quedó:** `docker-compose.yml` (Mongo replica set de un nodo, RabbitMQ, Keycloak con
+realm `crm-dev` importado como código), `.env.example`, `scripts/test-fast.{sh,ps1}` +
+`scripts/test-integration.{sh,ps1}`, `.github/workflows/ci.yml` (jobs `fast`/`integration`),
+y en `building-blocks/RealEstateCrm.BuildingBlocks.Infrastructure/`: `HealthChecks/`
+(`/health/live`, `/health/ready`) y `Observability/` (correlationId/actorId,
+`SanitizingLoggerProvider`, OpenTelemetry). Todo probado contra Docker real (no mockeado); ver
+`IMPLEMENTATION_REPORT-V2-FND-003.md` para comandos y resultados exactos.
+
+**Qué falta:** nada de `HealthChecks/`/`Observability/` está wireado en ningún `Program.cs` de
+`services/`/`bffs/` (fuera de la write zone de esta task). El criterio de aceptación
+"correlationId de BFF a consumer" queda probado en dos mitades separadas (HTTP → scope de
+logger/traza; publish → consume de evento) pero no unidas por un request real, porque no existe
+todavía ningún endpoint HTTP real que dispare un comando. Ver "Alcance pendiente" en el
+IMPLEMENTATION_REPORT.
+
+**Cómo verificar:**
+
+```bash
+docker compose up -d && docker compose ps        # los 3 servicios en "healthy"
+bash scripts/test-fast.sh                         # build + tests sin infra + build de webs
+bash scripts/test-integration.sh                  # compose up + los 3 Category reales + compose down
+```
+
+**Quién sigue:** V2-ACL-001 (primer `Program.cs` real con un endpoint HTTP) es quien debe
+invocar `AddCrmHealthChecks()`/`AddCrmObservability()`/`UseCrmCorrelationId()` por primera vez
+y cerrar la demostración end-to-end real de correlationId BFF → consumer.

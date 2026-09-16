@@ -1,0 +1,43 @@
+{
+  "realm": "crm-dev",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "roles": {
+    "realm": [
+      { "name": "Administrador", "description": "Identidad de rol Administrador. Los permisos concretos los resuelve access-service (V2-ACL-001), no Keycloak." },
+      { "name": "Vendedor", "description": "Identidad de rol Vendedor. Los permisos concretos los resuelve access-service (V2-ACL-001), no Keycloak." },
+      { "name": "Responsable Comercial", "description": "Identidad de rol Responsable Comercial. Los permisos concretos los resuelve access-service (V2-ACL-001), no Keycloak." }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "operations-bff",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "redirectUris": ["http://localhost:3000/*"],
+      "webOrigins": ["http://localhost:3000"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "dev.vendedor",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Dev",
+      "lastName": "Vendedor",
+      "email": "dev.vendedor@crm-dev.local",
+      "credentials": [
+        { "type": "password", "value": "dev.vendedor", "temporary": false }
+      ],
+      "realmRoles": ["Vendedor"]
+    }
+  ]
+}
