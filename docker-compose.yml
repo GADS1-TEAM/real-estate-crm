@@ -1,0 +1,61 @@
+name: crm-v2
+
+services:
+  mongo:
+    image: mongo:7.0.43
+    container_name: crm-mongo
+    ports:
+      - "27017:27017"
+    command: ["--replSet", "rs0", "--bind_ip_all"]
+    healthcheck:
+      # Idempotente: si el replica set ya fue inicializado, rs.status().ok alcanza y no
+      # vuelve a llamar rs.initiate (que fallaría con "already initialized"). El miembro se
+      # anuncia como "mongo:27017" (DNS interno de Compose) para que un futuro servicio que
+      # corra dentro de la red de Compose pueda conectarse sin directConnection. Un cliente
+      # que corre en el host (tests locales, CI) no resuelve "mongo", por eso .env.example
+      # agrega `directConnection=true` a las dos connection strings: así el driver no
+      # intenta re-descubrir la topología contra el hostname interno.
+      test: >
+        mongosh --quiet --eval
+        "try { rs.status().ok } catch (e) { rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo:27017'}]}) }"
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
+  rabbitmq:
+    image: rabbitmq:4.3.6-management
+    container_name: crm-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.4
+    container_name: crm-keycloak
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USERNAME:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin-dev-only}
+      KC_HEALTH_ENABLED: "true"
+      KC_HTTP_ENABLED: "true"
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./infra/keycloak/realm-export:/opt/keycloak/data/import
+    # --import-realm solo crea el realm si no existe: en cada `docker compose up` desde cero
+    # (no hay volumen persistente a propósito, es infra POC efímera) vuelve a importar limpio.
+    command: ["start-dev", "--import-realm"]
+    healthcheck:
+      # La imagen de Keycloak no trae curl/wget; se chequea el endpoint de management
+      # (puerto 9000, habilitado por KC_HEALTH_ENABLED) con el /dev/tcp de bash.
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /health/ready HTTP/1.1\\r\\nhost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q '\"status\": \"UP\"' <&3"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 10s

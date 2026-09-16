@@ -10,3 +10,6 @@ obj/
 # OS
 .DS_Store
 Thumbs.db
+
+# Infra local (V2-FND-003): nunca commitear un .env real, aunque solo tenga secretos ficticios.
+.env
