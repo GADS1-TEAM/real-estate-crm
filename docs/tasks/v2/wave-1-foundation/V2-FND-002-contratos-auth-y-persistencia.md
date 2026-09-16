@@ -103,16 +103,19 @@ decisiones del equipo y los dos bugs reales encontrados contra Mongo en
   `V2-FND-003` (que todavía no definió standalone vs. replica set) — coordinar antes de
   cerrar esa task, o el Outbox de todos los servicios futuros va a fallar en runtime.
 
-**Cómo verificar:**
+**Cómo verificar (sin infraestructura — este es el comando a usar por defecto,
+también documentado en `DEVELOPMENT.md`):**
 
 ```bash
 dotnet build RealEstateCrm.slnx
-dotnet test RealEstateCrm.slnx --filter "Category!=RequiresKeycloak"
+dotnet test RealEstateCrm.slnx --filter "Category!=RequiresMongo&Category!=RequiresRabbitMq&Category!=RequiresKeycloak"
 ```
 
-El comando de arriba ya incluye los tests marcados `RequiresMongo`/`RequiresMongoReplicaSet`/
-`RequiresRabbitMq` (no tienen trait que los excluya, solo `RequiresKeycloak` los tiene), así
-que van a fallar si no hay Mongo/RabbitMQ corriendo. Para levantarlos:
+Sin ningún contenedor corriendo, este comando debe dar 100% verde (34 tests): los únicos
+tests que tocan Mongo/RabbitMQ/Keycloak reales están marcados con exactamente uno de estos
+tres Traits (`RequiresMongo`, `RequiresRabbitMq`, `RequiresKeycloak`) y quedan excluidos.
+
+**Con infraestructura real** (para correr también esos tests contra Mongo/RabbitMQ reales):
 
 ```bash
 docker run -d --rm --name mongo-standalone -p 27017:27017 mongo:7
@@ -127,6 +130,10 @@ dotnet test RealEstateCrm.slnx --filter "Category!=RequiresKeycloak"
 
 docker rm -f mongo-standalone mongo-replset rabbitmq
 ```
+
+`KeycloakDevRealmTests` necesita además el realm local de `V2-FND-003`
+(`dotnet test --filter "Category=RequiresKeycloak"`, variables de entorno documentadas en el
+test).
 
 El test de arquitectura extendido (`tests/RealEstateCrm.ArchitectureTests`) debe seguir en
 3/3 verde; si un `*.Application.csproj` referencia `RealEstateCrm.BuildingBlocks.Infrastructure`

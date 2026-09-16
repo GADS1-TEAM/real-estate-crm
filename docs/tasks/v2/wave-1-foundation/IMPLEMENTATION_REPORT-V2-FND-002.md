@@ -34,14 +34,21 @@ Compilación correcta.
     0 Errores
 ```
 
+**Comando sin infraestructura** (ningún contenedor corriendo — este es el comando a usar en
+CI o en una PC sin Docker levantado; los 3 proyectos de test quedan 100% en verde porque los
+únicos tests que tocan Mongo/RabbitMQ/Keycloak reales están marcados con
+`[Trait("Category", "RequiresMongo"|"RequiresRabbitMq"|"RequiresKeycloak")]`):
+
 ```text
-$ dotnet test RealEstateCrm.slnx --filter "Category!=RequiresKeycloak"
-RealEstateCrm.ArchitectureTests.dll  → Superado: 3,  Total: 3
-RealEstateCrm.ContractTests.dll      → Superado: 21, Total: 21
-RealEstateCrm.BuildingBlocks.Infrastructure.Tests.dll → Superado: 15, Total: 15
-  (de los 15: 3 son contra Mongo standalone real, 2 contra Mongo replica set real
-   con transacción, 1 contra RabbitMQ real; ver detalle de infraestructura abajo)
+$ dotnet test RealEstateCrm.slnx --filter "Category!=RequiresMongo&Category!=RequiresRabbitMq&Category!=RequiresKeycloak"
+RealEstateCrm.ArchitectureTests.dll                   → Superado: 3,  Total: 3
+RealEstateCrm.ContractTests.dll                       → Superado: 21, Total: 21
+RealEstateCrm.BuildingBlocks.Infrastructure.Tests.dll → Superado: 10, Total: 10
 ```
+
+Con infraestructura real levantada, el comando `--filter "Category!=RequiresKeycloak"` deja
+15/15 en `RealEstateCrm.BuildingBlocks.Infrastructure.Tests.dll` (10 sin infra + 5 contra
+Mongo/RabbitMQ reales; ver "Evidencia contra infraestructura real" abajo).
 
 Demostración en rojo del nuevo test de arquitectura (revertida inmediatamente después):
 
@@ -75,7 +82,7 @@ $ MONGO_CONNECTION_STRING=mongodb://localhost:27017 \
   MONGO_REPLICA_SET_CONNECTION_STRING="mongodb://localhost:27018/?replicaSet=rs0" \
   RABBITMQ_HOST=localhost \
   dotnet test tests/RealEstateCrm.BuildingBlocks.Infrastructure.Tests \
-    --filter "Category=RequiresMongo|Category=RequiresMongoReplicaSet|Category=RequiresRabbitMq"
+    --filter "Category=RequiresMongo|Category=RequiresRabbitMq"
 
 Correctas! - Con error: 0, Superado: 5, Total: 5
   - MongoInboxIdempotencyTests (2): segundo consumo del mismo eventId no repite el
@@ -183,6 +190,17 @@ Además, ajustes pedidos explícitamente sobre la primera propuesta:
   `TestServer(IWebHostBuilder)` obsoletos en .NET 10). Se modernizó
   `JwtBearerAuthenticationPipelineTests` a `HostBuilder.ConfigureWebHost(...).UseTestServer()`
   + `IHost.GetTestClient()`. `dotnet build` queda en 0 advertencias, 0 errores.
+- **Trait de `MongoOutboxTransactionTests` corregido:** tenía
+  `[Trait("Category", "RequiresMongoReplicaSet")]`, un cuarto nombre que no
+  coincidía con ninguna de las tres categorías canónicas (`RequiresMongo`,
+  `RequiresRabbitMq`, `RequiresKeycloak`). Con
+  `dotnet test --filter "Category!=RequiresMongo&Category!=RequiresRabbitMq&Category!=RequiresKeycloak"`
+  ese test no quedaba excluido y fallaba por timeout contra `localhost:27018`
+  en una PC sin Mongo corriendo. Corregido a `RequiresMongo` (mismo Trait que
+  `MongoInboxIdempotencyTests`, aunque apunten a instancias Mongo distintas:
+  una standalone, la otra con replica set — ver comentario en el archivo).
+  Verificado el comando de arriba sin ningún contenedor levantado: 34/34 en
+  verde.
 
 ### Bugs reales encontrados al testear contra Mongo real (no simulado)
 

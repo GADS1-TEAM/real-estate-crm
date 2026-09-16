@@ -14,12 +14,17 @@ namespace RealEstateCrm.BuildingBlocks.Infrastructure.Tests.Persistence.Mongo;
 /// en un Mongo standalone <c>StartTransaction</c> falla y este test lo demuestra.
 /// </summary>
 /// <remarks>
-/// Excluido por defecto: <c>dotnet test --filter "Category!=RequiresMongoReplicaSet"</c>.
-/// Para correrlo con un replica set de un solo nodo:
-/// <c>docker run --rm -p 27018:27017 mongo:7 --replSet rs0</c>, después
-/// <c>docker exec &lt;container&gt; mongosh --eval "rs.initiate()"</c>.
+/// Mismo Trait que <see cref="Mongo.MongoInboxIdempotencyTests"/> (<c>RequiresMongo</c>), pero
+/// contra una instancia Mongo *distinta*: esta necesita replica set, esa alcanza con standalone.
+/// Excluido por defecto: <c>dotnet test --filter "Category!=RequiresMongo"</c>.
+/// Para correrlo con un replica set de un solo nodo (puerto separado del standalone de
+/// <see cref="Mongo.MongoInboxIdempotencyTests"/>, configurable con
+/// <c>MONGO_REPLICA_SET_CONNECTION_STRING</c>):
+/// <c>docker run --rm -p 27018:27018 mongo:7 mongod --replSet rs0 --port 27018 --bind_ip_all</c>,
+/// después <c>docker exec &lt;container&gt; mongosh --port 27018 --eval
+/// 'rs.initiate({_id:"rs0", members:[{_id:0, host:"localhost:27018"}]})'</c>.
 /// </remarks>
-[Trait("Category", "RequiresMongoReplicaSet")]
+[Trait("Category", "RequiresMongo")]
 public class MongoOutboxTransactionTests : IAsyncLifetime
 {
     private static readonly string ConnectionString =
