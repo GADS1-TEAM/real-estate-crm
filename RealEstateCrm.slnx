@@ -12,6 +12,7 @@
   </Folder>
   <Folder Name="/building-blocks/">
     <Project Path="building-blocks/RealEstateCrm.BuildingBlocks/RealEstateCrm.BuildingBlocks.csproj" />
+    <Project Path="building-blocks/RealEstateCrm.BuildingBlocks.Infrastructure/RealEstateCrm.BuildingBlocks.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/contracts/">
     <Project Path="contracts/RealEstateCrm.Contracts/RealEstateCrm.Contracts.csproj" />
@@ -96,5 +97,8 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/RealEstateCrm.ArchitectureTests/RealEstateCrm.ArchitectureTests.csproj" />
+    <Project Path="tests/RealEstateCrm.ContractTests/RealEstateCrm.ContractTests.csproj" />
+    <Project Path="tests/RealEstateCrm.BuildingBlocks.Infrastructure.Tests/RealEstateCrm.BuildingBlocks.Infrastructure.Tests.csproj" />
+    <Project Path="tests/RealEstateCrm.TestSupport/RealEstateCrm.TestSupport.csproj" />
   </Folder>
 </Solution>

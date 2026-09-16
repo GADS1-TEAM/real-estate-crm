@@ -91,4 +91,27 @@ public class DependencyRulesTests
         var relative = Path.GetRelativePath(servicesRoot, csprojFullPath);
         return relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)[0];
     }
+
+    [Fact]
+    public void Application_projects_do_not_reference_BuildingBlocks_Infrastructure()
+    {
+        var applicationProjects = AllCsprojUnder("services")
+            .Concat(AllCsprojUnder("bffs"))
+            .Where(path => path.EndsWith(".Application.csproj", StringComparison.Ordinal))
+            .Select(path => new CsprojFile(path))
+            .ToList();
+
+        Assert.NotEmpty(applicationProjects);
+
+        var violations = applicationProjects
+            .Where(project => project.ProjectReferenceAbsolutePaths.Any(
+                path => path.Contains("RealEstateCrm.BuildingBlocks.Infrastructure", StringComparison.OrdinalIgnoreCase)))
+            .Select(project => project.FileName)
+            .ToList();
+
+        Assert.True(
+            violations.Count == 0,
+            "Application no debe referenciar RealEstateCrm.BuildingBlocks.Infrastructure (solo puertos): " +
+            string.Join(", ", violations));
+    }
 }

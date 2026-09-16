@@ -75,3 +75,69 @@ idempotentes para los eventos que alimentan proyecciones.
 2. Resultado de tests contractuales.
 3. Flujo de login local.
 4. Test que demuestre idempotencia del Inbox.
+
+## Handoff
+
+**Qué quedó:** `contracts/RealEstateCrm.Contracts` tiene `ProblemDetailsV1`, `PageV1<T>`,
+`ExecutionContextV1` (sin tenant) y `EventEnvelopeV1<TPayload>`. `building-blocks/RealEstateCrm.BuildingBlocks`
+tiene los puertos (`IAuthenticationPort`, `IRepository<T,TId>`, `IUnitOfWork`, `IOutbox`,
+`IInbox`, `IEventPublisher`, `IEventConsumer<T>`) sin ningún paquete de infraestructura.
+`building-blocks/RealEstateCrm.BuildingBlocks.Infrastructure` (proyecto nuevo, decisión del
+equipo) tiene los adapters reales: Mongo (repository genérico, unit of work transaccional,
+outbox, inbox), RabbitMQ (publisher, consumer host con DLQ) y Keycloak (JwtBearer para
+servicios backend, cookie+OIDC para BFF). `dotnet build`/`dotnet test` en verde (39 tests,
+incluye 5 corridos contra Mongo/RabbitMQ reales con contenedores efímeros; el test de
+Keycloak real queda escrito pero sin correr, ver abajo). Detalle completo, comandos,
+decisiones del equipo y los dos bugs reales encontrados contra Mongo en
+`IMPLEMENTATION_REPORT-V2-FND-002.md` (esta misma carpeta).
+
+**Qué falta:**
+- Ningún servicio (`services/*`) usa todavía estos building blocks: no hay aggregates
+  reales, ni `MongoRepository<T,TId>` concreto, ni `IEventConsumer<T>` registrado por
+  ningún servicio (esperado, son de wave 2+).
+- Ningún `Program.cs` de servicio/BFF invoca `AddMongoPersistence`/`AddRabbitMqMessaging`/
+  `AddKeycloak*Authentication`: `bffs/` y los `Api` no estaban en la write zone de esta task.
+- El realm local de Keycloak (`V2-FND-003`) no existe todavía, así que
+  `KeycloakDevRealmTests` (`[Trait("Category","RequiresKeycloak")]`) no se pudo correr.
+- El Outbox transaccional decidido acá **requiere Mongo con replica set** en el Compose de
+  `V2-FND-003` (que todavía no definió standalone vs. replica set) — coordinar antes de
+  cerrar esa task, o el Outbox de todos los servicios futuros va a fallar en runtime.
+
+**Cómo verificar:**
+
+```bash
+dotnet build RealEstateCrm.slnx
+dotnet test RealEstateCrm.slnx --filter "Category!=RequiresKeycloak"
+```
+
+El comando de arriba ya incluye los tests marcados `RequiresMongo`/`RequiresMongoReplicaSet`/
+`RequiresRabbitMq` (no tienen trait que los excluya, solo `RequiresKeycloak` los tiene), así
+que van a fallar si no hay Mongo/RabbitMQ corriendo. Para levantarlos:
+
+```bash
+docker run -d --rm --name mongo-standalone -p 27017:27017 mongo:7
+docker run -d --rm --name mongo-replset -p 27018:27018 mongo:7 mongod --replSet rs0 --port 27018 --bind_ip_all
+docker exec mongo-replset mongosh --port 27018 --eval 'rs.initiate({_id:"rs0", members:[{_id:0, host:"localhost:27018"}]})'
+docker run -d --rm --name rabbitmq -p 5672:5672 rabbitmq:4-management
+
+MONGO_CONNECTION_STRING=mongodb://localhost:27017 \
+MONGO_REPLICA_SET_CONNECTION_STRING="mongodb://localhost:27018/?replicaSet=rs0" \
+RABBITMQ_HOST=localhost \
+dotnet test RealEstateCrm.slnx --filter "Category!=RequiresKeycloak"
+
+docker rm -f mongo-standalone mongo-replset rabbitmq
+```
+
+El test de arquitectura extendido (`tests/RealEstateCrm.ArchitectureTests`) debe seguir en
+3/3 verde; si un `*.Application.csproj` referencia `RealEstateCrm.BuildingBlocks.Infrastructure`
+directamente, debe fallar (se verificó manualmente en rojo durante esta task, ver reporte).
+
+**Para continuar (V2-ACL-001, V2-FND-003, y cualquier wave 2+):**
+- Los namespaces/nombres de `contracts` y `building-blocks` ya son estables. No renombrar
+  sin abrir ADR.
+- Un servicio nuevo con aggregates reales: su `Infrastructure` referencia
+  `RealEstateCrm.BuildingBlocks.Infrastructure` (permitido) y su `Application` referencia
+  solo `RealEstateCrm.BuildingBlocks` (el test de arquitectura lo hace cumplir).
+- `V2-FND-003`: definir Mongo replica set en el Compose (obligatorio por la decisión de
+  Outbox de esta task) y el realm local de Keycloak con un usuario de desarrollo
+  (variables documentadas en `KeycloakDevRealmTests`).
