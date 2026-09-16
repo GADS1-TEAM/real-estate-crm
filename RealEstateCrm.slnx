@@ -1,0 +1,100 @@
+<Solution>
+  <Folder Name="/bffs/" />
+  <Folder Name="/bffs/operations-bff/" />
+  <Folder Name="/bffs/operations-bff/src/">
+    <Project Path="bffs/operations-bff/src/OperationsBff.Api/OperationsBff.Api.csproj" />
+    <Project Path="bffs/operations-bff/src/OperationsBff.Application/OperationsBff.Application.csproj" />
+  </Folder>
+  <Folder Name="/bffs/platform-admin-bff/" />
+  <Folder Name="/bffs/platform-admin-bff/src/">
+    <Project Path="bffs/platform-admin-bff/src/PlatformAdminBff.Api/PlatformAdminBff.Api.csproj" />
+    <Project Path="bffs/platform-admin-bff/src/PlatformAdminBff.Application/PlatformAdminBff.Application.csproj" />
+  </Folder>
+  <Folder Name="/building-blocks/">
+    <Project Path="building-blocks/RealEstateCrm.BuildingBlocks/RealEstateCrm.BuildingBlocks.csproj" />
+  </Folder>
+  <Folder Name="/contracts/">
+    <Project Path="contracts/RealEstateCrm.Contracts/RealEstateCrm.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/services/" />
+  <Folder Name="/services/access-service/" />
+  <Folder Name="/services/access-service/src/">
+    <Project Path="services/access-service/src/AccessService.Api/AccessService.Api.csproj" />
+    <Project Path="services/access-service/src/AccessService.Application/AccessService.Application.csproj" />
+    <Project Path="services/access-service/src/AccessService.Domain/AccessService.Domain.csproj" />
+    <Project Path="services/access-service/src/AccessService.Infrastructure/AccessService.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/services/activity-service/" />
+  <Folder Name="/services/activity-service/src/">
+    <Project Path="services/activity-service/src/ActivityService.Api/ActivityService.Api.csproj" />
+    <Project Path="services/activity-service/src/ActivityService.Application/ActivityService.Application.csproj" />
+    <Project Path="services/activity-service/src/ActivityService.Domain/ActivityService.Domain.csproj" />
+    <Project Path="services/activity-service/src/ActivityService.Infrastructure/ActivityService.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/services/analytics-service/" />
+  <Folder Name="/services/analytics-service/src/">
+    <Project Path="services/analytics-service/src/AnalyticsService.Api/AnalyticsService.Api.csproj" />
+    <Project Path="services/analytics-service/src/AnalyticsService.Application/AnalyticsService.Application.csproj" />
+    <Project Path="services/analytics-service/src/AnalyticsService.Domain/AnalyticsService.Domain.csproj" />
+    <Project Path="services/analytics-service/src/AnalyticsService.Infrastructure/AnalyticsService.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/services/automation-ai-service/" />
+  <Folder Name="/services/automation-ai-service/src/">
+    <Project Path="services/automation-ai-service/src/AutomationAiService.Api/AutomationAiService.Api.csproj" />
+    <Project Path="services/automation-ai-service/src/AutomationAiService.Application/AutomationAiService.Application.csproj" />
+    <Project Path="services/automation-ai-service/src/AutomationAiService.Domain/AutomationAiService.Domain.csproj" />
+    <Project Path="services/automation-ai-service/src/AutomationAiService.Infrastructure/AutomationAiService.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/services/commercial-service/" />
+  <Folder Name="/services/commercial-service/src/">
+    <Project Path="services/commercial-service/src/CommercialService.Api/CommercialService.Api.csproj" />
+    <Project Path="services/commercial-service/src/CommercialService.Application/CommercialService.Application.csproj" />
+    <Project Path="services/commercial-service/src/CommercialService.Domain/CommercialService.Domain.csproj" />
+    <Project Path="services/commercial-service/src/CommercialService.Infrastructure/CommercialService.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/services/demand-service/" />
+  <Folder Name="/services/demand-service/src/">
+    <Project Path="services/demand-service/src/DemandService.Api/DemandService.Api.csproj" />
+    <Project Path="services/demand-service/src/DemandService.Application/DemandService.Application.csproj" />
+    <Project Path="services/demand-service/src/DemandService.Domain/DemandService.Domain.csproj" />
+    <Project Path="services/demand-service/src/DemandService.Infrastructure/DemandService.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/services/matching-service/" />
+  <Folder Name="/services/matching-service/src/">
+    <Project Path="services/matching-service/src/MatchingService.Api/MatchingService.Api.csproj" />
+    <Project Path="services/matching-service/src/MatchingService.Application/MatchingService.Application.csproj" />
+    <Project Path="services/matching-service/src/MatchingService.Domain/MatchingService.Domain.csproj" />
+    <Project Path="services/matching-service/src/MatchingService.Infrastructure/MatchingService.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/services/party-service/" />
+  <Folder Name="/services/party-service/src/">
+    <Project Path="services/party-service/src/PartyService.Api/PartyService.Api.csproj" />
+    <Project Path="services/party-service/src/PartyService.Application/PartyService.Application.csproj" />
+    <Project Path="services/party-service/src/PartyService.Domain/PartyService.Domain.csproj" />
+    <Project Path="services/party-service/src/PartyService.Infrastructure/PartyService.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/services/platform-config-service/" />
+  <Folder Name="/services/platform-config-service/src/">
+    <Project Path="services/platform-config-service/src/PlatformConfigService.Api/PlatformConfigService.Api.csproj" />
+    <Project Path="services/platform-config-service/src/PlatformConfigService.Application/PlatformConfigService.Application.csproj" />
+    <Project Path="services/platform-config-service/src/PlatformConfigService.Domain/PlatformConfigService.Domain.csproj" />
+    <Project Path="services/platform-config-service/src/PlatformConfigService.Infrastructure/PlatformConfigService.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/services/property-service/" />
+  <Folder Name="/services/property-service/src/">
+    <Project Path="services/property-service/src/PropertyService.Api/PropertyService.Api.csproj" />
+    <Project Path="services/property-service/src/PropertyService.Application/PropertyService.Application.csproj" />
+    <Project Path="services/property-service/src/PropertyService.Domain/PropertyService.Domain.csproj" />
+    <Project Path="services/property-service/src/PropertyService.Infrastructure/PropertyService.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/services/supply-service/" />
+  <Folder Name="/services/supply-service/src/">
+    <Project Path="services/supply-service/src/SupplyService.Api/SupplyService.Api.csproj" />
+    <Project Path="services/supply-service/src/SupplyService.Application/SupplyService.Application.csproj" />
+    <Project Path="services/supply-service/src/SupplyService.Domain/SupplyService.Domain.csproj" />
+    <Project Path="services/supply-service/src/SupplyService.Infrastructure/SupplyService.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/RealEstateCrm.ArchitectureTests/RealEstateCrm.ArchitectureTests.csproj" />
+  </Folder>
+</Solution>

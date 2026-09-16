@@ -76,3 +76,36 @@ capacidades de negocio todavía sean shells.
 2. Salida de build del frontend.
 3. Árbol de proyectos.
 4. Resultado del test de dependencias.
+
+## Handoff
+
+**Qué quedó:** `RealEstateCrm.slnx` compila (51 proyectos: 11 servicios × 4 capas
++ 2 BFF × 2 capas + `contracts` + `building-blocks` + 1 test de arquitectura).
+`dotnet build`/`dotnet test` en verde. `apps/crm-web` y `apps/platform-admin-web`
+instalan y buildean con `apps/scripts/build-webs.sh`/`.ps1` sin tocar su código.
+Detalle completo, comandos y decisiones locales en
+`IMPLEMENTATION_REPORT-V2-FND-001.md` (esta misma carpeta).
+
+**Qué falta:** todo lo de negocio. `contracts/` y `building-blocks/` están
+vacíos (compilables, sin contenido); ningún servicio tiene entidades,
+commands, queries ni adapters; ningún `Api` tiene endpoints reales ni
+healthchecks; no hay Compose, CI ni conexión a MongoDB/RabbitMQ/Keycloak.
+
+**Cómo verificar:**
+
+```bash
+dotnet build RealEstateCrm.slnx
+dotnet test RealEstateCrm.slnx
+bash apps/scripts/build-webs.sh
+```
+
+El test de arquitectura (`tests/RealEstateCrm.ArchitectureTests`) debe dar
+2/2 en verde. Si se agrega una `ProjectReference` de un `Domain` a cualquier
+otro proyecto, o de un servicio a otro servicio, el mismo test debe fallar
+(se verificó manualmente durante esta task; ver reporte de implementación
+para el detalle exacto de la prueba en rojo).
+
+**Para continuar (V2-FND-002 / V2-FND-003):** los namespaces y nombres de
+proyecto ya son estables (`<Servicio>.Domain/.Application/.Infrastructure/.Api`,
+`<Bff>.Application/.Api`). No renombrar sin abrir ADR. `V2-FND-002` y
+`V2-FND-003` dependen de este merge a `main` antes de arrancar en paralelo.
