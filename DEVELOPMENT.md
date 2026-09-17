@@ -73,13 +73,16 @@ En PowerShell, usar `scripts/test-fast.ps1` y `scripts/test-integration.ps1`.
   `IEventPublisher`, `IEventConsumer<T>`), sin ningún paquete de infraestructura.
 - `building-blocks/RealEstateCrm.BuildingBlocks.Infrastructure/` — adapters reales de esos
   puertos (Mongo, RabbitMQ, Keycloak/JwtBearer; `V2-FND-002`) más `HealthChecks/`
-  (`/health/live`, `/health/ready`) y `Observability/` (correlationId/actorId, logs con
-  redacción de datos sensibles, OpenTelemetry; `V2-FND-003`). Solo la capa `Infrastructure`
-  de cada servicio puede referenciarlo: `Application` no debe, y el test de arquitectura lo
-  verifica. Ningún `Program.cs` de `services/`/`bffs/` invoca todavía `AddCrmHealthChecks` ni
-  `AddCrmObservability` (fuera de la write zone de V2-FND-003, ver
-  IMPLEMENTATION_REPORT-V2-FND-003.md).
-- `infra/keycloak/realm-export/` — realm `crm-dev` versionado como JSON (`V2-FND-003`).
+  (`/health/live`, `/health/ready`), `Observability/` (correlationId/actorId, logs con
+  redacción de datos sensibles, OpenTelemetry; `V2-FND-003`), `Messaging/Outbox/` (relay
+  reutilizable del Outbox, `OutboxRelayBackgroundService`; `V2-ACL-001`) y `Authorization/`
+  (adapters HTTP con caché corta de `IAuthorizationPort`/`IResponsibleAssignmentValidationPort`
+  hacia access-service; `V2-ACL-001`). Solo la capa `Infrastructure` de cada servicio puede
+  referenciarlo: `Application` no debe, y el test de arquitectura lo verifica. Primer wire-up
+  real de `AddCrmHealthChecks`/`AddCrmObservability`/`UseCrmCorrelationId` en
+  `AccessService.Api`/`OperationsBff.Api` (`V2-ACL-001`); el resto de servicios/BFFs todavía no.
+- `infra/keycloak/realm-export/` — realm `crm-dev` versionado como JSON (`V2-FND-003`),
+  con 3 usuarios de desarrollo (`V2-ACL-001`, ver más abajo).
 - `scripts/` — `test-fast`/`test-integration` en bash y PowerShell (`V2-FND-003`), usados
   tanto por `.github/workflows/ci.yml` como a mano.
 - `tests/RealEstateCrm.ArchitectureTests/` — reglas de dependencia: falla si
@@ -89,10 +92,42 @@ En PowerShell, usar `scripts/test-fast.ps1` y `scripts/test-integration.ps1`.
 - `tests/RealEstateCrm.TestSupport/` — test doubles (`FakeAuthenticationPort`), solo para uso
   de otros proyectos de test.
 
-Ningún servicio de dominio (`services/*`) se conecta todavía a MongoDB, RabbitMQ ni Keycloak:
-`V2-FND-002` deja los ports/adapters listos en `building-blocks/`, pero ningún aggregate real
-los usa aún (son de wave 2+). `V2-FND-003` agrega el Compose con la infraestructura real y los
-building blocks de healthchecks/observabilidad, también sin wire-up en ningún `Program.cs`.
+`V2-FND-002` dejó los ports/adapters listos en `building-blocks/` y `V2-FND-003` agregó el Compose
+y los building blocks de healthchecks/observabilidad, ambos sin wire-up en ningún `Program.cs`.
+`V2-ACL-001` es el primer servicio real conectado a Mongo/RabbitMQ/Keycloak (`access-service`) y
+el primer BFF con sesión OIDC real (`operations-bff`); ver la sección siguiente. El resto de los
+10 servicios de dominio y `platform-admin-bff` siguen en `Hello World!`.
+
+## access-service y operations-bff (V2-ACL-001)
+
+Primer slice con servicios reales corriendo (`dotnet run`, sin agregarlos al `docker-compose.yml`
+todavía — D10, plan Wave 2). Con la infra de arriba levantada:
+
+```bash
+dotnet run --project services/access-service/src/AccessService.Api   # http://localhost:5190
+dotnet run --project bffs/operations-bff/src/OperationsBff.Api        # http://localhost:5137
+```
+
+`access-service` siembra, solo en `Development`, 3 usuarios (D9) vinculados a los usuarios fijos
+del realm-export (mismo `id` de Keycloak que `KeycloakSubject` en Mongo):
+
+| Usuario | Password | Rol |
+|---|---|---|
+| `dev.administrador` | `dev.administrador` | Administrador |
+| `dev.vendedor` | `dev.vendedor` | Vendedor |
+| `dev.responsable` | `dev.responsable` | Responsable Comercial |
+
+Endpoints principales de `access-service` (`/api/v1/...`): `users` (CRUD + `/deactivate` +
+`/role-assignment` + `/effective-permissions`, todos `[Authorize]`, JWT Bearer),
+`authorization/evaluate` y `authorization/role-permission-matrix`, `assignments/validate` (estos
+tres últimos sin `[Authorize]`: llamadas servicio-a-servicio, D6 "sin client credentials internas
+en la POC"). `operations-bff` expone `GET /screens/{screenId}` (`ADM-01`/`ADM-03`/`ADM-04`) y
+`POST /mutations/{name}` (`createUser`/`updateUser`/`deactivateUser`/`assignRole`) con cookie de
+sesión OIDC y token relay hacia `access-service` (D6).
+
+No hay todavía `scripts/run-slice.{sh,ps1}` (D10, plan Wave 2): con un solo slice real no
+agrega valor sobre los dos comandos de arriba; queda para cuando exista más de un servicio para
+levantar en conjunto (V2-CAT-001/V2-PTY-001).
 
 ## Frontend (apps/)
 

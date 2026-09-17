@@ -23,11 +23,37 @@
       "webOrigins": ["http://localhost:3000"],
       "attributes": {
         "pkce.code.challenge.method": "S256"
-      }
+      },
+      "protocolMappers": [
+        {
+          "name": "audience-operations-bff",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "operations-bff",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
     }
   ],
   "users": [
     {
+      "id": "a0000000-0000-4000-8000-000000000001",
+      "username": "dev.administrador",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Dev",
+      "lastName": "Administrador",
+      "email": "dev.administrador@crm-dev.local",
+      "credentials": [
+        { "type": "password", "value": "dev.administrador", "temporary": false }
+      ],
+      "realmRoles": ["Administrador"]
+    },
+    {
+      "id": "a0000000-0000-4000-8000-000000000002",
       "username": "dev.vendedor",
       "enabled": true,
       "emailVerified": true,
@@ -38,6 +64,19 @@
         { "type": "password", "value": "dev.vendedor", "temporary": false }
       ],
       "realmRoles": ["Vendedor"]
+    },
+    {
+      "id": "a0000000-0000-4000-8000-000000000003",
+      "username": "dev.responsable",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Dev",
+      "lastName": "Responsable",
+      "email": "dev.responsable@crm-dev.local",
+      "credentials": [
+        { "type": "password", "value": "dev.responsable", "temporary": false }
+      ],
+      "realmRoles": ["Responsable Comercial"]
     }
   ]
 }

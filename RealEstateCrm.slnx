@@ -25,6 +25,10 @@
     <Project Path="services/access-service/src/AccessService.Domain/AccessService.Domain.csproj" />
     <Project Path="services/access-service/src/AccessService.Infrastructure/AccessService.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/services/access-service/tests/">
+    <Project Path="services/access-service/tests/AccessService.Application.Tests/AccessService.Application.Tests.csproj" />
+    <Project Path="services/access-service/tests/AccessService.Api.Tests/AccessService.Api.Tests.csproj" />
+  </Folder>
   <Folder Name="/services/activity-service/" />
   <Folder Name="/services/activity-service/src/">
     <Project Path="services/activity-service/src/ActivityService.Api/ActivityService.Api.csproj" />

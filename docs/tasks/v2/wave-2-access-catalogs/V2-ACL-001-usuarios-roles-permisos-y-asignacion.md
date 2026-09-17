@@ -77,3 +77,38 @@ un responsable sobre registros de negocio mediante comandos autorizados.
 2. Requests autorizados y rechazados.
 3. Test de desactivación con historial preservado.
 4. Evidencia de una reasignación.
+
+## Handoff (implementación completada, ver `IMPLEMENTATION_REPORT-V2-ACL-001.md`)
+
+**Qué quedó:** `access-service` real (Mongo/RabbitMQ/Keycloak, `docker-compose.yml`) con
+`UserAccount`/`RoleAssignment`, matriz rol→permiso en backend, los 6 endpoints `/api/v1/...`
+documentados en el reporte (§"Contratos publicados"), `operations-bff` con sesión OIDC + token
+relay + screens/mutations de `ADM-01`/`03`/`04`, seed de 3 usuarios de dev, relay de outbox y
+concurrencia optimista reutilizables en `BuildingBlocks.Infrastructure`, 176 tests (fast +
+integración contra infra real) en verde.
+
+**Qué falta / queda parcial:**
+- **Evidencia requerida #4 y criterio de aceptación 5** (reasignación de responsable): esta task
+  solo implementa la *validación* (`POST /api/v1/assignments/validate`, decisión explícita del
+  humano — ver reporte, "Decisiones locales" #1). La persistencia real de `responsibleUserId` y
+  la publicación de `ResponsibleAssigned` quedan para **V2-PTY-001** (contrato de payload
+  `ResponsibleAssignedV1` ya publicado en `contracts/Events/Access/`).
+- Login interactivo del BFF (`/login` real en navegador) no se probó manualmente: no hay UI
+  conectada todavía (`crm-web` sigue en modo demo, D5/sección 10 del plan Wave 2).
+- `scripts/run-slice.{sh,ps1}` (D10) no se creó — ver Follow-ups del reporte.
+
+**Cómo verificar:**
+```bash
+bash scripts/test-fast.sh          # 160 tests, sin Docker
+bash scripts/test-integration.sh   # +16 tests, contra Mongo/RabbitMQ/Keycloak reales
+```
+Correr manualmente: `dotnet run --project services/access-service/src/AccessService.Api` +
+`dotnet run --project bffs/operations-bff/src/OperationsBff.Api` con la infra de
+`docker-compose.yml` levantada; credenciales de `dev.administrador`/`dev.vendedor`/
+`dev.responsable` en `.env.example`/`DEVELOPMENT.md`.
+
+**Para quien continúe (V2-CAT-001 en paralelo, V2-PTY-001 después):** el adapter HTTP real de
+`IAuthorizationPort` ya existe (`HttpAuthorizationPort` +
+`services.AddAuthorizationHttpClients(configuration)`, sección `AccessService:BaseUrl`/
+`CacheDuration`) — dejar de inyectar `FakeAuthorizationPort` y usar ese adapter una vez mergeada
+esta task.
