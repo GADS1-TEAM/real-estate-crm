@@ -98,8 +98,9 @@ Solo scripts offline sin entrada no confiable ni datos reales.
   owner revalida.
 - **MUST NOT** entregar tokens al navegador ni guardarlos donde JavaScript los lea.
 - **MUST NOT** loguear PII, secretos, tokens ni headers de autorización.
-- **MUST NOT** devolver detalle interno en un error, ni distinguir "no existe" de
-  "no podés verlo" por mensaje o tiempo de respuesta.
+- **MUST NOT** devolver detalle interno en un error (stack trace, nombre de
+  índice, mensaje del driver, ruta interna) — pero sí distinguir 403 de 404
+  (D4): V2 no oculta un permiso denegado detrás de un 404.
 - **MUST NOT** usar `AllowAnyOrigin()`, ni combinarlo con credenciales.
 - **MUST NOT** deserializar tipos arbitrarios desde input externo.
 - **MUST NOT** confiar en headers como `X-Forwarded-For` salvo que vengan de un

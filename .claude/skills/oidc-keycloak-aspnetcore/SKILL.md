@@ -132,9 +132,10 @@ servicios de dominio (token relay, D6).
 - **MUST NOT** configurar el realm a mano por la consola de administración como
   única fuente: se pierde y nadie lo puede reproducir.
 - **MUST NOT** commitear secretos reales, ni siquiera de un entorno de prueba.
-- **MUST NOT** crear un usuario o asignarle rol de negocio directamente en
-  Keycloak: el alta y el rol se gestionan en `access-service` (D3); Keycloak solo
-  resuelve login.
+- **MUST NOT** asignarle a un usuario un rol de negocio dentro de Keycloak (D3):
+  la cuenta de login sí se crea ahí (manual o por realm-export), pero el rol
+  dentro del CRM lo asigna un Administrador en `access-service`, no la consola de
+  Keycloak.
 
 ## Recomendaciones
 

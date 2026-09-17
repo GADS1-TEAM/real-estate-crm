@@ -68,7 +68,7 @@ decisiones D1, D4, D5, D11), `IMPLEMENTATION_REPORT-V2-FND-002.md`.
 ```json
 {
   "type": "about:blank",
-  "title": "No se pudo validar el token.",
+  "title": "Acción no permitida.",
   "status": 403,
   "detail": "El actor no tiene el permiso requerido.",
   "instance": "/api/v1/parties/9c0d1e2f-3a4b-4c5d-8e9f-0a1b2c3d4e44",

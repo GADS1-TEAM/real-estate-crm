@@ -63,7 +63,7 @@ D8), `IMPLEMENTATION_REPORT-V2-FND-002.md`, `IMPLEMENTATION_REPORT-V2-FND-003.md
 |---|---|
 | Instancia | Una sola instancia MongoDB, compartida por todos los servicios, levantada como **replica set de un nodo** (`mongo:7.0.43` en Compose, habilita transacciones) |
 | Ownership | Cada colección tiene **un único servicio owner**. Compartir instancia no autoriza acceso cruzado |
-| Bases y colecciones (D8) | Una base por servicio en la misma instancia: `crm_access`, `crm_platform_config`, `crm_party` (y así para los siguientes servicios). Colección por aggregate root en snake_case plural (`user_accounts`, `catalog_entries`, `parties`, `party_relationships`). `outbox_messages`/`inbox` dentro de la base de cada servicio |
+| Bases y colecciones (D8) | Una base por servicio en la misma instancia: `crm_access`, `crm_platform_config`, `crm_party` (y así para los siguientes servicios). Colección por aggregate root en snake_case plural (`user_accounts`, `catalog_entries`, `parties`, `party_relationships`). `outbox_messages`/`inbox_consumed_messages` (nombre real de `MongoInbox.CollectionName`) dentro de la base de cada servicio |
 | Unidad | Una colección por **raíz de agregado**, no por clase |
 | Alcance de instalación | Una única inmobiliaria: ningún documento, índice ni filtro lleva un identificador de organización |
 | Unicidad | **Sin** índice único de CUIT/email/teléfono ni deduplicación: `V2-PTY-001` la excluye explícitamente del alcance |
@@ -114,8 +114,6 @@ ese orden ya venía mal desde mucho antes.
   aggregate lo referencia, u ownership distinto.
 - **MUST** crear los índices al arranque del servicio de forma idempotente, no a
   mano en un entorno.
-- **MUST** guardar un `schemaVersion` en documentos cuya forma se espera que
-  evolucione, y tolerar en lectura las versiones anteriores.
 - **MUST** representar lo desconocido de forma explícita y distinguible de un valor
   confirmado (ej. un dato de contacto opcional queda `null`, no `""`).
 
@@ -144,6 +142,8 @@ ese orden ya venía mal desde mucho antes.
   línea con la decisión de no incorporar un motor dedicado.
 - **SHOULD** mover la historia significativa a su propia colección
   (`<contexto>_<aggregate>_history`) en vez de acumularla dentro del aggregate.
+- **SHOULD** guardar un `schemaVersion` en documentos cuya forma se espere que
+  evolucione, y tolerar en lectura las versiones anteriores.
 - **SHOULD** acotar explícitamente todo array embebido y documentar la cota
   esperada.
 

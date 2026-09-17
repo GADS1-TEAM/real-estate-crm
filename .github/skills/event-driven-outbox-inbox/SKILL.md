@@ -34,14 +34,17 @@ distintos: MongoDB y RabbitMQ. Sin coordinación aparecen dos fallas caras:
   que no ocurrió, y ya no hay forma de retirarlo.
 
 El **outbox** guarda el evento en la misma base y la misma transacción que el
-cambio de negocio (`IUnitOfWork.ExecuteInTransactionAsync`). El **relay/consumer
-host** lo publica o lo entrega después. El **inbox** es el espejo: cada consumidor
-registra qué `eventId` ya procesó, para que una entrega repetida no produzca
-efectos dos veces.
+cambio de negocio (`IUnitOfWork.ExecuteInTransactionAsync`). El **relay** lo
+publica después; el **consumer host** lo entrega del otro lado. El **inbox** es
+el espejo: cada consumidor registra qué `eventId` ya procesó, para que una
+entrega repetida no produzca efectos dos veces.
 
-Este building block ya está implementado en `RealEstateCrm.BuildingBlocks.Infra
-structure` (`V2-FND-002`/`V2-FND-003`): esta skill documenta cómo usarlo, no cómo
-reinventarlo.
+Los puertos (`IOutbox`/`IInbox`/`IEventPublisher`/`IEventConsumer<TPayload>`) y
+los adapters de Mongo/RabbitMQ ya están implementados en
+`RealEstateCrm.BuildingBlocks.Infrastructure` (`V2-FND-002`/`V2-FND-003`); el
+relay que drena el outbox todavía no (ver "Estado actual vs target"). Esta
+skill documenta cómo usar lo que existe y cómo se espera que se construya el
+relay, no cómo reinventar ninguno de los dos.
 
 Fuentes: `IMPLEMENTATION_REPORT-V2-FND-002.md`,
 `IMPLEMENTATION_REPORT-V2-FND-003.md`.
@@ -98,10 +101,17 @@ apunta siempre al eslabón inmediatamente anterior.
   (puertos) y `MongoOutbox`/`MongoInbox`/`RabbitMqEventPublisher`/
   `RabbitMqEventConsumerHost` (adapters) existen y están probados contra Mongo/
   RabbitMQ reales (`V2-FND-002`). Ningún servicio de dominio los usa todavía: no
-  hay aggregates reales.
-- **Target:** cada servicio que publica encola en su outbox dentro de la misma
-  transacción que el aggregate; cada servicio que consume registra su
-  `RabbitMqConsumerRegistration` e implementa `IEventConsumer<TPayload>`.
+  hay aggregates reales. **El proceso que drena el outbox (el "relay" que lee
+  `IOutbox.GetPendingAsync`, llama `IEventPublisher.PublishAsync` y después
+  `IOutbox.MarkPublishedAsync`) todavía no existe en `BuildingBlocks.Infrastructure`**:
+  hoy solo están los puertos y los adapters de Mongo/RabbitMQ.
+- **Target:** la primera task que publica eventos reales (`V2-ACL-001`)
+  implementa ese relay como un `BackgroundService` reutilizable en
+  `BuildingBlocks.Infrastructure`, para que los servicios siguientes no tengan
+  que reescribirlo. A partir de ahí, cada servicio que publica encola en su
+  outbox dentro de la misma transacción que el aggregate; cada servicio que
+  consume registra su `RabbitMqConsumerRegistration` e implementa
+  `IEventConsumer<TPayload>`.
 
 ## Reglas obligatorias
 
