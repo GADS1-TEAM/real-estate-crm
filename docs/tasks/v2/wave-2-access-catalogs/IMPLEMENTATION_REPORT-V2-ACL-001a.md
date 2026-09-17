@@ -112,14 +112,14 @@ Responsable Comercial — únicos tres roles de negocio de la instalación).
 
 | Permiso | Administrador | Vendedor | Responsable Comercial | Notas |
 |---|:---:|:---:|:---:|---|
-| `users.read` | ✅ | ❌ | ✅ | Responsable Comercial lo necesita para elegir a quién reasignar dentro de su equipo. |
+| `users.read` | ✅ | ✅ | ✅ | Solo datos básicos (no gestión): con token relay (D6) el BFF lo necesita para mostrar el nombre del responsable en pantallas de Vendedor; Responsable Comercial además lo necesita para elegir a quién reasignar dentro de su equipo. |
 | `users.manage` | ✅ | ❌ | ❌ | Alta/edición/baja de usuario y asignación de rol: solo Administrador (regla del plan Wave 2, D2 y task V2-ACL-001). |
 | `catalogs.read` | ✅ | ✅ | ✅ | Todo autenticado lee catálogos (V2-CAT-001, "todos los autenticados leen"). |
 | `catalogs.manage` | ✅ | ❌ | ❌ | Solo Administrador gestiona catálogos (V2-CAT-001, "Autorización"). |
 | `parties.read` | ✅ | ✅ | ✅ | Sin restricción de propiedad para lectura (no está en las reglas de V2-PTY-001). |
 | `parties.write` | ✅ | ✅ (con propiedad) | ✅ (con propiedad) | Este puerto solo concede el permiso genérico. La regla de propiedad ("Vendedor solo edita lo asignado", `responsibleUserId`) la aplica `party-service` (owner), no `access-service` (D2). |
-| `parties.change_commercial_status` | ✅ | ✅ (con propiedad) | ✅ (con propiedad) | Misma nota de propiedad que `parties.write`; cambia el `commercialStatus` de la party asignada. |
-| `parties.assign_responsible` | ✅ | ❌ | ✅ | Alcance trazable de V2-ACL-001 (ASSIGN-001/ASSIGN-002): "Administrador/Vendedor autorizado" y "Administrador/Responsable Comercial" asignan o reasignan responsable — se interpreta que el Vendedor **no** asigna/reasigna por sí mismo (solo ejecuta sobre lo ya asignado), y que Responsable Comercial reasigna "dentro del equipo definido por la instalación única" (regla de V2-ACL-001, sin scope adicional). `V2-ACL-001` confirma esta lectura al implementar. |
+| `parties.change_commercial_status` | ✅ | ❌ | ✅ (con propiedad) | PTY-007 (V2-PTY-001) asigna este UC a "Administrador/Responsable", sin Vendedor: cambia el `commercialStatus` y el responsable de la party con baja lógica, distinto de `parties.write` (edición de datos). |
+| `parties.assign_responsible` | ✅ | ❌ | ✅ | Alcance trazable de V2-ACL-001 (ASSIGN-001/ASSIGN-002): "Administrador/Vendedor autorizado" y "Administrador/Responsable Comercial" asignan o reasignan responsable — se interpreta que el Vendedor **no** asigna/reasigna por sí mismo (solo ejecuta sobre lo ya asignado), y que Responsable Comercial reasigna "dentro del equipo definido por la instalación única" (regla de V2-ACL-001, sin scope adicional). `V2-ACL-001` confirma esta lectura al implementar. Nota: al crear una Party, `responsibleUserId` = creador por defecto (lo implementa `V2-PTY-001`), sin pasar por este permiso — la primera asignación implícita del creador no es una "asignación" en el sentido de ASSIGN-001. |
 
 "Con propiedad" = el permiso genérico se concede siempre vía `IAuthorizationPort`; el owner
 (`party-service`, en `V2-PTY-001`) además exige que `responsibleUserId` del registro sea el
