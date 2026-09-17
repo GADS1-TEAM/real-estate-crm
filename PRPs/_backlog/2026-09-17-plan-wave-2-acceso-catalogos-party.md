@@ -119,7 +119,7 @@ Marcá una opción por decisión (la recomendada va primero). Estas decisiones s
 - [ ] Réplica local por eventos `CatalogVersionPublished` en cada consumidor.
 
 **D8. Bases y colecciones Mongo**
-- [x] (Recomendada) Una base por servicio en la misma instancia: `crm_access`, `crm_platform_config`, `crm_party`. Colección por aggregate root en snake_case plural (`user_accounts`, `catalog_entries`, `parties`, `party_relationships`). `outbox_messages`/`inbox` dentro de la base de cada servicio.
+- [x] (Recomendada) Una base por servicio en la misma instancia: `crm_access`, `crm_platform_config`, `crm_party`. Colección por aggregate root en snake_case plural (`user_accounts`, `catalog_entries`, `parties`, `party_relationships`). `outbox_messages`/`inbox_consumed_messages` dentro de la base de cada servicio.
 - [ ] Una sola base `crm` con prefijo por servicio (`access_user_accounts`...).
 
 **D9. Seeds de desarrollo**
