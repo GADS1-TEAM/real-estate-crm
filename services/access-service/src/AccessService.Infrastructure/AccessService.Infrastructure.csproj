@@ -3,6 +3,9 @@
   <ItemGroup>
     <ProjectReference Include="..\AccessService.Domain\AccessService.Domain.csproj" />
     <ProjectReference Include="..\AccessService.Application\AccessService.Application.csproj" />
+    <ProjectReference Include="..\..\..\..\building-blocks\RealEstateCrm.BuildingBlocks\RealEstateCrm.BuildingBlocks.csproj" />
+    <ProjectReference Include="..\..\..\..\building-blocks\RealEstateCrm.BuildingBlocks.Infrastructure\RealEstateCrm.BuildingBlocks.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\contracts\RealEstateCrm.Contracts\RealEstateCrm.Contracts.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

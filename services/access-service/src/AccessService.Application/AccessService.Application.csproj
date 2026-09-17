@@ -2,6 +2,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AccessService.Domain\AccessService.Domain.csproj" />
+    <ProjectReference Include="..\..\..\..\building-blocks\RealEstateCrm.BuildingBlocks\RealEstateCrm.BuildingBlocks.csproj" />
+    <ProjectReference Include="..\..\..\..\contracts\RealEstateCrm.Contracts\RealEstateCrm.Contracts.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
