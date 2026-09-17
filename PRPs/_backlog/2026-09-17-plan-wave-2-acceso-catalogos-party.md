@@ -165,6 +165,19 @@ Marcá una opción por decisión (la recomendada va primero). Estas decisiones s
 
 **No hace:** persistencia, endpoints, adapter HTTP. PR chico, se mergea antes de arrancar ACL-001 y CAT-001.
 
+**Handoff (completado, ver `docs/tasks/v2/wave-2-access-catalogs/IMPLEMENTATION_REPORT-V2-ACL-001a.md`):**
+- Publicado: `IAuthorizationPort` (`building-blocks/RealEstateCrm.BuildingBlocks/Authorization/`),
+  `AuthorizationDecision`/`Permissions` (8, incluye `users.read` agregado sobre los "ej." de
+  arriba)/`ResourceTypes`/`DenyReasons` (`contracts/RealEstateCrm.Contracts/Authorization/`),
+  `FakeAuthorizationPort` (`tests/RealEstateCrm.TestSupport/Authorization/`).
+- Matriz rol→permiso: propuesta (no implementada) en el reporte, tabla Administrador/Vendedor/
+  Responsable Comercial × 8 permisos con columna de notas de propiedad. `V2-ACL-001` la confirma
+  o ajusta al implementar.
+- `V2-CAT-001`/`V2-PTY-001`: inyectar `FakeAuthorizationPort` hasta que `V2-ACL-001` publique el
+  adapter HTTP real.
+- Pendiente: todo lo de implementación real queda para `V2-ACL-001` (matriz, adapter HTTP,
+  endpoint `POST /api/v1/authorization/evaluate`).
+
 ### 7.2 V2-ACL-001 — Usuarios, roles, permisos y responsables
 
 **Depende de:** ACL-001a. **Write zone:** `services/access-service/**`, `bffs/operations-bff/**` (wire-up inicial + screens de usuarios), adapter HTTP de `IAuthorizationPort` en `building-blocks/RealEstateCrm.BuildingBlocks.Infrastructure/Authorization/`, realm-export (solo usuarios de dev), tests.
