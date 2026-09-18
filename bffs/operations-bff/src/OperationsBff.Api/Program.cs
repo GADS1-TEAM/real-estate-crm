@@ -1,5 +1,6 @@
 using OperationsBff.Api.AccessService;
 using OperationsBff.Api.ErrorHandling;
+using OperationsBff.Api.PartyService;
 using OperationsBff.Api.PlatformConfigService;
 using RealEstateCrm.BuildingBlocks.Infrastructure.Authentication;
 using RealEstateCrm.BuildingBlocks.Infrastructure.HealthChecks;
@@ -41,6 +42,12 @@ var platformConfigServiceBaseUrl = builder.Configuration["PlatformConfigService:
     ?? throw new InvalidOperationException("Falta configuración 'PlatformConfigService:BaseUrl'.");
 
 builder.Services.AddHttpClient<PlatformConfigServiceClient>(client => client.BaseAddress = new Uri(platformConfigServiceBaseUrl));
+
+// V2-PTY-001: mismo token relay (D6) hacia party-service.
+var partyServiceBaseUrl = builder.Configuration["PartyService:BaseUrl"]
+    ?? throw new InvalidOperationException("Falta configuración 'PartyService:BaseUrl'.");
+
+builder.Services.AddHttpClient<PartyServiceClient>(client => client.BaseAddress = new Uri(partyServiceBaseUrl));
 
 builder.Services.AddCrmHealthChecks();
 builder.Services.AddCrmObservability("operations-bff");

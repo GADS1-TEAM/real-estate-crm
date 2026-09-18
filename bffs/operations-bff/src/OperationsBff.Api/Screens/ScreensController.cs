@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OperationsBff.Api.AccessService;
+using OperationsBff.Api.PartyService;
 using OperationsBff.Api.PlatformConfigService;
 using RealEstateCrm.Contracts.Catalogs;
 
@@ -26,7 +27,8 @@ namespace OperationsBff.Api.Screens;
 [Authorize]
 public sealed class ScreensController(
     AccessServiceClient accessServiceClient,
-    PlatformConfigServiceClient platformConfigServiceClient) : ControllerBase
+    PlatformConfigServiceClient platformConfigServiceClient,
+    PartyServiceClient partyServiceClient) : ControllerBase
 {
     private static readonly IReadOnlyDictionary<string, string> CatalogScreenTypes = new Dictionary<string, string>
     {
@@ -46,8 +48,53 @@ public sealed class ScreensController(
         [FromQuery] int pageSize = 0,
         [FromQuery] Guid? userId = null,
         [FromQuery] string? catalogType = null,
-        [FromQuery] bool activeOnly = false)
+        [FromQuery] bool activeOnly = false,
+        [FromQuery] Guid? entityId = null,
+        [FromQuery] string? q = null,
+        [FromQuery] string? kind = null,
+        [FromQuery] string? commercialStatus = null,
+        [FromQuery] Guid? responsibleUserId = null)
     {
+        // V2-PTY-001 (party-service): screenId reales de screen-registry.ts con task "V2-PTY-001".
+        // PTY-02/03/04 son formularios de alta (sin datos que leer) y PTY-12 (Historial) es de ACT.
+        if (screenId is "PTY-01" or "GLB-11")
+        {
+            var effectivePage = page <= 0 ? 1 : page;
+            var effectivePageSize = pageSize <= 0 ? 20 : pageSize;
+
+            // GLB-11 (contenido archivado) = parties con baja lógica: commercialStatus INACTIVE.
+            var status = screenId == "GLB-11" ? "INACTIVE" : commercialStatus;
+
+            var query = $"page={effectivePage}&pageSize={effectivePageSize}";
+            query += string.IsNullOrEmpty(q) ? string.Empty : $"&q={Uri.EscapeDataString(q)}";
+            query += string.IsNullOrEmpty(kind) ? string.Empty : $"&kind={Uri.EscapeDataString(kind)}";
+            query += string.IsNullOrEmpty(status) ? string.Empty : $"&commercialStatus={Uri.EscapeDataString(status)}";
+            query += responsibleUserId is null ? string.Empty : $"&responsibleUserId={responsibleUserId}";
+
+            var response = await partyServiceClient.GetAsync($"/api/v1/parties?{query}", cancellationToken);
+            return await ProxyResults.FromAsync(response, cancellationToken);
+        }
+
+        if (screenId is "PTY-05" or "PTY-06" or "PTY-07" or "PTY-08" or "PTY-09" or "PTY-10" or "PTY-11" or "PTY-13")
+        {
+            if (entityId is null)
+            {
+                return BadRequest($"La screen {screenId} requiere ?entityId= (partyId).");
+            }
+
+            // PTY-05 = Contacto 360, PTY-06 = Empresa 360; el resto (relaciones, edición, estado,
+            // baja, identidad técnica) opera sobre una Party de cualquiera de los dos tipos.
+            var path = screenId switch
+            {
+                "PTY-05" => $"/api/v1/contacts/{entityId}",
+                "PTY-06" => $"/api/v1/companies/{entityId}",
+                _ => $"/api/v1/parties/{entityId}",
+            };
+
+            var response = await partyServiceClient.GetAsync(path, cancellationToken);
+            return await ProxyResults.FromAsync(response, cancellationToken);
+        }
+
         if (screenId == "ADM-01")
         {
             var effectivePage = page <= 0 ? 1 : page;

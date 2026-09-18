@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OperationsBff.Api.AccessService;
+using OperationsBff.Api.PartyService;
 using OperationsBff.Api.PlatformConfigService;
 
 namespace OperationsBff.Api.Mutations;
@@ -21,7 +22,8 @@ namespace OperationsBff.Api.Mutations;
 [Authorize]
 public sealed class MutationsController(
     AccessServiceClient accessServiceClient,
-    PlatformConfigServiceClient platformConfigServiceClient) : ControllerBase
+    PlatformConfigServiceClient platformConfigServiceClient,
+    PartyServiceClient partyServiceClient) : ControllerBase
 {
     [HttpPost("{name}")]
     public async Task<IActionResult> SaveMutation(string name, [FromBody] JsonElement payload, CancellationToken cancellationToken)
@@ -90,6 +92,59 @@ public sealed class MutationsController(
                 }
 
                 response = await platformConfigServiceClient.PostAsync($"/api/v1/catalogs/{publishCatalogType}/publish", body: null, cancellationToken);
+                break;
+
+            case "createCompany":
+                response = await partyServiceClient.PostAsync("/api/v1/companies", payload, cancellationToken);
+                break;
+
+            case "updateCompany":
+                if (!TryGetGuid(payload, "partyId", out var updateCompanyId))
+                {
+                    return BadRequest("El payload de 'updateCompany' requiere 'partyId'.");
+                }
+
+                response = await partyServiceClient.PutAsync($"/api/v1/companies/{updateCompanyId}", payload, cancellationToken);
+                break;
+
+            case "createContact":
+                response = await partyServiceClient.PostAsync("/api/v1/contacts", payload, cancellationToken);
+                break;
+
+            case "updateContact":
+                if (!TryGetGuid(payload, "partyId", out var updateContactId))
+                {
+                    return BadRequest("El payload de 'updateContact' requiere 'partyId'.");
+                }
+
+                response = await partyServiceClient.PutAsync($"/api/v1/contacts/{updateContactId}", payload, cancellationToken);
+                break;
+
+            case "relateContactToCompany":
+                if (!TryGetGuid(payload, "contactId", out var relateContactId))
+                {
+                    return BadRequest("El payload de 'relateContactToCompany' requiere 'contactId'.");
+                }
+
+                response = await partyServiceClient.PostAsync($"/api/v1/contacts/{relateContactId}/relationships", payload, cancellationToken);
+                break;
+
+            case "changePartyCommercialStatus":
+                if (!TryGetGuid(payload, "partyId", out var statusPartyId))
+                {
+                    return BadRequest("El payload de 'changePartyCommercialStatus' requiere 'partyId'.");
+                }
+
+                response = await partyServiceClient.PostAsync($"/api/v1/parties/{statusPartyId}/commercial-status", payload, cancellationToken);
+                break;
+
+            case "assignPartyResponsible":
+                if (!TryGetGuid(payload, "partyId", out var responsiblePartyId))
+                {
+                    return BadRequest("El payload de 'assignPartyResponsible' requiere 'partyId'.");
+                }
+
+                response = await partyServiceClient.PostAsync($"/api/v1/parties/{responsiblePartyId}/responsible", payload, cancellationToken);
                 break;
 
             default:

@@ -78,6 +78,10 @@
     <Project Path="services/party-service/src/PartyService.Domain/PartyService.Domain.csproj" />
     <Project Path="services/party-service/src/PartyService.Infrastructure/PartyService.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/services/party-service/tests/">
+    <Project Path="services/party-service/tests/PartyService.Application.Tests/PartyService.Application.Tests.csproj" />
+    <Project Path="services/party-service/tests/PartyService.Api.Tests/PartyService.Api.Tests.csproj" />
+  </Folder>
   <Folder Name="/services/platform-config-service/" />
   <Folder Name="/services/platform-config-service/src/">
     <Project Path="services/platform-config-service/src/PlatformConfigService.Api/PlatformConfigService.Api.csproj" />
