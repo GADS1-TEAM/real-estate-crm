@@ -85,6 +85,10 @@
     <Project Path="services/platform-config-service/src/PlatformConfigService.Domain/PlatformConfigService.Domain.csproj" />
     <Project Path="services/platform-config-service/src/PlatformConfigService.Infrastructure/PlatformConfigService.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/services/platform-config-service/tests/">
+    <Project Path="services/platform-config-service/tests/PlatformConfigService.Application.Tests/PlatformConfigService.Application.Tests.csproj" />
+    <Project Path="services/platform-config-service/tests/PlatformConfigService.Api.Tests/PlatformConfigService.Api.Tests.csproj" />
+  </Folder>
   <Folder Name="/services/property-service/" />
   <Folder Name="/services/property-service/src/">
     <Project Path="services/property-service/src/PropertyService.Api/PropertyService.Api.csproj" />

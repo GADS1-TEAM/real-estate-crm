@@ -92,3 +92,43 @@ que utilizó.
 2. Ejemplo de dos versiones del mismo catálogo.
 3. Test de cierre con motivo de pérdida.
 4. Captura o request de configuración de cada catálogo.
+
+## Handoff
+
+**Completado** (ver `IMPLEMENTATION_REPORT-V2-CAT-001.md` para el detalle completo — contratos,
+comandos corridos, decisiones locales):
+
+- Los seis catálogos (`CatalogEntry`, aggregate único discriminado por `catalogType`) con CRUD +
+  baja lógica + `PublishCatalogVersion`, persistidos en Mongo (`crm_platform_config`) con
+  concurrencia optimista por entrada.
+- Seed reproducible de los 52 valores literales (evidencia #1) + versión 1 publicada de cada
+  `catalogType` (`Development`, `PlatformConfigServiceDevSeedHostedService`).
+- Modelo de versionado: "versión por entrada" + contador `catalogVersion` por `catalogType`
+  (decisión del equipo, sin snapshot inmutable — ver evidencia #2 en el reporte, sección "Ejemplos
+  de dos versiones").
+- Autorización real vía `IAuthorizationPort`/`HttpAuthorizationPort` (D2, reutilizado de
+  V2-ACL-001, sin versión propia): solo Administrador gestiona, todos los autenticados leen.
+- BFF: `GET /screens/{screenId}` (`ADM-05`..`ADM-12`) y `POST /mutations/{name}`
+  (`createCatalogEntry`/`updateCatalogEntry`/`deactivateCatalogEntry`/`publishCatalogVersion`),
+  agregados a los controllers ya existentes de V2-ACL-001 sin reestructurarlos.
+- Adapter cliente de catálogos para consumidores (`ICatalogReaderPort`/`HttpCatalogReaderPort`,
+  D7) en `BuildingBlocks.Infrastructure/Catalogs/`, listo para que V2-PTY-001 valide `originCode`.
+- `bash scripts/test-fast.sh` y `bash scripts/test-integration.sh` en verde (evidencia #4 son los
+  tests de `CatalogsController`/`CatalogService`, no una captura de UI: `apps/crm-web` sigue en
+  modo demo, no conectado a este backend).
+
+**Explícitamente fuera de alcance de esta task** (instrucción de la sesión que la implementó,
+confirmada contra el propio texto de la task en "Explícitamente fuera"): la regla de proceso
+"LOST exige `lossReasonCode`" y "OPEN no va a etapa WON/LOST" (criterios de aceptación 4 y 5,
+evidencia requerida #3) — el catálogo expone `semanticState` y motivos como datos; la regla la
+aplica **V2-PIPE-001**.
+
+**Pendiente / para la siguiente task que toque este slice**:
+
+- V2-PTY-001 (depende de esta task + V2-ACL-001 mergeadas): consumir `ICatalogReaderPort` para
+  `originCode` contra `CommercialOrigin`.
+- V2-PIPE-001: implementar la regla LOST/OPEN de arriba; evaluar si necesita un modelo de
+  snapshot inmutable de catálogo (el `catalogVersion` de esta task es solo un contador, no
+  reconstruye contenido histórico — decisión del equipo documentada en el reporte).
+- No existe `ActivateCatalogEntry` (reactivar una entrada dada de baja): no lo pide la task.
+- `scripts/run-slice.{sh,ps1}` (D10) sigue sin crearse.
