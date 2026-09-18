@@ -100,6 +100,15 @@ public class OutboxRelayBackgroundServiceTests : IAsyncLifetime
         try
         {
             await consumer.WaitForFirstMessageAsync(TimeSpan.FromSeconds(10));
+
+            // El consumidor recibe el mensaje antes de que el relay lo marque como publicado:
+            // esperar a que el outbox quede sin pendientes antes de frenar el relay (evita test flaky).
+            var deadline = DateTime.UtcNow.AddSeconds(10);
+            while ((await outbox.GetPendingAsync(batchSize: 10)).Any(m => m.EventId == envelope.EventId)
+                   && DateTime.UtcNow < deadline)
+            {
+                await Task.Delay(100);
+            }
         }
         finally
         {
