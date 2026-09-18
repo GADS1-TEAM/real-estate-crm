@@ -134,9 +134,11 @@ PartyRelationship
   task, eventos v1 por outbox (`PartyRegistered`, `PartyUpdated`, `PartyRelationshipCreated`,
   `PartyCommercialStatusChanged`, `PartyResponsibleAssigned` con `ResponsibleAssignedV1`), base
   `crm_party`, concurrencia optimista (409), baja lógica, sin unicidad ni deduplicación.
-- Regla de propiedad evaluada en party-service (D2): Administrador edita todo; Vendedor y
-  Responsable Comercial solo donde son `responsibleUserId`. Cambiar estado exige ser responsable
-  (o Administrador); reasignar lo valida access-service.
+- Regla de propiedad evaluada en party-service (D2), **solo para `parties.write`** (UpdateCompany,
+  UpdateContact, RelateContactToCompany): Administrador edita todo; Vendedor y Responsable
+  Comercial solo donde son `responsibleUserId`. `parties.change_commercial_status` y
+  `parties.assign_responsible` dependen únicamente del permiso (Administrador y Responsable
+  Comercial); la asignación además la valida access-service.
 - Contrato nuevo de access-service: `GET /api/v1/users/me` (`UserSelfV1`) + `IUserDirectoryPort`/
   `HttpUserDirectoryPort` (caché 60 s por `sub`), autorizado y aditivo.
 - BFF: screens `PTY-01/05/06/07/08/09/10/11/13` y `GLB-11`; mutations de Party, en los controllers
@@ -148,8 +150,10 @@ PartyRelationship
 
 **Qué falta / decisiones abiertas** (detalle en `IMPLEMENTATION_REPORT-V2-PTY-001.md`):
 
-- Confirmar: lectura de la matriz para el Responsable Comercial (cambiar estado con propiedad,
-  reasignar sin propiedad) y el nombre `PartyResponsibleAssigned` vs `ResponsibleAssigned`.
+- Evento de reasignación confirmado: `PartyResponsibleAssigned` con payload `ResponsibleAssignedV1`.
+- **PR "fix" pendiente antes de Wave 3:** (1) mover `BearerTokenRelayHandler` a
+  `BuildingBlocks.Infrastructure` y usarlo en `HttpCatalogReaderPort`; (2) aislar la base Mongo en
+  los tests de ACL/CAT (`UseSetting` en vez de `ConfigureAppConfiguration`).
 - `HttpCatalogReaderPort` (CAT-001) no reenvía el Bearer y el GET de catálogos exige JWT: party-service
   lo resuelve localmente con `BearerTokenRelayHandler`; la corrección de fondo es de CAT.
 - Los tests de ACL/CAT no aíslan la base Mongo (`ConfigureAppConfiguration` no aplica a

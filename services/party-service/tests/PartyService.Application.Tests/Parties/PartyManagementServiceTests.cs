@@ -448,16 +448,30 @@ public class PartyManagementServiceTests
     }
 
     [Fact]
-    public async Task The_responsable_comercial_changes_status_only_on_parties_where_they_are_responsible()
+    public async Task Changing_the_commercial_status_depends_only_on_the_permission_not_on_ownership()
     {
         var h = new PartyServiceTestHarness();
-        var owned = await h.Service.CreateContactAsync(h.Ctx(h.Responsable), Data("Ana"));
         var foreign = await h.Service.CreateContactAsync(h.Ctx(h.Vendedor), Data("Beto"));
 
-        var changed = await h.Service.ChangeCommercialStatusAsync(h.Ctx(h.Responsable), owned.PartyId, CommercialStatuses.Customer);
-        Assert.Equal(CommercialStatuses.Customer, changed.CommercialStatus);
+        // El permiso (Administrador/Responsable Comercial) lo evalúa el controller; el servicio no exige ser responsable.
+        var byResponsable = await h.Service.ChangeCommercialStatusAsync(h.Ctx(h.Responsable), foreign.PartyId, CommercialStatuses.Customer);
+        var byAdmin = await h.Service.ChangeCommercialStatusAsync(h.Ctx(h.Admin), foreign.PartyId, CommercialStatuses.DoNotContact);
 
-        await AssertRejectedAsync(() => h.Service.ChangeCommercialStatusAsync(h.Ctx(h.Responsable), foreign.PartyId, CommercialStatuses.Customer), ErrorCodes.Forbidden, 403);
+        Assert.Equal(CommercialStatuses.Customer, byResponsable.CommercialStatus);
+        Assert.Equal(h.Responsable.Subject, byResponsable.CommercialStatusChangedBy);
+        Assert.Equal(CommercialStatuses.DoNotContact, byAdmin.CommercialStatus);
+        Assert.Equal(h.Vendedor.UserId, byAdmin.ResponsibleUserId); // cambiar el estado no cambia el responsable.
+    }
+
+    [Fact]
+    public async Task Ownership_still_applies_to_data_edits_and_relationships_of_the_responsable_comercial()
+    {
+        var h = new PartyServiceTestHarness();
+        var contact = await h.Service.CreateContactAsync(h.Ctx(h.Vendedor), Data("Ana"));
+        var company = await h.Service.CreateCompanyAsync(h.Ctx(h.Responsable), Data("Norte SA"));
+
+        await AssertRejectedAsync(() => h.Service.UpdateContactAsync(h.Ctx(h.Responsable), contact.PartyId, Data("X")), ErrorCodes.Forbidden, 403);
+        await AssertRejectedAsync(() => h.Service.RelateContactToCompanyAsync(h.Ctx(h.Responsable), contact.PartyId, company.PartyId, RelationshipTypes.ContactOf), ErrorCodes.Forbidden, 403);
     }
 
     [Fact]

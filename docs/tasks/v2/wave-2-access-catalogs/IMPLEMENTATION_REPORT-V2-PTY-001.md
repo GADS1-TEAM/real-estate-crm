@@ -13,9 +13,11 @@
    existentes de access-service/building-blocks son una línea de registro DI en
    `AccessServiceInfrastructureServiceCollectionExtensions`).
 2. **Propiedad (B).** Se mantiene la matriz de ACL-001a. El Administrador edita todo; Vendedor y
-   Responsable Comercial editan solo las parties donde son `responsibleUserId`. El Responsable
-   Comercial además cambia el estado comercial y el responsable, según la matriz (ver decisión
-   local #2 sobre cómo se leyó "según la matriz").
+   Responsable Comercial editan solo las parties donde son `responsibleUserId`. **Corrección
+   posterior del equipo:** `parties.change_commercial_status` y `parties.assign_responsible`
+   dependen SOLO del permiso (Administrador y Responsable Comercial), sin regla de propiedad; la
+   propiedad aplica únicamente a `parties.write` (UpdateCompany, UpdateContact,
+   RelateContactToCompany).
 3. **Captura mínima (C) — desvío explícito de la task.** La task pide "nombre + un dato de
    contacto"; el formulario real de `crm-web` (`PTY-02`/`03`/`04`, `save()` en `crm-workspace.tsx`)
    exige **solo el nombre**. Se alineó con `crm-web` (D5: no se toca el front): `displayName` es lo
@@ -81,9 +83,9 @@ relay D6), ramas nuevas en `Screens/ScreensController.cs` y `Mutations/Mutations
 línea de registro del `HttpClient<PartyServiceClient>` en `Program.cs`, `PartyService:BaseUrl` en
 `appsettings.json`.
 
-**Tests**: `services/party-service/tests/PartyService.Application.Tests` (58: dominio + servicio con
+**Tests**: `services/party-service/tests/PartyService.Application.Tests` (59: dominio + servicio con
 fakes, incluye propiedad, estados, relaciones, origen, responsable, búsqueda, sin borrado),
-`services/party-service/tests/PartyService.Api.Tests` (3 del relay de Bearer sin infra + 11 e2e
+`services/party-service/tests/PartyService.Api.Tests` (3 del relay de Bearer sin infra + 12 e2e
 `RequiresMongo|RequiresRabbitMq|RequiresKeycloak`), `tests/RealEstateCrm.ContractTests` (`UserSelfV1` y
 Party, 3 + 5 tests), `tests/RealEstateCrm.BuildingBlocks.Infrastructure.Tests/Authorization/HttpUserDirectoryPortTests`
 (10), `tests/RealEstateCrm.TestSupport` (`FakeUserDirectoryPort`, `Catalogs/FakeCatalogReaderPort`).
@@ -106,7 +108,7 @@ $ bash scripts/test-fast.sh
     RealEstateCrm.ContractTests               88/88  (80 previos + 8 nuevos)
     RealEstateCrm.BuildingBlocks.Infrastructure.Tests 65/65  (55 previos + 10 nuevos)
     PlatformConfigService.Application.Tests   19/19
-    PartyService.Application.Tests            58/58  (nuevo)
+    PartyService.Application.Tests            59/59  (nuevo)
     PartyService.Api.Tests                     3/3   (nuevo: BearerTokenRelayHandler)
 ==> apps/scripts/build-webs.sh → crm-web y platform-admin-web compilan
 
@@ -114,7 +116,7 @@ $ bash scripts/test-integration.sh        (Docker real: mongo, rabbitmq, keycloa
     RealEstateCrm.BuildingBlocks.Infrastructure.Tests 14/14
     AccessService.Api.Tests                    9/9   (2 previos + 7 nuevos de /users/me)
     PlatformConfigService.Api.Tests            2/2
-    PartyService.Api.Tests                    11/11  (nuevo)
+    PartyService.Api.Tests                    12/12  (nuevo)
 ```
 
 Una primera corrida de integración falló y **no se maquilló**: reveló que `AddMongoPersistence` lee
@@ -176,7 +178,7 @@ es). Respuesta `200` `UserSelfV1(userId, status, roleCode)`:
 | `POST /api/v1/companies` · `POST /api/v1/contacts` | `parties.write` | responsable inicial = `userId` del creador |
 | `PUT /api/v1/companies/{id}` · `PUT /api/v1/contacts/{id}` | `parties.write` | Administrador, o `responsibleUserId == userId` del actor |
 | `POST /api/v1/contacts/{id}/relationships` `{companyId, relationshipType?}` | `parties.write` | igual que editar, sobre el **contacto** |
-| `POST /api/v1/parties/{id}/commercial-status` `{commercialStatus}` | `parties.change_commercial_status` | Administrador, o responsable |
+| `POST /api/v1/parties/{id}/commercial-status` `{commercialStatus}` | `parties.change_commercial_status` | ninguna: solo el permiso (Administrador y Responsable Comercial) |
 | `POST /api/v1/parties/{id}/responsible` `{responsibleUserId}` | `parties.assign_responsible` | ninguna: valida access-service (`IResponsibleAssignmentValidationPort`) |
 
 Body de alta/edición (`PartyDataRequest`): `displayName` (obligatorio, ≤200), `legalName`,
@@ -206,6 +208,10 @@ Ningún payload lleva CUIT, documento, email, teléfono, dirección ni notas (co
 del envelope = `sub`; `assignedByUserId`/`responsibleUserId` = `userId` de access-service.
 `PartyIdentityStatusChanged` **no** se publica: V2 no cambia el ciclo técnico.
 
+**Nombre del evento de reasignación (decisión confirmada):** se publica `PartyResponsibleAssigned`
+(no `ResponsibleAssigned`, como lo nombraban los textos de ACL-001) con payload `ResponsibleAssignedV1`
+(`resourceType = "party"`). Los consumidores deben suscribirse por ese nombre de evento.
+
 ### Permisos consumidos
 `parties.read`, `parties.write`, `parties.change_commercial_status`, `parties.assign_responsible`
 (`Permissions`, sin cambios; matriz de ACL-001 sin cambios).
@@ -232,16 +238,14 @@ Ver "UCs cubiertos". Query params de screens: `entityId` (partyId), `q`, `kind`,
 
 ## Decisiones locales
 
-1. **`PartyResponsibleAssigned` como nombre de evento.** La task de PTY lista `PartyResponsibleAssigned`;
-   los textos de ACL-001 lo llaman `ResponsibleAssigned`. Se publica el nombre de la task de PTY con el
-   payload `ResponsibleAssignedV1` ya publicado. Si un consumidor esperaba `ResponsibleAssigned`,
-   hay que alinear un lado.
-2. **"Según la matriz" para el Responsable Comercial.** La matriz de ACL-001a marca
-   `parties.change_commercial_status` como "con propiedad" pero **no** marca así
-   `parties.assign_responsible` (ahí reasigna "dentro del equipo"). Se aplicó literal: cambiar el
-   estado exige ser el responsable (o Administrador); reasignar **no** exige serlo (si lo exigiera,
-   el Responsable no podría reasignar lo que tiene un Vendedor, que es el caso de uso de ASSIGN-002).
-   **A confirmar por el equipo.**
+1. **Nombre de evento (confirmado por el equipo):** se mantiene `PartyResponsibleAssigned` con
+   payload `ResponsibleAssignedV1`. Los textos de ACL-001 lo llamaban `ResponsibleAssigned`; el
+   nombre vigente es el de la task de PTY.
+2. **Propiedad solo en `parties.write` (corrección del equipo, aplicada en un commit posterior).**
+   La primera versión exigía además propiedad para cambiar el estado comercial (lectura de la
+   columna "con propiedad" de la matriz de ACL-001a). El equipo aclaró que
+   `parties.change_commercial_status` y `parties.assign_responsible` dependen solo del permiso; el
+   código ya no consulta al responsable en esos dos commands (tests actualizados).
 3. **Relacionar exige propiedad solo sobre el Contacto**, no sobre la Empresa (la operación modifica
    la ficha del contacto). El Vendedor puede relacionar su contacto con una empresa ajena.
 4. **Responsable inicial = `userId` del creador** (también si crea un Administrador o un Responsable).
@@ -299,8 +303,9 @@ Ver "UCs cubiertos". Query params de screens: `entityId` (partyId), `q`, `kind`,
 
 ## Follow-ups
 
-- Confirmar la lectura de la matriz (decisión local #2) y el nombre de evento (#1).
-- Corregir `HttpCatalogReaderPort` (Hallazgo 1) y migrar tests existentes a `UseSetting` (Hallazgo 2).
+- **PR "fix" antes de Wave 3** (acordado): (1) mover `BearerTokenRelayHandler` a
+  `BuildingBlocks.Infrastructure` y usarlo en `HttpCatalogReaderPort` (Hallazgo 1), y (2) aislar la
+  base Mongo en los tests de ACL/CAT con `UseSetting` (Hallazgo 2).
 - Publicar los códigos de rol en `contracts` para no hardcodear `"Administrador"`.
 - `scripts/run-slice.{sh,ps1}` (D10) y una corrida manual con los servicios reales levantados.
 - V2-ANA-001 compone la vista 360 sobre estos detalles; V2-PRP/DMD referencian `partyId`.

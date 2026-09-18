@@ -38,7 +38,7 @@ public sealed record PartyDataInput(
 /// <remarks>
 /// Los permisos genéricos (<c>parties.*</c>) los evalúa el controller con
 /// <see cref="IAuthorizationPort"/>. Acá vive lo que solo el owner sabe (D2): la regla de
-/// propiedad (el Administrador edita todo; el resto solo las parties donde es responsable), el
+/// propiedad, que aplica SOLO a <c>parties.write</c> (editar y relacionar: el Administrador edita todo; el resto solo donde es responsable), el
 /// responsable inicial (= userId del creador) y la validación del responsable propuesto contra
 /// access-service. Sin capa de mediator/CQRS (skill no habilitada en Wave 2).
 /// </remarks>
@@ -125,7 +125,8 @@ public sealed class PartyManagementService(
 
     /// <summary>
     /// PTY-007: cambia el estado comercial. La baja lógica es <c>INACTIVE</c> y la reactivación,
-    /// un cambio explícito a otro estado; nada se borra. Requiere ser responsable (o Administrador).
+    /// un cambio explícito a otro estado; nada se borra. Solo exige el permiso <c>parties.change_commercial_status</c>
+    /// (Administrador y Responsable Comercial, evaluado por el controller): sin regla de propiedad.
     /// </summary>
     public async Task<PartyDetailV1> ChangeCommercialStatusAsync(
         ExecutionContextV1 context,
@@ -133,15 +134,12 @@ public sealed class PartyManagementService(
         string commercialStatus,
         CancellationToken cancellationToken = default)
     {
-        var self = await RequireActiveSelfAsync(context, cancellationToken);
-
         if (!PartyWire.TryParseCommercialStatus(commercialStatus, out var newStatus))
         {
             throw new PartyDomainException(PartyErrorCodes.InvalidCommercialStatus, 422, $"'{commercialStatus}' no es un estado comercial válido ({string.Join(", ", CommercialStatuses.All)}).");
         }
 
         var party = await RequirePartyAsync(partyId, cancellationToken);
-        EnsureCanEdit(self, party);
 
         Party updated;
         try

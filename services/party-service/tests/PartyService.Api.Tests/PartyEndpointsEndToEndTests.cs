@@ -166,6 +166,23 @@ public class PartyEndpointsEndToEndTests : IClassFixture<PartyApiFixture>
     }
 
     [Fact]
+    public async Task Responsable_comercial_changes_status_and_responsible_without_owning_the_party_but_still_needs_ownership_to_edit_data()
+    {
+        var foreign = await CreateAsync(PartyApiFixture.Vendedor, "/api/v1/contacts", Unique("DeOtro"));
+
+        var status = await _api.SendAsync(HttpMethod.Post, $"/api/v1/parties/{foreign.PartyId}/commercial-status", PartyApiFixture.Responsable, new { commercialStatus = "CUSTOMER" });
+        Assert.Equal(HttpStatusCode.OK, status.StatusCode);
+
+        // La propiedad aplica solo a parties.write: editar datos de lo que no es suyo sigue siendo 403.
+        var edit = await _api.SendAsync(HttpMethod.Put, $"/api/v1/contacts/{foreign.PartyId}", PartyApiFixture.Responsable, new { displayName = "Intento" });
+        Assert.Equal(HttpStatusCode.Forbidden, edit.StatusCode);
+
+        // Reasignar tampoco exige ser el responsable actual.
+        var responsible = await _api.SendAsync(HttpMethod.Post, $"/api/v1/parties/{foreign.PartyId}/responsible", PartyApiFixture.Responsable, new { responsibleUserId = PartyApiFixture.ResponsableUserId });
+        Assert.Equal(HttpStatusCode.OK, responsible.StatusCode);
+    }
+
+    [Fact]
     public async Task A_vendedor_cannot_change_the_commercial_status_or_the_responsible()
     {
         var owned = await CreateAsync(PartyApiFixture.Vendedor, "/api/v1/contacts", Unique("SinPermiso"));
