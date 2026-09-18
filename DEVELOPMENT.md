@@ -129,6 +129,44 @@ No hay todavía `scripts/run-slice.{sh,ps1}` (D10, plan Wave 2): con un solo sli
 agrega valor sobre los dos comandos de arriba; queda para cuando exista más de un servicio para
 levantar en conjunto (V2-CAT-001/V2-PTY-001).
 
+## platform-config-service (V2-CAT-001)
+
+Segundo servicio real conectado a Mongo/RabbitMQ/Keycloak. Con la infra de arriba levantada
+(y `access-service` corriendo si además querés probar `[Authorize]` con permisos reales, ver
+abajo):
+
+```bash
+dotnet run --project services/platform-config-service/src/PlatformConfigService.Api   # http://localhost:5246
+```
+
+`platform-config-service` siembra, solo en `Development`, los seis catálogos comerciales
+obligatorios con sus defaults literales (CAT-006): 14 etapas `CommercialStage` (8 DEMAND + 6
+SUPPLY), 9 `ActivityType`, 8 `CommercialOrigin`, 9 `LossReason`, 4 `OperationType` y 8
+`PropertyType`; y publica la versión 1 de cada `catalogType` (`PublishCatalogVersion`). No
+siembra usuarios ni toca el realm de Keycloak: no hay credenciales nuevas que documentar acá.
+
+Endpoint único `/api/v1/catalogs` (`[Authorize]`, JWT Bearer): `GET /{catalogType}?activeOnly=&version=`
+(lectura, `catalogs.read`), `POST` (alta, `catalogs.manage`), `PUT /{entryId}` (edición de
+etiqueta/orden), `POST /{entryId}/deactivate` (baja lógica) y `POST /{catalogType}/publish`
+(publica versión). La autorización real (D2) llama a `access-service` vía `HttpAuthorizationPort`:
+sin `access-service` corriendo, cualquier request autenticada devuelve 500 (el adapter HTTP no
+tiene con quién hablar), no un 403 — para probar la autorización real hace falta tener los dos
+servicios arriba.
+
+`operations-bff` expone las screens de catálogo de `apps/crm-web/src/lib/screen-registry.ts`
+(`ADM-05`..`ADM-12`) y las mutations `createCatalogEntry`/`updateCatalogEntry`/
+`deactivateCatalogEntry`/`publishCatalogVersion`, en los mismos `ScreensController`/
+`MutationsController` que ya usaba V2-ACL-001 (D5 decidió un único controller por ruta; un
+segundo controller en `[Route("screens")]` sería una ruta ambigua para ASP.NET Core). Excluidas
+como overrides POC: `AUT-04` (wizard de primer ingreso) y `ADM-13` (datos de la inmobiliaria, no
+hay configuración de organización en V2).
+
+Otros servicios (D7, ej. `party-service` en V2-PTY-001) consumen catálogos vía
+`ICatalogReaderPort`/`HttpCatalogReaderPort` (`BuildingBlocks.Infrastructure/Catalogs/`),
+registrado con `services.AddCatalogHttpClient(configuration)` (sección `PlatformConfigService:
+BaseUrl`, default `http://localhost:5246`), mismo patrón de caché ≤60 s que
+`AddAuthorizationHttpClients`.
+
 ## Frontend (apps/)
 
 `apps/crm-web` y `apps/platform-admin-web` ya existen (`V2-UX-001`). Ver

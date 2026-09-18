@@ -1,5 +1,6 @@
 using OperationsBff.Api.AccessService;
 using OperationsBff.Api.ErrorHandling;
+using OperationsBff.Api.PlatformConfigService;
 using RealEstateCrm.BuildingBlocks.Infrastructure.Authentication;
 using RealEstateCrm.BuildingBlocks.Infrastructure.HealthChecks;
 using RealEstateCrm.BuildingBlocks.Infrastructure.Observability;
@@ -33,6 +34,13 @@ var accessServiceBaseUrl = builder.Configuration["AccessService:BaseUrl"]
     ?? throw new InvalidOperationException("Falta configuración 'AccessService:BaseUrl'.");
 
 builder.Services.AddHttpClient<AccessServiceClient>(client => client.BaseAddress = new Uri(accessServiceBaseUrl));
+
+// V2-CAT-001: mismo token relay (D6) hacia platform-config-service. Registro agregado al
+// wire-up base de V2-ACL-001 sin reestructurarlo (plan Wave 2 §7.3).
+var platformConfigServiceBaseUrl = builder.Configuration["PlatformConfigService:BaseUrl"]
+    ?? throw new InvalidOperationException("Falta configuración 'PlatformConfigService:BaseUrl'.");
+
+builder.Services.AddHttpClient<PlatformConfigServiceClient>(client => client.BaseAddress = new Uri(platformConfigServiceBaseUrl));
 
 builder.Services.AddCrmHealthChecks();
 builder.Services.AddCrmObservability("operations-bff");
