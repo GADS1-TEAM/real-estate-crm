@@ -14,7 +14,7 @@ Definition of Done y adjuntar evidencia.
 | 4 | [V2-FND-002](wave-1-foundation/V2-FND-002-contratos-auth-y-persistencia.md) | DONE | FND-001 | Contratos, auth y puertos de persistencia |
 | 5 | [V2-FND-003](wave-1-foundation/V2-FND-003-infra-ci-y-observabilidad.md) | DONE | FND-001 | Compose, CI y telemetría base |
 | 6 | [V2-ACL-001](wave-2-access-catalogs/V2-ACL-001-usuarios-roles-permisos-y-asignacion.md) | DONE | FND-002 | Usuarios, roles, permisos y responsables |
-| 7 | [V2-CAT-001](wave-2-access-catalogs/V2-CAT-001-catalogos-comerciales.md) | TODO | FND-002 | Catálogos comerciales versionados |
+| 7 | [V2-CAT-001](wave-2-access-catalogs/V2-CAT-001-catalogos-comerciales.md) | DONE | FND-002 | Catálogos comerciales versionados |
 | 8 | [V2-PTY-001](wave-2-access-catalogs/V2-PTY-001-party-empresa-contacto-y-estados.md) | TODO | ACL-001, CAT-001 | Empresa, contacto, relación y estados Party |
 | 9 | [V2-PRP-001](wave-3-real-estate-core/V2-PRP-001-property-listing-y-productos.md) | TODO | PTY-001, CAT-001 | Property, interés, Listing y producto inmobiliario |
 | 10 | [V2-DMD-001](wave-3-real-estate-core/V2-DMD-001-requirement-captation-y-valuation.md) | TODO | PTY-001, PRP-001 | Demanda, captación, valuación y mandato mínimo |
