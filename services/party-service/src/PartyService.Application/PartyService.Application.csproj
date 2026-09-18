@@ -1,7 +1,9 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\PartyService.Domain\PartyService.Domain.csproj" />
+    <ProjectReference Include="..\..\..\..\building-blocks\RealEstateCrm.BuildingBlocks\RealEstateCrm.BuildingBlocks.csproj" />
+    <ProjectReference Include="..\..\..\..\contracts\RealEstateCrm.Contracts\RealEstateCrm.Contracts.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

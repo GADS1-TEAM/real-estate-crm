@@ -125,3 +125,47 @@ PartyRelationship
 3. Test de estado DO_NOT_CONTACT sin borrado.
 4. Test de independencia ACTIVE + POTENTIAL frente a ACTIVE + DO_NOT_CONTACT.
 5. Request de baja lógica con actor y fecha.
+
+## Handoff
+
+**Qué quedó (rama `feat/v2-pty-001-party`, sin marcar DONE):**
+
+- `party-service` completo: aggregates `Party` y `PartyRelationship`, los 7 commands y 3 queries de la
+  task, eventos v1 por outbox (`PartyRegistered`, `PartyUpdated`, `PartyRelationshipCreated`,
+  `PartyCommercialStatusChanged`, `PartyResponsibleAssigned` con `ResponsibleAssignedV1`), base
+  `crm_party`, concurrencia optimista (409), baja lógica, sin unicidad ni deduplicación.
+- Regla de propiedad evaluada en party-service (D2): Administrador edita todo; Vendedor y
+  Responsable Comercial solo donde son `responsibleUserId`. Cambiar estado exige ser responsable
+  (o Administrador); reasignar lo valida access-service.
+- Contrato nuevo de access-service: `GET /api/v1/users/me` (`UserSelfV1`) + `IUserDirectoryPort`/
+  `HttpUserDirectoryPort` (caché 60 s por `sub`), autorizado y aditivo.
+- BFF: screens `PTY-01/05/06/07/08/09/10/11/13` y `GLB-11`; mutations de Party, en los controllers
+  existentes.
+- Evidencia end-to-end de ASSIGN-001/002 (reasignación → evento en RabbitMQ real).
+
+**Desvío explícito de la task:** solo el nombre es obligatorio (alineado con `crm-web`), no
+"nombre + dato de contacto".
+
+**Qué falta / decisiones abiertas** (detalle en `IMPLEMENTATION_REPORT-V2-PTY-001.md`):
+
+- Confirmar: lectura de la matriz para el Responsable Comercial (cambiar estado con propiedad,
+  reasignar sin propiedad) y el nombre `PartyResponsibleAssigned` vs `ResponsibleAssigned`.
+- `HttpCatalogReaderPort` (CAT-001) no reenvía el Bearer y el GET de catálogos exige JWT: party-service
+  lo resuelve localmente con `BearerTokenRelayHandler`; la corrección de fondo es de CAT.
+- Los tests de ACL/CAT no aíslan la base Mongo (`ConfigureAppConfiguration` no aplica a
+  `AddMongoPersistence`); los de PTY usan `UseSetting`.
+- Sin tests automáticos del BFF ni corrida e2e con los cuatro servicios reales (solo se levantan
+  Mongo/RabbitMQ/Keycloak en `test-integration.sh`).
+- Sin cierre de relaciones (`validTo`), sin `run-slice`, `crm-web` sigue en modo demo (ids string).
+
+**Cómo verificar:**
+
+```bash
+bash scripts/test-fast.sh          # sin Docker
+bash scripts/test-integration.sh   # Docker: mongo, rabbitmq, keycloak
+# manual, 4 procesos (ver DEVELOPMENT.md, sección party-service):
+dotnet run --project services/access-service/src/AccessService.Api
+dotnet run --project services/platform-config-service/src/PlatformConfigService.Api
+dotnet run --project services/party-service/src/PartyService.Api
+dotnet run --project bffs/operations-bff/src/OperationsBff.Api
+```

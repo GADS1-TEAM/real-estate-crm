@@ -26,6 +26,7 @@ public static class AccessServiceInfrastructureServiceCollectionExtensions
         services.AddScoped<IResponsibleAssignmentValidationPort, AccessServiceResponsibleAssignmentValidator>();
 
         services.AddScoped<UserAccountService>();
+        services.AddScoped<UserSelfService>();
 
         services.AddHostedService<AccessServiceIndexInitializer>();
 

@@ -167,6 +167,29 @@ registrado con `services.AddCatalogHttpClient(configuration)` (sección `Platfor
 BaseUrl`, default `http://localhost:5246`), mismo patrón de caché ≤60 s que
 `AddAuthorizationHttpClients`.
 
+## party-service (V2-PTY-001)
+
+Empresa, Contacto, relaciones y estados. Corre con `dotnet run` (D10), **después** de
+`access-service` y `platform-config-service` (los consulta por HTTP):
+
+```bash
+dotnet run --project services/access-service/src/AccessService.Api                 # http://localhost:5190
+dotnet run --project services/platform-config-service/src/PlatformConfigService.Api # http://localhost:5246
+dotnet run --project services/party-service/src/PartyService.Api                    # http://localhost:5155
+dotnet run --project bffs/operations-bff/src/OperationsBff.Api                      # http://localhost:5137
+```
+
+Base `crm_party` (`parties`, `party_relationships`, `outbox_messages`, `inbox_consumed_messages`),
+exchange RabbitMQ `party-service.events`. No siembra datos y no agrega usuarios ni cambios al
+realm: usa los tres usuarios de desarrollo de `access-service` (`dev.administrador`,
+`dev.vendedor`, `dev.responsable`).
+
+`party-service` resuelve al actor con `GET /api/v1/users/me` de access-service
+(`IUserDirectoryPort`/`HttpUserDirectoryPort`, registrado con
+`services.AddUserDirectoryHttpClient(configuration)`, sección `AccessService:BaseUrl`, caché ≤60 s
+por `sub`): el `sub` del token es el `actorId`, pero `responsibleUserId` es el `userId` propio de
+access-service.
+
 ## Frontend (apps/)
 
 `apps/crm-web` y `apps/platform-admin-web` ya existen (`V2-UX-001`). Ver
