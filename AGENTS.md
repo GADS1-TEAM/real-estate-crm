@@ -1,5 +1,16 @@
 # AGENTS.md — CRM Inmobiliarias
 
+## Precedencia V2 (leer primero)
+
+Este repo implementa la **versión reducida V2**. Donde este archivo, `README.md` o `ARCHITECTURE.md` contradigan lo siguiente, **prevalece esto**:
+
+1. `docs/adr/ADR-001-alcance-tp-y-oportunidad-como-proyeccion.md` (alcance).
+2. El plan de la wave en curso en `PRPs/_backlog/` (el más reciente manda) y la task en `docs/tasks/v2/`.
+3. Los `IMPLEMENTATION_REPORT-*.md` de tasks mergeadas (sección "Contratos publicados").
+
+En V2 **no existe** `tenantId`/`organizationId` (una sola inmobiliaria) ni `Opportunity` como entidad: toda mención a tenant más abajo no aplica. Las skills viven en `.github/skills/<skill>/SKILL.md` y se usan solo las que habilita el plan de la wave.
+
+
 ## Fuentes de verdad
 
 1. `README.md` — dominio.
