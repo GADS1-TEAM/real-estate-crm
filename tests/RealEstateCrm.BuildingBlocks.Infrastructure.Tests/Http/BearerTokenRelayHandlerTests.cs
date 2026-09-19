@@ -1,12 +1,12 @@
 using System.Net;
 using Microsoft.AspNetCore.Http;
-using PartyService.Api.Http;
+using RealEstateCrm.BuildingBlocks.Infrastructure.Http;
 
-namespace PartyService.Api.Tests;
+namespace RealEstateCrm.BuildingBlocks.Infrastructure.Tests.Http;
 
 /// <summary>
 /// El relay del Bearer que permite a party-service consultar <c>GET /api/v1/catalogs</c> (que
-/// exige JWT en platform-config-service) sin tocar el adapter compartido. Sin infraestructura.
+/// exige JWT en platform-config-service) de forma compartida por los adapters HTTP internos. Sin infraestructura.
 /// </summary>
 public class BearerTokenRelayHandlerTests
 {
@@ -50,6 +50,18 @@ public class BearerTokenRelayHandlerTests
     public async Task Sends_no_credentials_when_the_incoming_request_has_none()
     {
         Assert.Null(await SendThroughAsync(incomingAuthorization: null));
+    }
+
+    [Fact]
+    public async Task Does_not_throw_outside_of_a_request()
+    {
+        var inner = new CapturingHandler();
+        var handler = new BearerTokenRelayHandler(new HttpContextAccessor { HttpContext = null }) { InnerHandler = inner };
+        using var client = new HttpClient(handler) { BaseAddress = new Uri("http://platform-config-service.local") };
+
+        await client.GetAsync("/api/v1/catalogs/CommercialOrigin");
+
+        Assert.Null(inner.Authorization);
     }
 
     [Fact]

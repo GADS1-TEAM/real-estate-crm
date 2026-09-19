@@ -46,6 +46,8 @@ public class CorrelationIdAndAuthorizationEndToEndTests : IAsyncLifetime
         _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment("Development");
+            // UseSetting (no ConfigureAppConfiguration): AddMongoPersistence lee Mongo:DatabaseName de forma eager al armar Program.cs.
+            builder.UseSetting("Mongo:DatabaseName", _mongoDatabaseName);
             builder.ConfigureAppConfiguration((_, configBuilder) =>
             {
                 configBuilder.AddInMemoryCollection(new Dictionary<string, string?>

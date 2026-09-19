@@ -256,7 +256,7 @@ public class PartyEndpointsEndToEndTests : IClassFixture<PartyApiFixture>
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var updated = (await response.Content.ReadFromJsonAsync<PartyDetailV1>(RealEstateCrmJsonDefaults.Options))!;
             Assert.Equal(PartyApiFixture.AdministradorUserId, updated.ResponsibleUserId);
-        });
+        }, match: envelope => envelope.Payload.ResourceId == contact.PartyId);
 
         Assert.Equal(ResourceTypes.Party, captured.Payload.ResourceType);
         Assert.Equal(contact.PartyId, captured.Payload.ResourceId);

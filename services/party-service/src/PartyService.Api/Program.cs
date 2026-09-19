@@ -1,9 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using PartyService.Api.ErrorHandling;
 using PartyService.Api.ExecutionContextResolution;
-using PartyService.Api.Http;
 using PartyService.Infrastructure;
-using RealEstateCrm.BuildingBlocks.Catalogs;
 using RealEstateCrm.BuildingBlocks.Infrastructure.Authentication;
 using RealEstateCrm.BuildingBlocks.Infrastructure.Authorization;
 using RealEstateCrm.BuildingBlocks.Infrastructure.Catalogs;
@@ -79,12 +77,6 @@ builder.Services.AddAuthorization();
 builder.Services.AddAuthorizationHttpClients(builder.Configuration);
 builder.Services.AddUserDirectoryHttpClient(builder.Configuration);
 builder.Services.AddCatalogHttpClient(builder.Configuration);
-
-// GET /api/v1/catalogs exige JWT (catalogs.read) y HttpCatalogReaderPort no reenvía credenciales:
-// se agrega el relay del Bearer (D6) al mismo cliente tipado, sin tocar el adapter compartido.
-builder.Services.AddTransient<BearerTokenRelayHandler>();
-builder.Services.AddHttpClient<ICatalogReaderPort, HttpCatalogReaderPort>()
-    .AddHttpMessageHandler<BearerTokenRelayHandler>();
 
 builder.Services.AddPartyServiceInfrastructure();
 

@@ -1,8 +1,12 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using RealEstateCrm.BuildingBlocks.Catalogs;
 using RealEstateCrm.BuildingBlocks.Infrastructure.Catalogs;
 using RealEstateCrm.Contracts.Catalogs;
 using RealEstateCrm.Contracts.Serialization;
@@ -20,10 +24,12 @@ public class HttpCatalogReaderPortTests
     private sealed class CountingHandler(Func<HttpRequestMessage, CatalogQueryResultV1> respond) : HttpMessageHandler
     {
         public int CallCount { get; private set; }
+        public string? LastAuthorization { get; private set; }
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             CallCount++;
+            LastAuthorization = request.Headers.Authorization?.ToString();
             var result = respond(request);
             var json = JsonSerializer.Serialize(result, RealEstateCrmJsonDefaults.Options);
             var response = new HttpResponseMessage(HttpStatusCode.OK)
@@ -93,5 +99,58 @@ public class HttpCatalogReaderPortTests
         await port.GetAsync(CatalogTypes.LossReason, activeOnly: true);
 
         Assert.Equal(2, handler.CallCount);
+    }
+
+    [Fact]
+    public async Task Registered_client_relays_the_incoming_bearer_to_the_catalog_server()
+    {
+        var handler = new CountingHandler(_ => EmptyResultAtVersion(1));
+        var (provider, port) = BuildRegisteredPort(handler, incomingAuthorization: "Bearer abc.def.ghi");
+        await using var _ = provider;
+
+        await port.GetAsync(CatalogTypes.CommercialOrigin, activeOnly: true);
+
+        Assert.Equal("Bearer abc.def.ghi", handler.LastAuthorization);
+    }
+
+    [Fact]
+    public async Task Registered_client_works_outside_a_request_without_authorization_header()
+    {
+        var handler = new CountingHandler(_ => EmptyResultAtVersion(1));
+        var (provider, port) = BuildRegisteredPort(handler, incomingAuthorization: null, withHttpContext: false);
+        await using var _ = provider;
+
+        await port.GetAsync(CatalogTypes.CommercialOrigin, activeOnly: true);
+
+        Assert.Equal(1, handler.CallCount);
+        Assert.Null(handler.LastAuthorization);
+    }
+
+    private static (ServiceProvider Provider, ICatalogReaderPort Port) BuildRegisteredPort(
+        CountingHandler fakeServer, string? incomingAuthorization, bool withHttpContext = true)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["PlatformConfigService:BaseUrl"] = "http://platform-config-service.local" })
+            .Build();
+
+        var services = new ServiceCollection();
+        services.AddCatalogHttpClient(configuration);
+        // El "servidor" fake reemplaza solo el handler primario: el relay del adapter queda en la cadena.
+        services.AddHttpClient<ICatalogReaderPort, HttpCatalogReaderPort>()
+            .ConfigurePrimaryHttpMessageHandler(() => fakeServer);
+
+        if (withHttpContext)
+        {
+            var httpContext = new DefaultHttpContext();
+            if (incomingAuthorization is not null)
+            {
+                httpContext.Request.Headers.Authorization = incomingAuthorization;
+            }
+
+            services.AddSingleton<IHttpContextAccessor>(new HttpContextAccessor { HttpContext = httpContext });
+        }
+
+        var provider = services.BuildServiceProvider();
+        return (provider, provider.GetRequiredService<ICatalogReaderPort>());
     }
 }
