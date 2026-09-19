@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using RealEstateCrm.BuildingBlocks.Authorization;
+using RealEstateCrm.BuildingBlocks.Infrastructure.Http;
 
 namespace RealEstateCrm.BuildingBlocks.Infrastructure.Authorization;
 
@@ -18,13 +19,13 @@ public static class UserDirectoryClientServiceCollectionExtensions
     {
         services.Configure<AuthorizationClientOptions>(configuration.GetSection(configurationSectionName));
         services.AddMemoryCache();
-        services.AddHttpContextAccessor();
 
         var baseUrl = configuration.GetSection(configurationSectionName)["BaseUrl"]
             ?? throw new InvalidOperationException($"Falta configuración '{configurationSectionName}:BaseUrl' (URL de access-service).");
 
         services.AddHttpClient<IUserDirectoryPort, HttpUserDirectoryPort>(client =>
-            client.BaseAddress = new Uri(baseUrl));
+            client.BaseAddress = new Uri(baseUrl))
+            .AddBearerTokenRelay();
 
         return services;
     }

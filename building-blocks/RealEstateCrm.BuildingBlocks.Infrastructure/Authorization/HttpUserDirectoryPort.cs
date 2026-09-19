@@ -42,13 +42,13 @@ public sealed class HttpUserDirectoryPort(
 
         var authorization = httpContextAccessor.HttpContext?.Request.Headers.Authorization.ToString();
 
-        if (string.IsNullOrWhiteSpace(authorization) || !AuthenticationHeaderValue.TryParse(authorization, out var authHeader))
+        if (string.IsNullOrWhiteSpace(authorization) || !AuthenticationHeaderValue.TryParse(authorization, out _))
         {
             throw new InvalidOperationException("No hay un Bearer token en la request actual para resolver el usuario (GET /api/v1/users/me).");
         }
 
+        // El Bearer lo adjunta BearerTokenRelayHandler; acá solo se exige que exista.
         using var request = new HttpRequestMessage(HttpMethod.Get, "/api/v1/users/me");
-        request.Headers.Authorization = authHeader;
 
         using var response = await httpClient.SendAsync(request, cancellationToken);
 

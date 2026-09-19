@@ -303,10 +303,55 @@ Ver "UCs cubiertos". Query params de screens: `entityId` (partyId), `q`, `kind`,
 
 ## Follow-ups
 
-- **PR "fix" antes de Wave 3** (acordado): (1) mover `BearerTokenRelayHandler` a
+- ✅ **RESUELTO (ver "Fix post-PTY-001")** — **PR "fix" antes de Wave 3** (acordado): (1) mover `BearerTokenRelayHandler` a
   `BuildingBlocks.Infrastructure` y usarlo en `HttpCatalogReaderPort` (Hallazgo 1), y (2) aislar la
-  base Mongo en los tests de ACL/CAT con `UseSetting` (Hallazgo 2).
+  base Mongo en los tests de ACL/CAT con `UseSetting` (Hallazgo 2). Follow-ups 1 y 2: resueltos.
 - Publicar los códigos de rol en `contracts` para no hardcodear `"Administrador"`.
 - `scripts/run-slice.{sh,ps1}` (D10) y una corrida manual con los servicios reales levantados.
 - V2-ANA-001 compone la vista 360 sobre estos detalles; V2-PRP/DMD referencian `partyId`.
 - Tests del BFF si una wave los adopta.
+
+## Fix post-PTY-001
+
+PR de fix (no es una task nueva) que resuelve los follow-ups 1 y 2 y los Hallazgos 1 y 2.
+
+### Qué cambió
+
+**Fix 1 — Token relay (Hallazgo 1, follow-up 1)**
+- `BearerTokenRelayHandler` se movió de `PartyService.Api` a
+  `BuildingBlocks.Infrastructure` (`Infrastructure/Http`, namespace `...Infrastructure.Http`); la copia
+  local y su carpeta se borraron. Es el **único** mecanismo de relay: `HttpUserDirectoryPort` tenía uno
+  inline (leía `HttpContext` y armaba el header) y ahora delega en el handler; conserva solo el guard que
+  lanza `InvalidOperationException` si no hay Bearer en la request actual.
+- El handler agrega `Authorization` solo si hay un Bearer entrante; sin request en curso o sin header
+  **no lanza** y la llamada sale sin credenciales (el cliente de catálogos se puede usar fuera de un
+  request). No pisa un `Authorization` ya presente.
+- `AddCatalogHttpClient` y `AddUserDirectoryHttpClient` adjuntan el handler vía
+  `AddBearerTokenRelay()`, que registra el handler como transient y `AddHttpContextAccessor()`; el
+  `Program.cs` de cada servicio no tiene que acordarse de nada. En party-service se eliminó el
+  `AddHttpClient<ICatalogReaderPort, ...>` duplicado.
+- **`HttpAuthorizationPort` y `HttpResponsibleAssignmentValidationPort` no reenvían token a propósito
+  (D6):** los endpoints de access-service que consumen no llevan `[Authorize]`. Solo los endpoints con
+  JWT (`GET /api/v1/catalogs/...`, `GET /api/v1/users/me`) necesitan relay.
+- Sin cambios de firma en `ICatalogReaderPort` ni en DTOs de contracts.
+
+**Fix 2 — Aislamiento de Mongo (Hallazgo 2, follow-up 2)**
+- `CorrelationIdAndAuthorizationEndToEndTests` (access-service) y `CatalogsAuthorizationEndToEndTests`
+  (platform-config-service) ahora usan `UseSetting("Mongo:DatabaseName", <base con sufijo Guid>)`, el
+  mismo patrón que PTY-001 y `UsersMeEndpointTests`, y dropean su base al terminar.
+  `AddMongoPersistence` no se modificó.
+
+**Test flaky corregido en el camino (party-service)**
+- `Reassigning_the_responsible_is_published_end_to_end_...` fallaba (4 de 5 corridas) porque el listener
+  de RabbitMQ tomaba el `PartyResponsibleAssigned` de *otra* party (otros tests de la clase también
+  reasignan). Se agregó `match` por `ResourceId == contact.PartyId`, como ya hacía el test de
+  `PartyRegistered`. Solo cambia el test; sin cambios de código productivo.
+
+### Cómo se verificó
+- Tests nuevos/movidos en `BuildingBlocks.Infrastructure.Tests`: los 3 del handler (movidos desde
+  party-service) + uno sin request en curso; dos tests de `HttpCatalogReaderPort` registrado vía
+  `AddCatalogHttpClient` contra un servidor fake (el header `Authorization` llega; fuera de un request
+  no falla y no envía header). `HttpUserDirectoryPortTests` pasó a armar la cadena con el handler real.
+- `bash scripts/test-fast.sh` y `bash scripts/test-integration.sh`: dos corridas consecutivas de cada uno
+  en verde (fast: 292 tests; integration: 37 tests). La primera tanda de integration había fallado por
+  el test flaky de arriba; se corrigió y se repitió el ciclo completo.

@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using RealEstateCrm.BuildingBlocks.Infrastructure.Authorization;
+using RealEstateCrm.BuildingBlocks.Infrastructure.Http;
 using RealEstateCrm.Contracts.Authorization;
 using RealEstateCrm.Contracts.Errors;
 using RealEstateCrm.Contracts.Serialization;
@@ -50,10 +51,14 @@ public class HttpUserDirectoryPortTests
             httpContext.Request.Headers.Authorization = authorizationHeader;
         }
 
+        var accessor = new HttpContextAccessor { HttpContext = httpContext };
+        // Misma cadena que AddUserDirectoryHttpClient: el relay adjunta el Bearer, el port solo lo exige.
+        var relay = new BearerTokenRelayHandler(accessor) { InnerHandler = handler };
+
         return new HttpUserDirectoryPort(
-            new HttpClient(handler) { BaseAddress = new Uri("http://access-service.local") },
+            new HttpClient(relay) { BaseAddress = new Uri("http://access-service.local") },
             new MemoryCache(new MemoryCacheOptions()),
-            new HttpContextAccessor { HttpContext = httpContext },
+            accessor,
             Options.Create(new AuthorizationClientOptions { CacheDuration = cacheDuration ?? TimeSpan.FromMinutes(1) }));
     }
 

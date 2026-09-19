@@ -1,12 +1,13 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using RealEstateCrm.BuildingBlocks.Catalogs;
+using RealEstateCrm.BuildingBlocks.Infrastructure.Http;
 
 namespace RealEstateCrm.BuildingBlocks.Infrastructure.Catalogs;
 
 /// <summary>
 /// Registro del cliente HTTP interno hacia <c>platform-config-service</c>: <see cref="HttpCatalogReaderPort"/>
-/// con <c>IMemoryCache</c> corta (D7/D2). Lo usan los servicios owner que consumen catálogos por
+/// con <c>IMemoryCache</c> corta (D7/D2) y relay del Bearer entrante (D6, <c>GET /api/v1/catalogs</c> exige JWT). Lo usan los servicios owner que consumen catálogos por
 /// HTTP (ej. <c>party-service</c>, V2-PTY-001); <c>platform-config-service</c> mismo no lo
 /// registra (ver <see cref="HttpCatalogReaderPort"/>).
 /// </summary>
@@ -24,7 +25,8 @@ public static class CatalogClientServiceCollectionExtensions
             ?? throw new InvalidOperationException($"Falta configuración '{configurationSectionName}:BaseUrl' (URL de platform-config-service).");
 
         services.AddHttpClient<ICatalogReaderPort, HttpCatalogReaderPort>(client =>
-            client.BaseAddress = new Uri(baseUrl));
+            client.BaseAddress = new Uri(baseUrl))
+            .AddBearerTokenRelay();
 
         return services;
     }
