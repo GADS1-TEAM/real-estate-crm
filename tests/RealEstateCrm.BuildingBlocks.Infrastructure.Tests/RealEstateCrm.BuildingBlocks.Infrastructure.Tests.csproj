@@ -28,6 +28,7 @@
     <ProjectReference Include="..\..\contracts\RealEstateCrm.Contracts\RealEstateCrm.Contracts.csproj" />
     <ProjectReference Include="..\..\building-blocks\RealEstateCrm.BuildingBlocks\RealEstateCrm.BuildingBlocks.csproj" />
     <ProjectReference Include="..\..\building-blocks\RealEstateCrm.BuildingBlocks.Infrastructure\RealEstateCrm.BuildingBlocks.Infrastructure.csproj" />
+    <ProjectReference Include="..\RealEstateCrm.TestSupport\RealEstateCrm.TestSupport.csproj" />
   </ItemGroup>
 
 </Project>

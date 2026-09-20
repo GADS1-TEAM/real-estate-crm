@@ -84,9 +84,17 @@ builder.Services.AddCrmHealthChecks()
     .AddMongoReadinessCheck()
     .AddRabbitMqReadinessCheck();
 
-builder.Services.AddCrmObservability("party-service");
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
+app.UseSwagger();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Party API v1");
+    c.RoutePrefix = "swagger";
+});
 
 app.UseExceptionHandler();
 app.UseCrmCorrelationId();

@@ -2,6 +2,8 @@ using OperationsBff.Api.AccessService;
 using OperationsBff.Api.ErrorHandling;
 using OperationsBff.Api.PartyService;
 using OperationsBff.Api.PlatformConfigService;
+using OperationsBff.Api.PropertyService;
+using OperationsBff.Api.SupplyService;
 using RealEstateCrm.BuildingBlocks.Infrastructure.Authentication;
 using RealEstateCrm.BuildingBlocks.Infrastructure.HealthChecks;
 using RealEstateCrm.BuildingBlocks.Infrastructure.Observability;
@@ -49,10 +51,26 @@ var partyServiceBaseUrl = builder.Configuration["PartyService:BaseUrl"]
 
 builder.Services.AddHttpClient<PartyServiceClient>(client => client.BaseAddress = new Uri(partyServiceBaseUrl));
 
+var propertyServiceBaseUrl = builder.Configuration["PropertyService:BaseUrl"]
+    ?? throw new InvalidOperationException("Falta configuracion property");
+builder.Services.AddHttpClient<PropertyServiceClient>(client => client.BaseAddress = new Uri(propertyServiceBaseUrl));
+
+var supplyServiceBaseUrl = builder.Configuration["SupplyService:BaseUrl"]
+    ?? throw new InvalidOperationException("Falta configuracion supply");
+builder.Services.AddHttpClient<SupplyServiceClient>(client => client.BaseAddress = new Uri(supplyServiceBaseUrl));
+
 builder.Services.AddCrmHealthChecks();
-builder.Services.AddCrmObservability("operations-bff");
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
+app.UseSwagger();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Operations BFF API v1");
+    c.RoutePrefix = "swagger";
+});
 
 app.UseExceptionHandler();
 app.UseCrmCorrelationId();

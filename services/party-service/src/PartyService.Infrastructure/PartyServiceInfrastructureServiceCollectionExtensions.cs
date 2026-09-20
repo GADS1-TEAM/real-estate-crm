@@ -19,6 +19,7 @@ public static class PartyServiceInfrastructureServiceCollectionExtensions
         services.AddScoped<PartyManagementService>();
 
         services.AddHostedService<PartyServiceIndexInitializer>();
+        services.AddHostedService<PartyService.Infrastructure.Seeding.PartyDevSeedHostedService>();
 
         return services;
     }

@@ -2,6 +2,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DemandService.Domain\DemandService.Domain.csproj" />
+    <ProjectReference Include="..\..\..\..\contracts\RealEstateCrm.Contracts\RealEstateCrm.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\..\building-blocks\RealEstateCrm.BuildingBlocks\RealEstateCrm.BuildingBlocks.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

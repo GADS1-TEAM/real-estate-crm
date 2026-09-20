@@ -14,4 +14,9 @@ public static class ResourceTypes
     public const string User = "user";
     public const string Catalog = "catalog";
     public const string Party = "party";
+    public const string Property = "property";
+    public const string Listing = "listing";
+    public const string Requirement = "requirement";
+    public const string Captation = "captation";
+    public const string Match = "match";
 }

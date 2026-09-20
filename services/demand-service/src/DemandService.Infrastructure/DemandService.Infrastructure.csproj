@@ -1,8 +1,15 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\DemandService.Domain\DemandService.Domain.csproj" />
     <ProjectReference Include="..\DemandService.Application\DemandService.Application.csproj" />
+    <ProjectReference Include="..\..\..\..\building-blocks\RealEstateCrm.BuildingBlocks\RealEstateCrm.BuildingBlocks.csproj" />
+    <ProjectReference Include="..\..\..\..\building-blocks\RealEstateCrm.BuildingBlocks.Infrastructure\RealEstateCrm.BuildingBlocks.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\contracts\RealEstateCrm.Contracts\RealEstateCrm.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MongoDB.Driver" Version="3.11.2" />
   </ItemGroup>
 
   <PropertyGroup>

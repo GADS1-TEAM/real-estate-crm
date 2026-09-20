@@ -47,4 +47,21 @@ public class PermissionMatrixTests
             Assert.True(PermissionMatrix.RoleHasPermission(role, Permissions.CatalogsRead));
         }
     }
+
+    [Fact]
+    public void All_three_roles_have_expected_wave3_permissions()
+    {
+        foreach (var role in RoleCodes.All)
+        {
+            Assert.True(PermissionMatrix.RoleHasPermission(role, Permissions.PropertiesRead));
+            Assert.True(PermissionMatrix.RoleHasPermission(role, Permissions.PropertiesWrite));
+            Assert.True(PermissionMatrix.RoleHasPermission(role, Permissions.ListingsRead));
+            Assert.True(PermissionMatrix.RoleHasPermission(role, Permissions.ListingsWrite));
+            Assert.True(PermissionMatrix.RoleHasPermission(role, Permissions.RequirementsRead));
+            Assert.True(PermissionMatrix.RoleHasPermission(role, Permissions.RequirementsWrite));
+            Assert.True(PermissionMatrix.RoleHasPermission(role, Permissions.CaptationsRead));
+            Assert.True(PermissionMatrix.RoleHasPermission(role, Permissions.CaptationsWrite));
+            Assert.True(PermissionMatrix.RoleHasPermission(role, Permissions.MatchesRead));
+        }
+    }
 }

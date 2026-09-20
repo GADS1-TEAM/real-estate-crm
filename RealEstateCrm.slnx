@@ -71,6 +71,9 @@
     <Project Path="services/matching-service/src/MatchingService.Domain/MatchingService.Domain.csproj" />
     <Project Path="services/matching-service/src/MatchingService.Infrastructure/MatchingService.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/services/matching-service/tests/">
+    <Project Path="services/matching-service/tests/MatchingService.Application.Tests/MatchingService.Application.Tests.csproj" />
+  </Folder>
   <Folder Name="/services/party-service/" />
   <Folder Name="/services/party-service/src/">
     <Project Path="services/party-service/src/PartyService.Api/PartyService.Api.csproj" />

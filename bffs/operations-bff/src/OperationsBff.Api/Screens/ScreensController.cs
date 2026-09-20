@@ -4,6 +4,8 @@ using OperationsBff.Api.AccessService;
 using OperationsBff.Api.PartyService;
 using OperationsBff.Api.PlatformConfigService;
 using RealEstateCrm.Contracts.Catalogs;
+using OperationsBff.Api.PropertyService;
+using OperationsBff.Api.SupplyService;
 
 namespace OperationsBff.Api.Screens;
 
@@ -28,7 +30,9 @@ namespace OperationsBff.Api.Screens;
 public sealed class ScreensController(
     AccessServiceClient accessServiceClient,
     PlatformConfigServiceClient platformConfigServiceClient,
-    PartyServiceClient partyServiceClient) : ControllerBase
+    PartyServiceClient partyServiceClient,
+    PropertyServiceClient propertyServiceClient,
+    SupplyServiceClient supplyServiceClient) : ControllerBase
 {
     private static readonly IReadOnlyDictionary<string, string> CatalogScreenTypes = new Dictionary<string, string>
     {
@@ -92,6 +96,42 @@ public sealed class ScreensController(
             };
 
             var response = await partyServiceClient.GetAsync(path, cancellationToken);
+            return await ProxyResults.FromAsync(response, cancellationToken);
+        }
+
+        if (screenId is "PRP-01" or "PRP-10")
+        {
+            var effectivePage = page <= 0 ? 1 : page;
+            var effectivePageSize = pageSize <= 0 ? 20 : pageSize;
+            var query = $"page={effectivePage}&pageSize={effectivePageSize}";
+            if (!string.IsNullOrEmpty(q)) query += $"&q={Uri.EscapeDataString(q)}";
+            
+            var response = await propertyServiceClient.GetAsync($"/api/v1/properties?{query}", cancellationToken);
+            return await ProxyResults.FromAsync(response, cancellationToken);
+        }
+        
+        if (screenId is "PRP-03" or "PRP-04" or "PRP-05" or "PRP-06" or "PRP-13")
+        {
+            if (entityId is null) return BadRequest($"La screen {screenId} requiere ?entityId=.");
+            var response = await propertyServiceClient.GetAsync($"/api/v1/properties/{entityId}", cancellationToken);
+            return await ProxyResults.FromAsync(response, cancellationToken);
+        }
+
+        if (screenId is "LST-01" or "LST-09")
+        {
+            var effectivePage = page <= 0 ? 1 : page;
+            var effectivePageSize = pageSize <= 0 ? 20 : pageSize;
+            var query = $"page={effectivePage}&pageSize={effectivePageSize}";
+            if (!string.IsNullOrEmpty(q)) query += $"&q={Uri.EscapeDataString(q)}";
+            
+            var response = await supplyServiceClient.GetAsync($"/api/v1/listings?{query}", cancellationToken);
+            return await ProxyResults.FromAsync(response, cancellationToken);
+        }
+
+        if (screenId is "LST-02" or "LST-04" or "LST-05" or "LST-07")
+        {
+            if (entityId is null) return BadRequest($"La screen {screenId} requiere ?entityId=.");
+            var response = await supplyServiceClient.GetAsync($"/api/v1/listings/{entityId}", cancellationToken);
             return await ProxyResults.FromAsync(response, cancellationToken);
         }
 

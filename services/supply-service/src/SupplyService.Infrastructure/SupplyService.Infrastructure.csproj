@@ -3,6 +3,11 @@
   <ItemGroup>
     <ProjectReference Include="..\SupplyService.Domain\SupplyService.Domain.csproj" />
     <ProjectReference Include="..\SupplyService.Application\SupplyService.Application.csproj" />
+    <ProjectReference Include="..\..\..\..\building-blocks\RealEstateCrm.BuildingBlocks.Infrastructure\RealEstateCrm.BuildingBlocks.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MongoDB.Driver" Version="3.11.2" />
   </ItemGroup>
 
   <PropertyGroup>

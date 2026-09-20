@@ -16,9 +16,9 @@ Definition of Done y adjuntar evidencia.
 | 6 | [V2-ACL-001](wave-2-access-catalogs/V2-ACL-001-usuarios-roles-permisos-y-asignacion.md) | DONE | FND-002 | Usuarios, roles, permisos y responsables |
 | 7 | [V2-CAT-001](wave-2-access-catalogs/V2-CAT-001-catalogos-comerciales.md) | DONE | FND-002 | Catálogos comerciales versionados |
 | 8 | [V2-PTY-001](wave-2-access-catalogs/V2-PTY-001-party-empresa-contacto-y-estados.md) | DONE | ACL-001, CAT-001 | Empresa, contacto, relación y estados Party |
-| 9 | [V2-PRP-001](wave-3-real-estate-core/V2-PRP-001-property-listing-y-productos.md) | TODO | PTY-001, CAT-001 | Property, interés, Listing y producto inmobiliario |
-| 10 | [V2-DMD-001](wave-3-real-estate-core/V2-DMD-001-requirement-captation-y-valuation.md) | TODO | PTY-001, PRP-001 | Demanda, captación, valuación y mandato mínimo |
-| 11 | [V2-MAT-001](wave-3-real-estate-core/V2-MAT-001-matching-y-seleccion.md) | TODO | DMD-001, PRP-001 | Matching explicable Requirement-Listing |
+| 9 | [V2-PRP-001](wave-3-real-estate-core/V2-PRP-001-property-listing-y-productos.md) | DONE | PTY-001, CAT-001 | Property, interés, Listing y producto inmobiliario |
+| 10 | [V2-DMD-001](wave-3-real-estate-core/V2-DMD-001-requirement-captation-y-valuation.md) | DONE | PTY-001, PRP-001 | Demanda, captación, valuación y mandato mínimo |
+| 11 | [V2-MAT-001](wave-3-real-estate-core/V2-MAT-001-matching-y-seleccion.md) | DONE | DMD-001, PRP-001 | Matching explicable Requirement-Listing |
 | 12 | [V2-PIPE-001](wave-4-commercial-progression/V2-PIPE-001-oportunidades-como-proyeccion-y-embudo.md) | TODO | CAT-001, DMD-001, MAT-001 | Fachada de oportunidad y embudo configurable |
 | 13 | [V2-COM-001](wave-4-commercial-progression/V2-COM-001-visita-negociacion-reserva-y-cierre.md) | TODO | PIPE-001 | Visita ocurrida, negociación, reserva y cierre |
 | 14 | [V2-ACT-001](wave-5-history-analytics/V2-ACT-001-actividades-e-historial.md) | TODO | PTY-001, PIPE-001, COM-001 | Actividades manuales y timeline |

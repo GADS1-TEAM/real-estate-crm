@@ -88,9 +88,17 @@ builder.Services.AddCrmHealthChecks()
     .AddMongoReadinessCheck()
     .AddRabbitMqReadinessCheck();
 
-builder.Services.AddCrmObservability("platform-config-service");
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
+app.UseSwagger();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Platform Config API v1");
+    c.RoutePrefix = "swagger";
+});
 
 app.UseExceptionHandler();
 app.UseCrmCorrelationId();

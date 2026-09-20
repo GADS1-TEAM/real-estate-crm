@@ -207,3 +207,8 @@ bash apps/scripts/build-webs.sh
 - Un servicio no referencia proyectos de otro servicio (verificado por el
   test de arquitectura).
 - Sin `tenantId` ni `organizationId` en ningún proyecto de este esqueleto.
+
+## Wave 3 Features
+- **New Permissions & Resource Types**: Added permissions for Properties, Listings, Requirements, Captations, and Matches. These are granted to all roles for read access.
+- **Party Dev Seeds**: Development seed creates 3 parties (1 natural person owner, 1 legal entity owner, 1 seeker) to test with.
+- **run-slice scripts**: Use `scripts/run-slice.sh` or `scripts/run-slice.ps1` to easily start all implemented services and the Operations BFF locally with `dotnet run`.

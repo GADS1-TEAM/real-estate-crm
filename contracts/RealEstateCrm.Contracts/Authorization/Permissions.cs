@@ -35,4 +35,14 @@ public static class Permissions
 
     /// <summary>Asignar o reasignar el responsable comercial de una party.</summary>
     public const string PartiesAssignResponsible = "parties.assign_responsible";
+
+    public const string PropertiesRead = "properties.read";
+    public const string PropertiesWrite = "properties.write";
+    public const string ListingsRead = "listings.read";
+    public const string ListingsWrite = "listings.write";
+    public const string RequirementsRead = "requirements.read";
+    public const string RequirementsWrite = "requirements.write";
+    public const string CaptationsRead = "captations.read";
+    public const string CaptationsWrite = "captations.write";
+    public const string MatchesRead = "matches.read";
 }

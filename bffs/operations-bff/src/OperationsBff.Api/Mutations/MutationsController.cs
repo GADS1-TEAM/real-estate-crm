@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 using OperationsBff.Api.AccessService;
 using OperationsBff.Api.PartyService;
 using OperationsBff.Api.PlatformConfigService;
+using OperationsBff.Api.PropertyService;
+using OperationsBff.Api.SupplyService;
 
 namespace OperationsBff.Api.Mutations;
 
@@ -23,7 +25,9 @@ namespace OperationsBff.Api.Mutations;
 public sealed class MutationsController(
     AccessServiceClient accessServiceClient,
     PlatformConfigServiceClient platformConfigServiceClient,
-    PartyServiceClient partyServiceClient) : ControllerBase
+    PartyServiceClient partyServiceClient,
+    PropertyServiceClient propertyServiceClient,
+    SupplyServiceClient supplyServiceClient) : ControllerBase
 {
     [HttpPost("{name}")]
     public async Task<IActionResult> SaveMutation(string name, [FromBody] JsonElement payload, CancellationToken cancellationToken)
@@ -145,6 +149,44 @@ public sealed class MutationsController(
                 }
 
                 response = await partyServiceClient.PostAsync($"/api/v1/parties/{responsiblePartyId}/responsible", payload, cancellationToken);
+                break;
+                
+            case "createProperty":
+                response = await propertyServiceClient.PostAsync("/api/v1/properties", payload, cancellationToken);
+                break;
+
+            case "updateProperty":
+                if (!TryGetString(payload, "propertyId", out var updatePropertyId)) return BadRequest("Requiere 'propertyId'.");
+                response = await propertyServiceClient.PutAsync($"/api/v1/properties/{updatePropertyId}", payload, cancellationToken);
+                break;
+
+            case "addPropertyInterest":
+                if (!TryGetString(payload, "propertyId", out var interestPropertyId)) return BadRequest("Requiere 'propertyId'.");
+                response = await propertyServiceClient.PostAsync($"/api/v1/properties/{interestPropertyId}/interests", payload, cancellationToken);
+                break;
+
+            case "createListing":
+                response = await supplyServiceClient.PostAsync("/api/v1/listings", payload, cancellationToken);
+                break;
+
+            case "updateListing":
+                if (!TryGetString(payload, "listingId", out var updateListingId)) return BadRequest("Requiere 'listingId'.");
+                response = await supplyServiceClient.PutAsync($"/api/v1/listings/{updateListingId}", payload, cancellationToken);
+                break;
+
+            case "activateListing":
+                if (!TryGetString(payload, "listingId", out var activateListingId)) return BadRequest("Requiere 'listingId'.");
+                response = await supplyServiceClient.PostAsync($"/api/v1/listings/{activateListingId}/activate", payload, cancellationToken);
+                break;
+
+            case "pauseListing":
+                if (!TryGetString(payload, "listingId", out var pauseListingId)) return BadRequest("Requiere 'listingId'.");
+                response = await supplyServiceClient.PostAsync($"/api/v1/listings/{pauseListingId}/pause", payload, cancellationToken);
+                break;
+
+            case "closeListing":
+                if (!TryGetString(payload, "listingId", out var closeListingId)) return BadRequest("Requiere 'listingId'.");
+                response = await supplyServiceClient.PostAsync($"/api/v1/listings/{closeListingId}/close", payload, cancellationToken);
                 break;
 
             default:
