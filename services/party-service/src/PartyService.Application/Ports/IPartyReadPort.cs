@@ -17,7 +17,7 @@ public sealed record PartySearchCriteria(
 /// </summary>
 public interface IPartyReadPort
 {
-    Task<PageV1<Party>> SearchAsync(PartySearchCriteria criteria, int page, int pageSize, CancellationToken cancellationToken = default);
+    Task<PagedResult<Party>> SearchAsync(PartySearchCriteria criteria, int page, int pageSize, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<Party>> GetManyAsync(IReadOnlyCollection<Guid> partyIds, CancellationToken cancellationToken = default);
 

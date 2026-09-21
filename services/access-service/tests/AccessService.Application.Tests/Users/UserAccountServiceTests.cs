@@ -185,7 +185,7 @@ public class UserAccountServiceTests
 
         var page = await harness.Service.GetUsersAsync(page: 1, pageSize: 2);
 
-        Assert.Equal(3, page.TotalCount); // admin + beta + alfa
+        Assert.Equal(3, page.Total); // admin + beta + alfa
         Assert.Equal("Admin", page.Items[0].DisplayName);
         Assert.Equal("Alfa", page.Items[1].DisplayName);
     }

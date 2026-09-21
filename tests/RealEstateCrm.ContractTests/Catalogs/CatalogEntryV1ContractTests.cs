@@ -42,7 +42,7 @@ public class CatalogEntryV1ContractTests
 
         // No Assert.Equal(result, roundTripped): CatalogQueryResultV1.Entries es
         // IReadOnlyList<T>, y el Equals generado para records compara esa propiedad por
-        // referencia (mismo motivo por el que PageV1ContractTests tampoco lo hace).
+        // referencia (mismo motivo por el que PagedResultContractTests tampoco lo hace).
         Assert.Equal(3, roundTripped!.CatalogVersion);
         Assert.Equal(singleEntry, Assert.Single(roundTripped.Entries));
         Assert.Contains("\"catalogVersion\":3", json, StringComparison.Ordinal);

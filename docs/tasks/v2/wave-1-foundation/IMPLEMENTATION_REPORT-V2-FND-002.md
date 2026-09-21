@@ -2,7 +2,7 @@
 
 ## UCs cubiertos
 
-- **CONT-001** — `ProblemDetailsV1`, `PageV1<T>` y `ErrorCodes` (5 códigos genéricos) en `contracts/RealEstateCrm.Contracts`. Serialización camelCase fija (`RealEstateCrmJsonDefaults`). Contract tests verifican forma y versionado.
+- **CONT-001** — `ProblemDetailsV1`, `PagedResult<T>` y `ErrorCodes` (5 códigos genéricos) en `contracts/RealEstateCrm.Contracts`. Serialización camelCase fija (`RealEstateCrmJsonDefaults`). Contract tests verifican forma y versionado.
 - **CONT-002** — `ExecutionContextV1` (actorId, displayName, email, roles, permissions, correlationId, causationId — **sin tenant**) y `EventEnvelopeV1<TPayload>` (eventId, name, version, occurredAt, actorId, correlationId, causationId, aggregateId, payload). Contract test de ejemplo validado con JSON congelado.
 - **AUTH-001** — `AddKeycloakOpenIdConnectCookieAuthentication` (cookie HttpOnly + OIDC code flow contra Keycloak) y `AddKeycloakJwtBearerAuthentication` (valida el JWT emitido por Keycloak). Happy/error path probado con `TestServer` + JWT firmado localmente (sin Keycloak real). El caso con Keycloak real corriendo queda como test separado y marcado (ver Decisiones del equipo).
 - **AUTH-002** — `ClaimsPrincipalAuthenticationPort` resuelve `AuthenticatedUser` (userId, displayName, email, roles) desde los claims del JWT ya validado, sin ningún concepto de tenant. `FakeAuthenticationPort` (en `tests/RealEstateCrm.TestSupport`, no en `building-blocks`: es un test double, no un puerto de producción) para unit tests de los servicios.
@@ -13,11 +13,11 @@
 
 Creados (write zone declarada: `contracts/`, `building-blocks/`, adapters de autenticación/persistencia/mensajería, tests contractuales):
 
-- `contracts/RealEstateCrm.Contracts/{Context,Errors,Events,Paging,Serialization}/*.cs` (6 archivos): `ExecutionContextV1`, `ProblemDetailsV1`, `ErrorCodes`, `EventEnvelopeV1<TPayload>`, `PageV1<TItem>`, `RealEstateCrmJsonDefaults`.
+- `contracts/RealEstateCrm.Contracts/{Context,Errors,Events,Paging,Serialization}/*.cs` (6 archivos): `ExecutionContextV1`, `ProblemDetailsV1`, `ErrorCodes`, `EventEnvelopeV1<TPayload>`, `PagedResult<TItem>`, `RealEstateCrmJsonDefaults`.
 - `building-blocks/RealEstateCrm.BuildingBlocks/{Authentication,Messaging,Persistence}/*.cs` (8 archivos): puertos `IAuthenticationPort`, `IRepository<TAggregate,TId>`, `IUnitOfWork`, `IOutbox`, `IInbox`, `IEventPublisher`, `IEventConsumer<TPayload>`; `AuthenticatedUser`, `OutboxMessage`. Sin ningún test double: `FakeAuthenticationPort` vive en `tests/RealEstateCrm.TestSupport`.
 - `building-blocks/RealEstateCrm.BuildingBlocks.Infrastructure/` (**proyecto nuevo**, decisión del equipo — ver abajo): `RealEstateCrm.BuildingBlocks.Infrastructure.csproj` + 17 archivos `.cs` en `Authentication/`, `Persistence/Mongo/`, `Messaging/{Mongo,RabbitMq}/`.
 - `tests/RealEstateCrm.TestSupport/` (**proyecto nuevo**, class library sin dependencias de test framework): `RealEstateCrm.TestSupport.csproj` + `Authentication/FakeAuthenticationPort.cs`. Solo lo referencian proyectos de test (`RealEstateCrm.ContractTests` hoy); ningún `*.Application`/`*.Infrastructure` de `services/` ni `bffs/` puede llegar a él.
-- `tests/RealEstateCrm.ContractTests/` (**proyecto nuevo**): 8 archivos de test (contratos de `ProblemDetailsV1`, `PageV1<T>`, `ExecutionContextV1`, `EventEnvelopeV1<T>`, `OutboxMessage`, `FakeAuthenticationPort`, guardrail anti-tenant).
+- `tests/RealEstateCrm.ContractTests/` (**proyecto nuevo**): 8 archivos de test (contratos de `ProblemDetailsV1`, `PagedResult<T>`, `ExecutionContextV1`, `EventEnvelopeV1<T>`, `OutboxMessage`, `FakeAuthenticationPort`, guardrail anti-tenant).
 - `tests/RealEstateCrm.BuildingBlocks.Infrastructure.Tests/` (**proyecto nuevo**): 6 archivos de test (pipeline JWT, extracción de roles, idempotencia de Inbox, transacción de Outbox, publish/consume RabbitMQ, test de Keycloak real marcado).
 - `RealEstateCrm.slnx`: entradas para los 4 proyectos nuevos.
 - `building-blocks/RealEstateCrm.BuildingBlocks/RealEstateCrm.BuildingBlocks.csproj`: agregada `ProjectReference` a `contracts`.

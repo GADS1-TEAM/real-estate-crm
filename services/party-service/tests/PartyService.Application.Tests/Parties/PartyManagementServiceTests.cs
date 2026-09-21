@@ -613,13 +613,13 @@ public class PartyManagementServiceTests
 
         Assert.Single((await h.Service.SearchAsync(new PartySearchCriteria("4444", null, null, null), 1, 20)).Items);
         Assert.Single((await h.Service.SearchAsync(new PartySearchCriteria("30-12345678", null, null, null), 1, 20)).Items);
-        Assert.Equal(2, (await h.Service.SearchAsync(new PartySearchCriteria(null, PartyKind.NaturalPerson, null, null), 1, 20)).TotalCount);
+        Assert.Equal(2, (await h.Service.SearchAsync(new PartySearchCriteria(null, PartyKind.NaturalPerson, null, null), 1, 20)).Total);
         Assert.Equal("Ana Suárez", Assert.Single((await h.Service.SearchAsync(new PartySearchCriteria(null, null, CommercialStatus.DoNotContact, null), 1, 20)).Items).DisplayName);
-        Assert.Equal(2, (await h.Service.SearchAsync(new PartySearchCriteria(null, null, null, h.Vendedor.UserId), 1, 20)).TotalCount);
+        Assert.Equal(2, (await h.Service.SearchAsync(new PartySearchCriteria(null, null, null, h.Vendedor.UserId), 1, 20)).Total);
 
         var firstPage = await h.Service.SearchAsync(new PartySearchCriteria(null, null, null, null), 1, 2);
         Assert.Equal(2, firstPage.Items.Count);
-        Assert.Equal(3, firstPage.TotalCount);
+        Assert.Equal(3, firstPage.Total);
     }
 
     [Fact]

@@ -3,6 +3,11 @@
   <ItemGroup>
     <ProjectReference Include="..\AnalyticsService.Domain\AnalyticsService.Domain.csproj" />
     <ProjectReference Include="..\AnalyticsService.Application\AnalyticsService.Application.csproj" />
+    <ProjectReference Include="..\..\..\..\contracts\RealEstateCrm.Contracts\RealEstateCrm.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MassTransit" Version="9.2.2" />
   </ItemGroup>
 
   <PropertyGroup>

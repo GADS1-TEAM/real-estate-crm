@@ -56,11 +56,15 @@ public class EventConsumerTests
 
         var sp = services.BuildServiceProvider();
         
+        TestEventConsumer.Received.Clear();
+
         var hostedServices = sp.GetServices<IHostedService>();
         foreach(var hs in hostedServices)
         {
             await hs.StartAsync(CancellationToken.None);
         }
+
+        await Task.Delay(500);
 
         var provider = sp.GetRequiredService<RabbitMqConnectionProvider>();
         var publisher = new RabbitMqEventPublisher(provider, Options.Create(options));

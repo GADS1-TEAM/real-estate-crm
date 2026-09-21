@@ -1,39 +1,26 @@
 #!/bin/bash
-# Runs all implemented services + BFF using dotnet run
+export ASPNETCORE_ENVIRONMENT=Development
 
-set -e
+# Base services
+dotnet run --project services/access-service/src/AccessService.Api/AccessService.Api.csproj --urls "http://localhost:5190" &
+dotnet run --project services/party-service/src/PartyService.Api/PartyService.Api.csproj --urls "http://localhost:5155" &
+dotnet run --project services/platform-config-service/src/PlatformConfigService.Api/PlatformConfigService.Api.csproj --urls "http://localhost:5246" &
 
-# Define services to run
-SERVICES=(
-    "services/access-service/src/AccessService.Api"
-    "services/party-service/src/PartyService.Api"
-    "services/platform-config-service/src/PlatformConfigService.Api"
-    "services/property-service/src/PropertyService.Api"
-    "services/supply-service/src/SupplyService.Api"
-    "services/demand-service/src/DemandService.Api"
-    "services/matching-service/src/MatchingService.Api"
-    "bffs/operations-bff/src/OperationsBff.Api"
-)
+# Real estate core
+dotnet run --project services/property-service/src/PropertyService.Api/PropertyService.Api.csproj --urls "http://localhost:5117" &
+dotnet run --project services/supply-service/src/SupplyService.Api/SupplyService.Api.csproj --urls "http://localhost:5069" &
+dotnet run --project services/demand-service/src/DemandService.Api/DemandService.Api.csproj --urls "http://localhost:5220" &
+dotnet run --project services/matching-service/src/MatchingService.Api/MatchingService.Api.csproj --urls "http://localhost:5290" &
 
-# Start each service in the background
-PIDS=()
-for service in "${SERVICES[@]}"; do
-    echo "Starting $service..."
-    (cd "$service" && dotnet run) &
-    PIDS+=($!)
-done
+# Operations
+dotnet run --project services/commercial-service/src/CommercialService.Api/CommercialService.Api.csproj --urls "http://localhost:5260" &
+dotnet run --project services/activity-service/src/ActivityService.Api/ActivityService.Api.csproj --urls "http://localhost:5270" &
 
-# Function to stop all background processes
-cleanup() {
-    echo "Stopping all services..."
-    for pid in "${PIDS[@]}"; do
-        kill $pid 2>/dev/null || true
-    done
-    exit 0
-}
+# Cross-cutting
+dotnet run --project services/analytics-service/src/AnalyticsService.Api/AnalyticsService.Api.csproj --urls "http://localhost:5280" &
+dotnet run --project services/automation-ai-service/src/AutomationAiService.Api/AutomationAiService.Api.csproj --urls "http://localhost:5295" &
 
-# Register the cleanup function for SIGINT and SIGTERM
-trap cleanup SIGINT SIGTERM
+# BFF
+dotnet run --project bffs/operations-bff/src/OperationsBff.Api/OperationsBff.Api.csproj --urls "http://localhost:5137" &
 
-echo "All services started. Press Ctrl+C to stop."
 wait

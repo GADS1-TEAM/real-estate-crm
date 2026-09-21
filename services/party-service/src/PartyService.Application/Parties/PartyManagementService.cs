@@ -218,7 +218,7 @@ public sealed class PartyManagementService(
     // ---------- Queries ----------
 
     /// <summary>SearchParties (paginado). Orden estable por nombre.</summary>
-    public async Task<PageV1<PartySummaryV1>> SearchAsync(
+    public async Task<PagedResult<PartySummaryV1>> SearchAsync(
         PartySearchCriteria criteria,
         int page,
         int pageSize,
@@ -226,7 +226,7 @@ public sealed class PartyManagementService(
     {
         var result = await partyReads.SearchAsync(criteria, Math.Max(page, 1), Math.Clamp(pageSize, 1, 100), cancellationToken);
 
-        return new PageV1<PartySummaryV1>(result.Items.Select(ToSummary).ToList(), result.Page, result.PageSize, result.TotalCount);
+        return new PagedResult<PartySummaryV1>(result.Items.Select(ToSummary).ToList(), result.Page, result.PageSize, result.Total, result.HasNext);
     }
 
     /// <summary>Detalle de cualquier Party (Empresa o Contacto), para paneles que no saben el tipo de antemano.</summary>

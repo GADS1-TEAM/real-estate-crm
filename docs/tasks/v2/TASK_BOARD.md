@@ -19,12 +19,12 @@ Definition of Done y adjuntar evidencia.
 | 9 | [V2-PRP-001](wave-3-real-estate-core/V2-PRP-001-property-listing-y-productos.md) | DONE | PTY-001, CAT-001 | Property, interés, Listing y producto inmobiliario |
 | 10 | [V2-DMD-001](wave-3-real-estate-core/V2-DMD-001-requirement-captation-y-valuation.md) | DONE | PTY-001, PRP-001 | Demanda, captación, valuación y mandato mínimo |
 | 11 | [V2-MAT-001](wave-3-real-estate-core/V2-MAT-001-matching-y-seleccion.md) | DONE | DMD-001, PRP-001 | Matching explicable Requirement-Listing |
-| 12 | [V2-PIPE-001](wave-4-commercial-progression/V2-PIPE-001-oportunidades-como-proyeccion-y-embudo.md) | TODO | CAT-001, DMD-001, MAT-001 | Fachada de oportunidad y embudo configurable |
-| 13 | [V2-COM-001](wave-4-commercial-progression/V2-COM-001-visita-negociacion-reserva-y-cierre.md) | TODO | PIPE-001 | Visita ocurrida, negociación, reserva y cierre |
-| 14 | [V2-ACT-001](wave-5-history-analytics/V2-ACT-001-actividades-e-historial.md) | TODO | PTY-001, PIPE-001, COM-001 | Actividades manuales y timeline |
-| 15 | [V2-ANA-001](wave-5-history-analytics/V2-ANA-001-metricas-y-estadisticas.md) | TODO | PIPE-001, COM-001, ACT-001 | Métricas, estadísticas y dashboard |
-| 16 | [V2-AI-001](wave-6-ai-release/V2-AI-001-asistente-ia-con-revision-humana.md) | TODO | ANA-001, ACT-001, UX-001 | IA útil, autorizada y revisable |
-| 17 | [V2-REL-001](wave-6-ai-release/V2-REL-001-busqueda-paginacion-y-entrega-final.md) | TODO | todas las anteriores aplicables | Regresión, aceptación y entrega final |
+| 12 | [V2-PIPE-001](wave-4-commercial-progression/V2-PIPE-001-oportunidades-como-proyeccion-y-embudo.md) | DONE | CAT-001, DMD-001, MAT-001 | Fachada de oportunidad y embudo configurable |
+| 13 | [V2-COM-001](wave-4-commercial-progression/V2-COM-001-visita-negociacion-reserva-y-cierre.md) | DONE | PIPE-001 | Visita ocurrida, negociación, reserva y cierre |
+| 14 | [V2-ACT-001](wave-5-history-analytics/V2-ACT-001-actividades-e-historial.md) | DONE | PTY-001, PIPE-001, COM-001 | Actividades manuales y timeline |
+| 15 | [V2-ANA-001](wave-5-history-analytics/V2-ANA-001-metricas-y-estadisticas.md) | DONE | PIPE-001, COM-001, ACT-001 | Métricas, estadísticas y dashboard |
+| 16 | [V2-AI-001](wave-6-ai-release/V2-AI-001-asistente-ia-con-revision-humana.md) | DONE | ANA-001, ACT-001, UX-001 | IA útil, autorizada y revisable |
+| 17 | [V2-REL-001](wave-6-ai-release/V2-REL-001-busqueda-paginacion-y-entrega-final.md) | DONE | todas las anteriores aplicables | Regresión, aceptación y entrega final |
 
 ## Hitos
 

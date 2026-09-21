@@ -2,7 +2,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AutomationAiService.Domain\AutomationAiService.Domain.csproj" />
-    <ProjectReference Include="..\AutomationAiService.Application\AutomationAiService.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MongoDB.Driver" Version="3.12.0" />
   </ItemGroup>
 
   <PropertyGroup>

@@ -184,7 +184,7 @@ es). Respuesta `200` `UserSelfV1(userId, status, roleCode)`:
 Body de alta/edición (`PartyDataRequest`): `displayName` (obligatorio, ≤200), `legalName`,
 `givenNames`, `familyNames`, `taxIdentifier`, `identityDocument`, `email`, `phone`, `address`,
 `industry`, `notes`, `originCode` (todos opcionales). Empresa ignora `givenNames/familyNames/identityDocument`;
-Contacto ignora `legalName/industry`. Respuestas: `PartyDetailV1`, `PartySummaryV1` en `PageV1`,
+Contacto ignora `legalName/industry`. Respuestas: `PartyDetailV1`, `PartySummaryV1` en `PagedResult`,
 `PartyRelationshipV1` (201). Vocabulario: `kind` `LEGAL_ENTITY|NATURAL_PERSON`; `identityStatus`
 `PROVISIONAL|ACTIVE|ALIASED|INACTIVE|RESTRICTED` (V2 solo produce `ACTIVE`; nunca `ALIASED`);
 `commercialStatus` `POTENTIAL|CUSTOMER|INACTIVE|DO_NOT_CONTACT`; `relationshipType` `CONTACT_OF|REPRESENTS`.

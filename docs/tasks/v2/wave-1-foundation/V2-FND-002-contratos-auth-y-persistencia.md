@@ -78,7 +78,7 @@ idempotentes para los eventos que alimentan proyecciones.
 
 ## Handoff
 
-**Qué quedó:** `contracts/RealEstateCrm.Contracts` tiene `ProblemDetailsV1`, `PageV1<T>`,
+**Qué quedó:** `contracts/RealEstateCrm.Contracts` tiene `ProblemDetailsV1`, `PagedResult<T>`,
 `ExecutionContextV1` (sin tenant) y `EventEnvelopeV1<TPayload>`. `building-blocks/RealEstateCrm.BuildingBlocks`
 tiene los puertos (`IAuthenticationPort`, `IRepository<T,TId>`, `IUnitOfWork`, `IOutbox`,
 `IInbox`, `IEventPublisher`, `IEventConsumer<T>`) sin ningún paquete de infraestructura.

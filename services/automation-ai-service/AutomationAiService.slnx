@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AutomationAiService.Api/AutomationAiService.Api.csproj" />
+    <Project Path="src/AutomationAiService.Domain/AutomationAiService.Domain.csproj" />
+    <Project Path="src/AutomationAiService.Infrastructure/AutomationAiService.Infrastructure.csproj" />
+  </Folder>
+</Solution>

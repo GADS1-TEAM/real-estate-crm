@@ -16,10 +16,10 @@ public sealed class FakeUserAccountReadPort(InMemoryRepository<UserAccount, Guid
     public Task<UserAccount?> GetByKeycloakSubjectAsync(Guid keycloakSubject, CancellationToken cancellationToken = default) =>
         Task.FromResult(repository.All.FirstOrDefault(u => u.KeycloakSubject == keycloakSubject));
 
-    public Task<PageV1<UserAccount>> SearchAsync(int page, int pageSize, CancellationToken cancellationToken = default)
+    public Task<PagedResult<UserAccount>> SearchAsync(int page, int pageSize, CancellationToken cancellationToken = default)
     {
         var ordered = repository.All.OrderBy(u => u.DisplayName, StringComparer.Ordinal).ToList();
         var items = ordered.Skip((page - 1) * pageSize).Take(pageSize).ToList();
-        return Task.FromResult(new PageV1<UserAccount>(items, page, pageSize, ordered.Count));
+        return Task.FromResult(new PagedResult<UserAccount>(items, page, pageSize, ordered.Count, page * pageSize < ordered.Count));
     }
 }

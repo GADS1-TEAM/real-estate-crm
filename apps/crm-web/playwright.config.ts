@@ -10,7 +10,7 @@ export default defineConfig({
     trace: "off",
   },
   webServer: {
-    command: `npm.cmd run dev:preview -- --port ${port}`,
+    command: `${process.platform === "win32" ? "npm.cmd" : "npm"} run dev:preview -- --port ${port}`,
     url: baseURL,
     reuseExistingServer: true,
     timeout: 120_000,

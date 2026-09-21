@@ -196,7 +196,7 @@ son exactamente el tipo de bug que un mock no reproduce.
 | Método y ruta | Permiso requerido | Notas |
 |---|---|---|
 | `POST /api/v1/users` | `users.manage` | USR-001. Body: `keycloakSubject, displayName, email`. 201 + `UserSummary`. 409 `user_already_exists` si el `sub` ya tiene cuenta. |
-| `GET /api/v1/users?page=&pageSize=` | `users.read` | GetUsers. `PageV1<UserSummary>`. |
+| `GET /api/v1/users?page=&pageSize=` | `users.read` | GetUsers. `PagedResult<UserSummary>`. |
 | `PUT /api/v1/users/{id}` | `users.manage` | USR-001. Body: `displayName, email`. |
 | `POST /api/v1/users/{id}/deactivate` | `users.manage` | USR-002. 409 `user_already_inactive` si ya estaba INACTIVE. |
 | `POST /api/v1/users/{id}/role-assignment` | `users.manage` | AUTHZ-001. Body: `roleCode`. 422 `invalid_role_code` si no es uno de los 3. Activa al usuario si estaba PENDING. |

@@ -17,7 +17,7 @@ public sealed class PartyReadRepository(IMongoDatabase database) : IPartyReadPor
     private readonly IMongoCollection<Party> _parties = database.GetCollection<Party>(PartyCollections.Parties);
     private readonly IMongoCollection<PartyRelationship> _relationships = database.GetCollection<PartyRelationship>(PartyCollections.PartyRelationships);
 
-    public async Task<PageV1<Party>> SearchAsync(PartySearchCriteria criteria, int page, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<PagedResult<Party>> SearchAsync(PartySearchCriteria criteria, int page, int pageSize, CancellationToken cancellationToken = default)
     {
         var builder = Builders<Party>.Filter;
         var filters = new List<FilterDefinition<Party>>();
@@ -59,7 +59,7 @@ public sealed class PartyReadRepository(IMongoDatabase database) : IPartyReadPor
             .Limit(pageSize)
             .ToListAsync(cancellationToken);
 
-        return new PageV1<Party>(items, page, pageSize, totalCount);
+        return new PagedResult<Party>(items, page, pageSize, totalCount, page * pageSize < totalCount);
     }
 
     public async Task<IReadOnlyList<Party>> GetManyAsync(IReadOnlyCollection<Guid> partyIds, CancellationToken cancellationToken = default)

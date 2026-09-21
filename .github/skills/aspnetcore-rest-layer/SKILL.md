@@ -9,7 +9,7 @@ description: |
   model", "response model", "DataAnnotations", "FluentValidation",
   "ControllerBase", "IActionResult", "Task<IActionResult>", "ActionResult<T>",
   "Minimal API", "contrato de respuesta", "status code", "404", "409", "422",
-  "versionado de API", "paginación", "PageV1", "serializar respuesta",
+  "versionado de API", "paginación", "PagedResult", "serializar respuesta",
   "ProblemDetails", "problem+json", "IExceptionHandler", "manejo de errores HTTP",
   "código de error", "error code", "controller delgado", "screens", "mutations",
   "operations-bff".
@@ -61,7 +61,7 @@ decisiones D1, D4, D5, D11), `IMPLEMENTATION_REPORT-V2-FND-002.md`.
 | Acción prohibida vs inexistente (D4) | Prohibido → **403** `forbidden`; inexistente → **404** `not_found` |
 | Contrato BFF↔crm-web (D5) | `operations-bff` implementa el contrato que ya usa `crm-web`: `GET /screens/{screenId}` y `POST /mutations/{name}`, mapeando cada screen/mutation a llamadas REST a los servicios de dominio. `crm-web` no se reescribe |
 | Autorización | El controller no evalúa permisos: llama al puerto de autorización (`IAuthorizationPort`, definido en `V2-ACL-001a`) y traduce el resultado a 403/200 |
-| Paginación | Toda colección responde `PageV1<TItem>` (`contracts/RealEstateCrm.Contracts/Paging`); cada servicio fija y documenta su `pageSize` máximo |
+| Paginación | Toda colección responde `PagedResult<TItem>` (`contracts/RealEstateCrm.Contracts/Paging`); cada servicio fija y documenta su `pageSize` máximo |
 
 ### Formato de error
 
@@ -95,7 +95,7 @@ corresponda (por ejemplo un código de regla de negocio violada puede ir a 422).
 
 ## Estado actual vs target
 
-- **Estado:** no hay controllers todavía. `ProblemDetailsV1`/`ErrorCodes`/`PageV1<T>`
+- **Estado:** no hay controllers todavía. `ProblemDetailsV1`/`ErrorCodes`/`PagedResult<T>`
   existen en `contracts` (V2-FND-002); `AddCrmHealthChecks`/`AddCrmObservability`/
   `UseCrmCorrelationId` existen en `BuildingBlocks.Infrastructure` (V2-FND-003) pero
   **sin wire-up** en ningún `Program.cs`.
@@ -117,7 +117,7 @@ corresponda (por ejemplo un código de regla de negocio violada puede ir a 422).
 - **MUST** propagar `CancellationToken` desde la acción hasta la capa de aplicación.
 - **MUST** devolver **403** `forbidden` para una acción prohibida y **404**
   `not_found` para un recurso inexistente (D4) — nunca 404 para ocultar un 403.
-- **MUST** paginar toda respuesta de colección con `PageV1<TItem>`, con `pageSize`
+- **MUST** paginar toda respuesta de colección con `PagedResult<TItem>`, con `pageSize`
   máximo documentado por el servicio.
 - **MUST** usar DTOs propios de la capa REST: nunca exponer el aggregate ni el
   documento de MongoDB.
@@ -262,9 +262,9 @@ public async Task<IActionResult> List(CancellationToken ct)
 ```
 
 ```csharp
-// ✅ PageV1<T> con tope documentado.
+// ✅ PagedResult<T> con tope documentado.
 [HttpGet]
-public async Task<ActionResult<PageV1<PartySummary>>> List(
+public async Task<ActionResult<PagedResult<PartySummary>>> List(
     [FromQuery] int page, [FromQuery] int pageSize, CancellationToken ct)
     => Ok(await _queries.SearchAsync(page, Math.Min(pageSize, MaxPageSize), ct));
 ```
@@ -289,7 +289,7 @@ if (!decision.Allowed) return Forbid();
 - [ ] 403 para prohibido, 404 para inexistente (nunca 404 para ocultar un 403).
 - [ ] Validación de forma en el borde.
 - [ ] `CancellationToken` propagado.
-- [ ] Respuestas de colección con `PageV1<T>` y `pageSize` máximo documentado.
+- [ ] Respuestas de colección con `PagedResult<T>` y `pageSize` máximo documentado.
 - [ ] DTOs propios; ningún aggregate ni documento expuesto.
 - [ ] Sin stack traces, nombres de índice ni PII en las respuestas.
 - [ ] `operations-bff` sigue `GET /screens/{screenId}` / `POST /mutations/{name}` (D5).

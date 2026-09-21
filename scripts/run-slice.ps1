@@ -1,39 +1,18 @@
-# Runs all implemented services + BFF using dotnet run
+$env:ASPNETCORE_ENVIRONMENT="Development"
 
-$ErrorActionPreference = "Stop"
+Start-Process dotnet -ArgumentList "run --project services/access-service/src/AccessService.Api/AccessService.Api.csproj --urls http://localhost:5190"
+Start-Process dotnet -ArgumentList "run --project services/party-service/src/PartyService.Api/PartyService.Api.csproj --urls http://localhost:5155"
+Start-Process dotnet -ArgumentList "run --project services/platform-config-service/src/PlatformConfigService.Api/PlatformConfigService.Api.csproj --urls http://localhost:5246"
 
-$Services = @(
-    "services\access-service\src\AccessService.Api",
-    "services\party-service\src\PartyService.Api",
-    "services\platform-config-service\src\PlatformConfigService.Api",
-    "services\property-service\src\PropertyService.Api",
-    "services\supply-service\src\SupplyService.Api",
-    "services\demand-service\src\DemandService.Api",
-    "services\matching-service\src\MatchingService.Api",
-    "bffs\operations-bff\src\OperationsBff.Api"
-)
+Start-Process dotnet -ArgumentList "run --project services/property-service/src/PropertyService.Api/PropertyService.Api.csproj --urls http://localhost:5117"
+Start-Process dotnet -ArgumentList "run --project services/supply-service/src/SupplyService.Api/SupplyService.Api.csproj --urls http://localhost:5069"
+Start-Process dotnet -ArgumentList "run --project services/demand-service/src/DemandService.Api/DemandService.Api.csproj --urls http://localhost:5220"
+Start-Process dotnet -ArgumentList "run --project services/matching-service/src/MatchingService.Api/MatchingService.Api.csproj --urls http://localhost:5290"
 
-$Jobs = @()
+Start-Process dotnet -ArgumentList "run --project services/commercial-service/src/CommercialService.Api/CommercialService.Api.csproj --urls http://localhost:5260"
+Start-Process dotnet -ArgumentList "run --project services/activity-service/src/ActivityService.Api/ActivityService.Api.csproj --urls http://localhost:5270"
 
-try {
-    foreach ($service in $Services) {
-        Write-Host "Starting $service..."
-        $job = Start-Job -ScriptBlock {
-            param($path)
-            Set-Location $path
-            dotnet run
-        } -ArgumentList (Join-Path $PWD $service)
-        $Jobs += $job
-    }
+Start-Process dotnet -ArgumentList "run --project services/analytics-service/src/AnalyticsService.Api/AnalyticsService.Api.csproj --urls http://localhost:5280"
+Start-Process dotnet -ArgumentList "run --project services/automation-ai-service/src/AutomationAiService.Api/AutomationAiService.Api.csproj --urls http://localhost:5295"
 
-    Write-Host "All services started. Press Ctrl+C to stop."
-    while ($true) {
-        Start-Sleep -Seconds 1
-    }
-}
-finally {
-    Write-Host "Stopping all services..."
-    foreach ($job in $Jobs) {
-        Stop-Job $job
-    }
-}
+Start-Process dotnet -ArgumentList "run --project bffs/operations-bff/src/OperationsBff.Api/OperationsBff.Api.csproj --urls http://localhost:5137"

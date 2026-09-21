@@ -3,6 +3,11 @@
   <ItemGroup>
     <ProjectReference Include="..\AnalyticsService.Application\AnalyticsService.Application.csproj" />
     <ProjectReference Include="..\AnalyticsService.Infrastructure\AnalyticsService.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\..\contracts\RealEstateCrm.Contracts\RealEstateCrm.Contracts.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="7.0.0" />
   </ItemGroup>
 
   <PropertyGroup>

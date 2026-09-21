@@ -19,5 +19,5 @@ public interface IUserAccountReadPort
     Task<UserAccount?> GetByKeycloakSubjectAsync(Guid keycloakSubject, CancellationToken cancellationToken = default);
 
     /// <summary>Listado paginado de usuarios (GetUsers), orden estable por <c>DisplayName</c>.</summary>
-    Task<PageV1<UserAccount>> SearchAsync(int page, int pageSize, CancellationToken cancellationToken = default);
+    Task<PagedResult<UserAccount>> SearchAsync(int page, int pageSize, CancellationToken cancellationToken = default);
 }

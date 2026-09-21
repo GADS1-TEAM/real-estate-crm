@@ -87,7 +87,7 @@ internal sealed class InMemoryPartyReadPort(
     InMemoryRepository<Party, Guid> parties,
     InMemoryRepository<PartyRelationship, Guid> relationships) : IPartyReadPort
 {
-    public Task<PageV1<Party>> SearchAsync(PartySearchCriteria criteria, int page, int pageSize, CancellationToken cancellationToken = default)
+    public Task<PagedResult<Party>> SearchAsync(PartySearchCriteria criteria, int page, int pageSize, CancellationToken cancellationToken = default)
     {
         IEnumerable<Party> query = parties.All;
 
@@ -116,7 +116,7 @@ internal sealed class InMemoryPartyReadPort(
         var ordered = query.OrderBy(p => p.Profile.DisplayName, StringComparer.Ordinal).ToList();
         var items = ordered.Skip((page - 1) * pageSize).Take(pageSize).ToList();
 
-        return Task.FromResult(new PageV1<Party>(items, page, pageSize, ordered.Count));
+        return Task.FromResult(new PagedResult<Party>(items, page, pageSize, ordered.Count, page * pageSize < ordered.Count));
     }
 
     public Task<IReadOnlyList<Party>> GetManyAsync(IReadOnlyCollection<Guid> partyIds, CancellationToken cancellationToken = default) =>

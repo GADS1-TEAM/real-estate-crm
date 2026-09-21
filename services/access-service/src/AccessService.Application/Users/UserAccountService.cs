@@ -185,7 +185,7 @@ public sealed class UserAccountService(
     }
 
     /// <summary>GetUsers (paginado).</summary>
-    public async Task<PageV1<UserSummary>> GetUsersAsync(int page, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<PagedResult<UserSummary>> GetUsersAsync(int page, int pageSize, CancellationToken cancellationToken = default)
     {
         var users = await userAccountReads.SearchAsync(page, pageSize, cancellationToken);
 
@@ -196,7 +196,7 @@ public sealed class UserAccountService(
             items.Add(ToSummary(user, roleAssignment?.RoleCode));
         }
 
-        return new PageV1<UserSummary>(items, users.Page, users.PageSize, users.TotalCount);
+        return new PagedResult<UserSummary>(items, users.Page, users.PageSize, users.Total, users.Page * users.PageSize < users.Total);
     }
 
     /// <summary>

@@ -20,7 +20,7 @@ public sealed class UserAccountReadRepository(IMongoDatabase database) : IUserAc
         return await _collection.Find(filter).FirstOrDefaultAsync(cancellationToken);
     }
 
-    public async Task<PageV1<UserAccount>> SearchAsync(int page, int pageSize, CancellationToken cancellationToken = default)
+    public async Task<PagedResult<UserAccount>> SearchAsync(int page, int pageSize, CancellationToken cancellationToken = default)
     {
         var totalCount = await _collection.CountDocumentsAsync(FilterDefinition<UserAccount>.Empty, cancellationToken: cancellationToken);
 
@@ -30,6 +30,6 @@ public sealed class UserAccountReadRepository(IMongoDatabase database) : IUserAc
             .Limit(pageSize)
             .ToListAsync(cancellationToken);
 
-        return new PageV1<UserAccount>(items, page, pageSize, totalCount);
+        return new PagedResult<UserAccount>(items, page, pageSize, totalCount, page * pageSize < totalCount);
     }
 }

@@ -120,7 +120,7 @@ public class PartyEndpointsEndToEndTests : IClassFixture<PartyApiFixture>
         Assert.Equal((IdentityStatuses.Active, CommercialStatuses.DoNotContact), (blockedAfter.IdentityStatus, blockedAfter.CommercialStatus));
 
         var search = await _api.SendAsync(HttpMethod.Get, $"/api/v1/parties?commercialStatus=DO_NOT_CONTACT&q={Uri.EscapeDataString(blocked.DisplayName)}", PartyApiFixture.Responsable);
-        var page = (await search.Content.ReadFromJsonAsync<PageV1<PartySummaryV1>>(RealEstateCrmJsonDefaults.Options))!;
+        var page = (await search.Content.ReadFromJsonAsync<PagedResult<PartySummaryV1>>(RealEstateCrmJsonDefaults.Options))!;
         Assert.Equal(blocked.PartyId, Assert.Single(page.Items).PartyId);
     }
 
