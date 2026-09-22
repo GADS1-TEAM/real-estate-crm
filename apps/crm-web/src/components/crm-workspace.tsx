@@ -100,7 +100,7 @@ function ScreenTabs({ screen, entityId, tabs, onNavigate }: {
     }}/>;
 }
 
-function useLocalPagination<T>(records: readonly T[], query: string, pageSize = 3) {
+function useLocalPagination<T>(records: readonly T[], query: string, pageSize = 25) {
     const [page, setPage] = useState(1);
     useEffect(() => setPage(1), [query]);
     const pages = Math.max(1, Math.ceil(records.length / pageSize));
@@ -697,7 +697,7 @@ function PartyView({ screen, state, entityId, onNavigate, onToast, dispatch }: {
 }) {
     const [query, setQuery] = useState("");
     const contacts = state.contacts.filter((contact) => `${contact.name} ${contact.phone} ${contact.email} ${contact.owner}`.toLowerCase().includes(query.toLowerCase()));
-    const pagination = useLocalPagination(contacts, query);
+    const pagination = useLocalPagination(contacts, query, 25);
     const detail = screen.id !== "PTY-01" && screen.id !== "PTY-02" && screen.id !== "PTY-03" && screen.id !== "PTY-04";
     if (screen.id === "PTY-02" || screen.id === "PTY-03" || screen.id === "PTY-04")
         return <QuickPartyForm screen={screen} onToast={onToast} onNavigate={onNavigate} dispatch={dispatch}/>;

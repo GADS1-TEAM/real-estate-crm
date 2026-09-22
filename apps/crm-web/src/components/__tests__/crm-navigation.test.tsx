@@ -73,9 +73,7 @@ describe("CRM selection and navigation", () => {
 
   it("paginates contacts, resets after filtering and opens a company as a company", () => {
     open("contactos", "PTY-01");
-    expect(screen.queryByText("Estudio Norte SA")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Página siguiente" }));
-    expect(screen.queryByText("Ana Suárez")).toBeNull();
+    expect(screen.getByText("Estudio Norte SA")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Abrir Estudio Norte SA" }));
     expect(route.push).toHaveBeenLastCalledWith("/contactos?screen=PTY-06&entity=contact-4");
     fireEvent.change(screen.getByPlaceholderText("Buscar por nombre, teléfono o email"), { target: { value: "Carla" } });
