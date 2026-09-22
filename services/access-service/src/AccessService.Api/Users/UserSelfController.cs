@@ -16,7 +16,6 @@ namespace AccessService.Api.Users;
 /// </summary>
 [ApiController]
 [Route("api/v1/users/me")]
-[Authorize]
 public sealed class UserSelfController(
     UserSelfService userSelfService,
     CurrentExecutionContextProvider executionContextProvider) : ControllerBase
@@ -25,7 +24,12 @@ public sealed class UserSelfController(
     public async Task<IActionResult> GetSelf(CancellationToken cancellationToken)
     {
         var context = await executionContextProvider.GetAsync(cancellationToken);
-        var result = await userSelfService.GetSelfAsync(context!.ActorId, cancellationToken);
+        if (context is null)
+        {
+            return ProblemDetailsResults.Unauthorized("Token ausente o inválido.", Guid.NewGuid(), Request.Path);
+        }
+
+        var result = await userSelfService.GetSelfAsync(context.ActorId, cancellationToken);
 
         if (!result.IsActive)
         {

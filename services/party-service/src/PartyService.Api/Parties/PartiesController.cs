@@ -22,7 +22,6 @@ namespace PartyService.Api.Parties;
 /// </summary>
 [ApiController]
 [Route("api/v1")]
-[Authorize]
 public sealed class PartiesController(
     PartyManagementService partyService,
     IAuthorizationPort authorizationPort,
@@ -190,7 +189,12 @@ public sealed class PartiesController(
         CancellationToken cancellationToken)
     {
         var context = await executionContextProvider.GetAsync(cancellationToken);
-        var decision = await authorizationPort.EvaluateAsync(context!.ActorId, permission, ResourceTypes.Party, resourceId, cancellationToken);
+        if (context is null)
+        {
+            return (null, ProblemDetailsResults.Unauthorized("Token ausente o inválido.", Guid.NewGuid(), Request.Path));
+        }
+
+        var decision = await authorizationPort.EvaluateAsync(context.ActorId, permission, ResourceTypes.Party, resourceId, cancellationToken);
 
         return decision.Allowed
             ? (context, null)

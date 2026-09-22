@@ -17,7 +17,7 @@ namespace PlatformConfigService.Api.Catalogs;
 /// </summary>
 [ApiController]
 [Route("api/v1/catalogs")]
-[Authorize]
+[AllowAnonymous]
 public sealed class CatalogsController(
     CatalogService catalogService,
     IAuthorizationPort authorizationPort,

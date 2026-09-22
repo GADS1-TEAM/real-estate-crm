@@ -124,7 +124,8 @@ public sealed class MutationsController(
                 break;
 
             case "createContact":
-                response = await partyServiceClient.PostAsync("/api/v1/contacts", payload, cancellationToken);
+                var createContactPayload = NormalizePartyPayload(payload);
+                response = await partyServiceClient.PostAsync("/api/v1/contacts", createContactPayload, cancellationToken);
                 break;
 
             case "updateContact":
@@ -133,7 +134,8 @@ public sealed class MutationsController(
                     return BadRequest("El payload de 'updateContact' requiere 'partyId'.");
                 }
 
-                response = await partyServiceClient.PutAsync($"/api/v1/contacts/{updateContactId}", payload, cancellationToken);
+                var updateContactPayload = NormalizePartyPayload(payload);
+                response = await partyServiceClient.PutAsync($"/api/v1/contacts/{updateContactId}", updateContactPayload, cancellationToken);
                 break;
 
             case "relateContactToCompany":
@@ -255,5 +257,42 @@ public sealed class MutationsController(
 
         value = element.GetString() ?? string.Empty;
         return !string.IsNullOrEmpty(value);
+    }
+
+    private static object NormalizePartyPayload(JsonElement payload)
+    {
+        string displayName = string.Empty;
+        if (payload.ValueKind == JsonValueKind.Object)
+        {
+            if (payload.TryGetProperty("displayName", out var dn) && dn.ValueKind == JsonValueKind.String)
+                displayName = dn.GetString() ?? string.Empty;
+            else if (payload.TryGetProperty("name", out var n) && n.ValueKind == JsonValueKind.String)
+                displayName = n.GetString() ?? string.Empty;
+        }
+
+        string? phone = TryGetPropertyString(payload, "phone");
+        string? email = TryGetPropertyString(payload, "email");
+        string? notes = TryGetPropertyString(payload, "notes");
+
+        if (string.IsNullOrWhiteSpace(email)) email = null;
+        if (string.IsNullOrWhiteSpace(phone)) phone = null;
+
+        return new
+        {
+            displayName,
+            phone,
+            email,
+            notes
+        };
+    }
+
+    private static string? TryGetPropertyString(JsonElement payload, string propertyName)
+    {
+        if (payload.ValueKind == JsonValueKind.Object && payload.TryGetProperty(propertyName, out var prop) && prop.ValueKind == JsonValueKind.String)
+        {
+            var val = prop.GetString();
+            return string.IsNullOrWhiteSpace(val) ? null : val;
+        }
+        return null;
     }
 }

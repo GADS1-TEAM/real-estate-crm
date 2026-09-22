@@ -26,8 +26,8 @@ public static class MongoServiceCollectionExtensions
         configuration.GetSection(configurationSectionName).Bind(options);
 
         services.AddSingleton(options);
-        services.AddSingleton<IMongoClient>(_ => new MongoClient(options.ConnectionString));
-        services.AddSingleton(sp => sp.GetRequiredService<IMongoClient>().GetDatabase(options.DatabaseName));
+        services.AddSingleton<IMongoClient>(_ => new MongoClient(string.IsNullOrEmpty(options.ConnectionString) ? "mongodb://localhost:27017" : options.ConnectionString));
+        services.AddSingleton(sp => sp.GetRequiredService<IMongoClient>().GetDatabase(string.IsNullOrEmpty(options.DatabaseName) ? "crm_dev" : options.DatabaseName));
 
         services.AddScoped<MongoSessionAccessor>();
         services.AddScoped<IUnitOfWork, MongoUnitOfWork>();

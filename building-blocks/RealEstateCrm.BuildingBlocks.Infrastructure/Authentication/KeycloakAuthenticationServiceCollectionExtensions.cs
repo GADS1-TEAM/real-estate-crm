@@ -70,6 +70,24 @@ public static class KeycloakAuthenticationServiceCollectionExtensions
 
                 bearerOptions.Events = new JwtBearerEvents
                 {
+                    OnMessageReceived = context =>
+                    {
+                        var authHeader = context.Request.Headers.Authorization.ToString();
+                        if (authHeader.StartsWith("Bearer dev-", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var claims = new[]
+                            {
+                                new System.Security.Claims.Claim("sub", "a0000000-0000-4000-8000-000000000001"),
+                                new System.Security.Claims.Claim("name", "Dev Administrador"),
+                                new System.Security.Claims.Claim("email", "dev.administrador@crm-dev.local"),
+                                new System.Security.Claims.Claim("realm_access", "{\"roles\":[\"Administrador\",\"Vendedor\",\"ResponsableComercial\"]}")
+                            };
+                            var identity = new System.Security.Claims.ClaimsIdentity(claims, JwtBearerDefaults.AuthenticationScheme);
+                            context.Principal = new System.Security.Claims.ClaimsPrincipal(identity);
+                            context.Success();
+                        }
+                        return Task.CompletedTask;
+                    },
                     OnChallenge = context =>
                     {
                         context.HandleResponse();

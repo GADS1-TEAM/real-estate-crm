@@ -82,7 +82,7 @@ public sealed class ScreensController(
         bool activeOnly, 
         CancellationToken cancellationToken)
     {
-        var contactsTask = SafeFetchArrayAsync(partyServiceClient.GetAsync, "/api/v1/parties?page=1&pageSize=50", cancellationToken);
+        var contactsTask = SafeFetchContactsAsync(cancellationToken);
         var propertiesTask = SafeFetchArrayAsync(propertyServiceClient.GetAsync, "/api/v1/properties?page=1&pageSize=50", cancellationToken);
         var listingsTask = SafeFetchArrayAsync(supplyServiceClient.GetAsync, "/api/v1/listings?page=1&pageSize=50", cancellationToken);
         var demandsTask = SafeFetchArrayAsync(demandServiceClient.GetAsync, "/api/v1/requirements", cancellationToken);
@@ -180,5 +180,73 @@ public sealed class ScreensController(
         catch { }
         
         return JsonDocument.Parse("[]").RootElement;
+    }
+
+    private async Task<JsonElement> SafeFetchContactsAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await partyServiceClient.GetAsync("/api/v1/parties?page=1&pageSize=100", cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                var jsonString = await response.Content.ReadAsStringAsync(cancellationToken);
+                using var doc = JsonDocument.Parse(jsonString);
+                var root = doc.RootElement;
+
+                IEnumerable<JsonElement> items = Array.Empty<JsonElement>();
+                if (root.ValueKind == JsonValueKind.Array)
+                {
+                    items = root.EnumerateArray();
+                }
+                else if (root.ValueKind == JsonValueKind.Object && root.TryGetProperty("items", out var itemsProp) && itemsProp.ValueKind == JsonValueKind.Array)
+                {
+                    items = itemsProp.EnumerateArray().ToList();
+                }
+
+                var transformed = items.Select(item =>
+                {
+                    var id = TryGetStringProperty(item, "partyId") ?? TryGetStringProperty(item, "id") ?? "";
+                    var name = TryGetStringProperty(item, "displayName") ?? TryGetStringProperty(item, "name") ?? "";
+                    var rawKind = TryGetStringProperty(item, "kind") ?? "";
+                    var kind = rawKind is "LEGAL_ENTITY" or "Empresa" ? "Empresa" : "Persona";
+                    var email = TryGetStringProperty(item, "email") ?? "";
+                    var phone = TryGetStringProperty(item, "phone") ?? "";
+                    var commercialStatus = TryGetStringProperty(item, "commercialStatus") ?? "LEAD";
+                    var identityStatus = TryGetStringProperty(item, "identityStatus") ?? "ACTIVE";
+                    var status = identityStatus == "INACTIVE" ? "Archivado" : "Activo";
+                    var owner = "Usuario actual";
+                    var origin = TryGetStringProperty(item, "originCode") ?? "";
+
+                    return new
+                    {
+                        id,
+                        name,
+                        kind,
+                        phone,
+                        email,
+                        status,
+                        owner,
+                        commercialStatus,
+                        identityStatus,
+                        origin
+                    };
+                }).ToList();
+
+                var docs = JsonSerializer.SerializeToDocument(transformed);
+                return docs.RootElement;
+            }
+        }
+        catch { }
+
+        return JsonDocument.Parse("[]").RootElement;
+    }
+
+    private static string? TryGetStringProperty(JsonElement element, string propertyName)
+    {
+        if (element.ValueKind == JsonValueKind.Object && element.TryGetProperty(propertyName, out var prop) && prop.ValueKind == JsonValueKind.String)
+        {
+            return prop.GetString();
+        }
+        return null;
     }
 }

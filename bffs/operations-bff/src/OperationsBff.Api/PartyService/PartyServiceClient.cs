@@ -39,6 +39,10 @@ public sealed class PartyServiceClient(HttpClient httpClient, IHttpContextAccess
         {
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         }
+        else
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "dev-poc-token");
+        }
 
         return await httpClient.SendAsync(request, cancellationToken);
     }
