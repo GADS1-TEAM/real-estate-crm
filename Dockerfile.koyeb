@@ -1,0 +1,3 @@
+FROM koyeb/docker-compose:latest
+COPY . /app
+WORKDIR /app

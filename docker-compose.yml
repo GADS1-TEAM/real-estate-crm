@@ -59,3 +59,32 @@ services:
       timeout: 5s
       retries: 30
       start_period: 10s
+  operations-bff:
+    build:
+      context: .
+      dockerfile: bffs/operations-bff/Dockerfile
+    image: operations-bff:latest
+    container_name: crm-operations-bff
+    depends_on:
+      - mongo
+      - rabbitmq
+      - keycloak
+    environment:
+      - ASPNETCORE_URLS=http://*:80
+    ports:
+      - "5137:80"
+
+  platform-admin-bff:
+    build:
+      context: .
+      dockerfile: bffs/platform-admin-bff/Dockerfile
+    image: platform-admin-bff:latest
+    container_name: crm-platform-admin-bff
+    depends_on:
+      - mongo
+      - rabbitmq
+      - keycloak
+    environment:
+      - ASPNETCORE_URLS=http://*:80
+    ports:
+      - "5140:80"
