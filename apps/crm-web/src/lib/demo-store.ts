@@ -790,7 +790,7 @@ export function normalizeDemoState(snapshot: unknown): DemoState {
     properties: arrayOrDefault(candidate.properties, demoInitialState.properties).map((property) => ({ ...property, ownerPartyIds: property.ownerPartyIds ?? [] })),
     listings: arrayOrDefault(candidate.listings, demoInitialState.listings),
     captations: arrayOrDefault(candidate.captations, demoInitialState.captations).map((captation) => ({ ...captation, origin: captation.origin ?? "Origen desconocido", valuationHistory: captation.valuationHistory ?? [] })),
-    demands: arrayOrDefault(candidate.demands, demoInitialState.demands).map((demand) => ({ ...demand, origin: demand.origin ?? "Origen desconocido", selectedListingIds: demand.selectedListingIds ?? [] })),
+    demands: arrayOrDefault(candidate.demands, demoInitialState.demands).map((demand) => ({ ...demand, criteria: Array.isArray(demand.criteria) ? demand.criteria : [], origin: demand.origin ?? "Origen desconocido", selectedListingIds: demand.selectedListingIds ?? [] })),
     opportunities: arrayOrDefault(candidate.opportunities, demoInitialState.opportunities),
     activities: arrayOrDefault(candidate.activities, demoInitialState.activities).map(normalizeActivity),
     reservations: arrayOrDefault(candidate.reservations, demoInitialState.reservations),

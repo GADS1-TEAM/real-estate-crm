@@ -594,7 +594,7 @@ function HomeView({ state, onNavigate, onToast, dispatch }: {
 </div>
     <div className="kpi-grid">
 <Kpi title="Contactos activos" value={String(activeContacts)} detail="Excluye archivados y no contactar" tone="blue"/>
-<Kpi title="Búsquedas activas" value={String(activeDemands)} detail={`${state.demands.filter((demand) => demand.criteria.some((criterion) => criterion.value === "UNKNOWN")).length} con criterios incompletos`} tone="orange"/>
+<Kpi title="Búsquedas activas" value={String(activeDemands)} detail={`${state.demands.filter((demand) => (demand.criteria || []).some((criterion) => criterion.value === "UNKNOWN")).length} con criterios incompletos`} tone="orange"/>
 <Kpi title="Visitas ocurridas" value={String(visits)} detail="Hechos registrados" tone="green"/>
 <Kpi title="Publicaciones activas" value={String(state.listings.filter((item) => item.status === "Activa").length)} detail={`${listingsWithoutMandate} sin mandato firmado`} tone="purple"/>
 </div>
@@ -906,7 +906,7 @@ function PartyDetail({ screen, state, entityId, onNavigate, onToast, dispatch }:
 {screen.id === "PTY-07" && contact.kind === "Persona" && <div className="form-grid"><SelectField label="Relacionar con empresa" value={companyId} onChange={(event) => setCompanyId(event.target.value)}>{state.contacts.filter((party) => party.kind === "Empresa").map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}</SelectField><Button size="small" onClick={saveRelationship}>Guardar relación</Button></div>}
 {relatedParties.length > 0 && <div className="criterion-chip-list">{relatedParties.map((party) => <Chip key={party.id} tone="info">{party.kind === "Empresa" ? "Empresa" : "Contacto"}: {party.name}</Chip>)}</div>}
 {relatedDemand && <div className="criterion-chip-list"><Chip tone="brand">Búsqueda: {relatedDemand.title}</Chip></div>}
-<div className="criterion-chip-list">{relatedDemand?.criteria.map((criterion) => <Chip key={criterion.id} tone={criterion.weight === "must" ? "brand" : criterion.weight === "unknown" ? "warning" : "neutral"}>{criterion.label}: {criterion.value === "UNKNOWN" ? "Desconocido" : criterion.value}</Chip>)}</div>
+<div className="criterion-chip-list">{(relatedDemand?.criteria || []).map((criterion) => <Chip key={criterion.id} tone={criterion.weight === "must" ? "brand" : criterion.weight === "unknown" ? "warning" : "neutral"}>{criterion.label}: {criterion.value === "UNKNOWN" ? "Desconocido" : criterion.value}</Chip>)}</div>
 </Card>
 <Modal open={confirmNoContact} title="Marcar como no contactar" onClose={() => setConfirmNoContact(false)} footer={<><Button variant="ghost" onClick={() => setConfirmNoContact(false)}>Cancelar</Button><Button variant="tertiary" onClick={() => { updateCommercialStatus("DO_NOT_CONTACT"); setConfirmNoContact(false); }}>Confirmar no contactar</Button></>}>
 <p>Se bloquearán nuevas acciones comerciales para {contact.name}. El historial y los datos existentes se conservan.</p>
@@ -1290,7 +1290,7 @@ function ListingDetail({ screen, state, entityId, onNavigate, onToast, dispatch 
         .filter((demand) => demand.status === "Activa" && demand.selectedListingIds?.includes(listing.id))
         .sort((left, right) => right.score - left.score)[0];
     const relatedDemandContact = relatedDemand ? state.contacts.find((contact) => contact.id === relatedDemand.contactId) : undefined;
-    const relatedDemandUnknowns = relatedDemand?.criteria.filter((criterion) => criterion.value === "UNKNOWN").length ?? 0;
+    const relatedDemandUnknowns = (relatedDemand?.criteria || []).filter((criterion) => criterion.value === "UNKNOWN").length ?? 0;
     return <div className="feature-stack">
 <Card className="detail-hero">
 <div className="detail-identity">
@@ -1334,7 +1334,7 @@ function ListingDetail({ screen, state, entityId, onNavigate, onToast, dispatch 
 <span className="score-bubble">{relatedDemand.score}</span>
 <div>
 <strong>{relatedDemand.title}</strong>
-<p>{relatedDemandContact?.name ?? "Party desconocida"} · {relatedDemand.criteria.length - relatedDemandUnknowns} criterios conocidos · {relatedDemandUnknowns} desconocidos.</p>
+<p>{relatedDemandContact?.name ?? "Party desconocida"} · {(relatedDemand.criteria || []).length - relatedDemandUnknowns} criterios conocidos · {relatedDemandUnknowns} desconocidos.</p>
 </div>
 <Chip tone={relatedDemand.score >= 80 ? "success" : "info"}>{relatedDemand.score >= 80 ? "Alta" : "Media"}</Chip>
 </div> : <EmptyState icon="target" title="Sin demanda seleccionada" description="Todavía no hay una compatibilidad seleccionada para esta publicación."/>}
@@ -1536,7 +1536,7 @@ function DemandView({ screen, state, entityId, onNavigate, onToast, dispatch }: 
     dispatch: React.Dispatch<DemoAction>;
 }) {
     const [query, setQuery] = useState("");
-    const demands = state.demands.filter((demandItem) => { const contact = state.contacts.find((item) => item.id === demandItem.contactId); return `${demandItem.title} ${contact?.name ?? ""} ${demandItem.criteria.map((criterion) => `${criterion.label} ${criterion.value}`).join(" ")}`.toLowerCase().includes(query.toLowerCase()); });
+    const demands = state.demands.filter((demandItem) => { const contact = state.contacts.find((item) => item.id === demandItem.contactId); return `${demandItem.title} ${contact?.name ?? ""} ${(demandItem.criteria || []).map((criterion) => `${criterion.label} ${criterion.value}`).join(" ")}`.toLowerCase().includes(query.toLowerCase()); });
     const pagination = useLocalPagination(demands, query);
     if (["DEM-02"].includes(screen.id))
         return <DemandForm state={state} onToast={onToast} onNavigate={onNavigate} dispatch={dispatch}/>;
@@ -1564,7 +1564,7 @@ function DemandView({ screen, state, entityId, onNavigate, onToast, dispatch }: 
 </td>
 <td>{contact?.name}</td>
 <td>
-<div className="table-chips">{demandItem.criteria.slice(0, 2).map((criterion) => <Chip tone={criterion.weight === "must" ? "brand" : "neutral"} key={criterion.id}>{criterion.label}: {criterion.value}</Chip>)}</div>
+<div className="table-chips">{(demandItem.criteria || []).slice(0, 2).map((criterion) => <Chip tone={criterion.weight === "must" ? "brand" : "neutral"} key={criterion.id}>{criterion.label}: {criterion.value}</Chip>)}</div>
 </td>
 <td>
 <span className="score-inline">{demandItem.score}</span>
@@ -1672,7 +1672,7 @@ function DemandDetail({ screen, state, demand, onNavigate, onToast, dispatch }: 
 <div className="detail-grid">
 <Card>
 <SectionHeading eyebrow="Criterios" title="Qué busca" action={<Chip tone="info">{demand.score} puntos</Chip>}/>
-<div className="criteria-stack">{demand.criteria.map((criterion) => <CriterionEditor key={criterion.id} label={criterion.label} value={criterion.value} weight={criterion.weight} onChange={({ value, weight }) => dispatch({ type: "demand/update-criterion", demandId: demand.id, criterionId: criterion.id, value, weight })}/>)}</div>{screen.id === "DEM-03" && <Alert tone="success" title="Score recalculado">Los cambios en los criterios se reflejan en esta misma pantalla.</Alert>}</Card>
+<div className="criteria-stack">{(demand.criteria || []).map((criterion) => <CriterionEditor key={criterion.id} label={criterion.label} value={criterion.value} weight={criterion.weight} onChange={({ value, weight }) => dispatch({ type: "demand/update-criterion", demandId: demand.id, criterionId: criterion.id, value, weight })}/>)}</div>{screen.id === "DEM-03" && <Alert tone="success" title="Score recalculado">Los cambios en los criterios se reflejan en esta misma pantalla.</Alert>}</Card>
 <Card>
 <SectionHeading eyebrow="Asistente" title="Información faltante"/>
 {surfaceSuggestion?.status === "pending" ? <AISuggestion title={surfaceSuggestion.title} body={surfaceSuggestion.body} evidence={surfaceSuggestion.evidence} onReview={() => { dispatch({ type: "ai/review", id: surfaceSuggestion.id }); onToast("Sugerencia revisada; la búsqueda no cambió automáticamente.", "info"); }} onDismiss={() => { dispatch({ type: "ai/dismiss", id: surfaceSuggestion.id }); onToast("Sugerencia descartada; la búsqueda no cambió.", "info"); }}/> : <Alert tone={surfaceSuggestion?.status === "dismissed" ? "warning" : "success"} title={surfaceSuggestion?.status === "dismissed" ? "Sugerencia descartada" : "Sugerencia revisada"}>La decisión queda en el historial del asistente y no modificó los criterios automáticamente.</Alert>}
@@ -1716,7 +1716,7 @@ function MatchingView({ screen, state, entityId, onNavigate, onToast, dispatch }
     const score = demand.score;
     const minimumScore = minimumMatchScore === "ALL" ? 0 : Number(minimumMatchScore);
     const primaryVisible = score >= minimumScore;
-    const criterionDetails: CriterionEvidence[] = demand.criteria.map((criterion) => {
+    const criterionDetails: CriterionEvidence[] = (demand.criteria || []).map((criterion) => {
         const contribution = criterionContribution(criterion.value, propertyCriterionValue(criterion, property));
         return { label: criterion.label, status: contribution.status, contribution: contribution.contribution };
     });
@@ -1746,7 +1746,7 @@ function MatchingView({ screen, state, entityId, onNavigate, onToast, dispatch }
 <div>
 <Tag tone="info">Búsqueda</Tag>
 <h3>{demand.title}</h3>
-<p>{contact?.name ?? "Party desconocida"} · {propertyCriterionValue(demand.criteria.find((criterion) => criterion.label.toLowerCase().includes("barrio")) ?? { label: "Barrio" }, property)} · {demand.criteria.find((criterion) => criterion.label.toLowerCase().includes("ambiente"))?.value ?? "UNKNOWN"} ambientes</p>
+<p>{contact?.name ?? "Party desconocida"} · {propertyCriterionValue((demand.criteria || []).find((criterion) => criterion.label.toLowerCase().includes("barrio")) ?? { label: "Barrio" }, property)} · {(demand.criteria || []).find((criterion) => criterion.label.toLowerCase().includes("ambiente"))?.value ?? "UNKNOWN"} ambientes</p>
 </div>
 <span className="score-bubble score-bubble-large">{score}</span>
 </div>
