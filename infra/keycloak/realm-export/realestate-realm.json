@@ -1,0 +1,23 @@
+{
+  "realm": "realestate",
+  "enabled": true,
+  "clients": [
+    {
+      "clientId": "realestate-web",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "REPLACE_WITH_CLIENT_SECRET",
+      "redirectUris": [
+        "http://localhost:*/*",
+        "https://*.ngrok-free.app/*"
+      ],
+      "webOrigins": ["+"],
+      "protocol": "openid-connect",
+      "bearerOnly": false,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true
+    }
+  ],
+  "users": [],
+  "roles": []
+}
