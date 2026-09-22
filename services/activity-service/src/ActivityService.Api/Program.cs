@@ -5,6 +5,7 @@ using ActivityService.Infrastructure;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using MongoDB.Driver;
+using RealEstateCrm.BuildingBlocks.Infrastructure.Persistence.Mongo;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,14 +15,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // Register MongoDB
-var mongoConnectionString = builder.Configuration["MongoDb:ConnectionString"] ?? "mongodb://localhost:27017";
-var mongoClient = new MongoClient(mongoConnectionString);
-builder.Services.AddSingleton<IMongoClient>(mongoClient);
-builder.Services.AddScoped<IMongoDatabase>(sp => 
-{
-    var client = sp.GetRequiredService<IMongoClient>();
-    return client.GetDatabase("ActivityDb");
-});
+builder.Services.AddMongoPersistence(builder.Configuration);
 
 // Register Repositories and Handlers
 builder.Services.AddScoped<IActivityRepository, MongoActivityRepository>();

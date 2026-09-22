@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using MongoDB.Driver;
 using DemandService.Application.Commands;
 using DemandService.Domain.Aggregates;
 using RealEstateCrm.BuildingBlocks.Persistence;
@@ -12,6 +13,18 @@ namespace DemandService.Api.Controllers;
 [Route("api/v1/[controller]")]
 public class RequirementsController : ControllerBase
 {
+    static RequirementsController()
+    {
+        if (!MongoDB.Bson.Serialization.BsonClassMap.IsClassMapRegistered(typeof(Requirement)))
+        {
+            MongoDB.Bson.Serialization.BsonClassMap.RegisterClassMap<Requirement>(cm =>
+            {
+                cm.AutoMap();
+                cm.SetIgnoreExtraElements(true);
+            });
+        }
+    }
+
     private readonly CreateRequirementHandler _createHandler;
     private readonly IRepository<Requirement, string> _repository;
 
@@ -37,9 +50,10 @@ public class RequirementsController : ControllerBase
     }
 
     [HttpGet]
-    public IActionResult GetAll(CancellationToken ct)
+    public async Task<IActionResult> GetAll([FromServices] IMongoDatabase database, CancellationToken ct)
     {
-        return Ok(new List<Requirement>());
+        var reqs = await database.GetCollection<Requirement>("requirements").Find(Builders<Requirement>.Filter.Empty).ToListAsync(ct);
+        return Ok(reqs);
     }
 
     [HttpPost("{id}/selected-listings")]

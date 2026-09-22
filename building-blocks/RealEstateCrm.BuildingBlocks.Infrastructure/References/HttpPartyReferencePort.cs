@@ -35,6 +35,9 @@ public static class PartyReferenceServiceCollectionExtensions
     {
         var baseUrl = configuration["PartyService:BaseUrl"] ?? throw new InvalidOperationException("PartyService:BaseUrl is missing");
         
+        services.AddHttpContextAccessor();
+        services.AddTransient<BearerTokenRelayHandler>();
+
         services.AddHttpClient<IPartyReferencePort, HttpPartyReferencePort>(client =>
         {
             client.BaseAddress = new Uri(baseUrl);

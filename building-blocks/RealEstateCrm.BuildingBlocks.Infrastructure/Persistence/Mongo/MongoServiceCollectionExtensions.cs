@@ -26,7 +26,13 @@ public static class MongoServiceCollectionExtensions
         configuration.GetSection(configurationSectionName).Bind(options);
 
         services.AddSingleton(options);
-        services.AddSingleton<IMongoClient>(_ => new MongoClient(string.IsNullOrEmpty(options.ConnectionString) ? "mongodb://localhost:27017" : options.ConnectionString));
+        var connStr = string.IsNullOrEmpty(options.ConnectionString) ? "mongodb://localhost:27017/?directConnection=true" : options.ConnectionString;
+        if (!connStr.Contains("directConnection=") && !connStr.Contains("replicaSet="))
+        {
+            connStr += connStr.Contains('?') ? "&directConnection=true" : "/?directConnection=true";
+        }
+
+        services.AddSingleton<IMongoClient>(_ => new MongoClient(connStr));
         services.AddSingleton(sp => sp.GetRequiredService<IMongoClient>().GetDatabase(string.IsNullOrEmpty(options.DatabaseName) ? "crm_dev" : options.DatabaseName));
 
         services.AddScoped<MongoSessionAccessor>();

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using MongoDB.Driver;
 using SupplyService.Application.Commands;
 using SupplyService.Application.Ports;
 using SupplyService.Domain.Aggregates;
@@ -12,6 +13,18 @@ namespace SupplyService.Api.Controllers;
 [Route("api/v1/[controller]")]
 public class ListingsController : ControllerBase
 {
+    static ListingsController()
+    {
+        if (!MongoDB.Bson.Serialization.BsonClassMap.IsClassMapRegistered(typeof(Listing)))
+        {
+            MongoDB.Bson.Serialization.BsonClassMap.RegisterClassMap<Listing>(cm =>
+            {
+                cm.AutoMap();
+                cm.SetIgnoreExtraElements(true);
+            });
+        }
+    }
+
     private readonly CreateListingHandler _createHandler;
     private readonly UpdateListingHandler _updateHandler;
     private readonly ActivateListingHandler _activateHandler;
@@ -80,8 +93,9 @@ public class ListingsController : ControllerBase
     }
 
     [HttpGet]
-    public IActionResult Search(CancellationToken ct)
+    public async Task<IActionResult> Search([FromServices] IMongoDatabase database, CancellationToken ct)
     {
-        return Ok(new List<Listing>());
+        var listings = await database.GetCollection<Listing>("Listings").Find(Builders<Listing>.Filter.Empty).ToListAsync(ct);
+        return Ok(listings);
     }
 }

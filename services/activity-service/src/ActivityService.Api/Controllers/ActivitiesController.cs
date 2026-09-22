@@ -1,6 +1,8 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using MongoDB.Driver;
+using ActivityService.Domain;
 using ActivityService.Application.Commands;
 using ActivityService.Application.Queries;
 using RealEstateCrm.Contracts.Activities;
@@ -11,6 +13,18 @@ namespace ActivityService.Api.Controllers;
 [Route("api/v1/activities")]
 public class ActivitiesController : ControllerBase
 {
+    static ActivitiesController()
+    {
+        if (!MongoDB.Bson.Serialization.BsonClassMap.IsClassMapRegistered(typeof(Activity)))
+        {
+            MongoDB.Bson.Serialization.BsonClassMap.RegisterClassMap<Activity>(cm =>
+            {
+                cm.AutoMap();
+                cm.SetIgnoreExtraElements(true);
+            });
+        }
+    }
+
     private readonly RecordActivityHandler _recordHandler;
     private readonly TimelineQueryHandler _timelineHandler;
 
@@ -29,6 +43,7 @@ public class ActivitiesController : ControllerBase
 
     [HttpGet("timeline")]
     public async Task<IActionResult> GetTimeline(
+        [FromServices] IMongoDatabase database,
         [FromQuery] string? partyId,
         [FromQuery] string? companyId,
         [FromQuery] string? contactId,
@@ -52,6 +67,7 @@ public class ActivitiesController : ControllerBase
             return Ok(await _timelineHandler.GetCommercialTimelineAsync(pipelineItemId, cancellationToken));
         }
         
-        return BadRequest("Must provide at least one filter ID.");
+        var activities = await database.GetCollection<Activity>("crm_activity").Find(Builders<Activity>.Filter.Empty).ToListAsync(cancellationToken);
+        return Ok(activities);
     }
 }

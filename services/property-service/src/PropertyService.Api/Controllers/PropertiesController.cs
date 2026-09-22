@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using MongoDB.Driver;
 using PropertyService.Application;
 using PropertyService.Domain.Aggregates;
 using RealEstateCrm.Contracts.Properties;
@@ -14,6 +15,18 @@ namespace PropertyService.Api.Controllers;
 [Route("api/v1/[controller]")]
 public class PropertiesController : ControllerBase
 {
+    static PropertiesController()
+    {
+        if (!MongoDB.Bson.Serialization.BsonClassMap.IsClassMapRegistered(typeof(Property)))
+        {
+            MongoDB.Bson.Serialization.BsonClassMap.RegisterClassMap<Property>(cm =>
+            {
+                cm.AutoMap();
+                cm.SetIgnoreExtraElements(true);
+            });
+        }
+    }
+
     private readonly PropertyManagementService _service;
     private readonly IRepository<Property, string> _propertyRepository;
     private readonly IRepository<PropertyInterest, string> _propertyInterestRepository;
@@ -68,10 +81,10 @@ public class PropertiesController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
+    public async Task<IActionResult> GetAll([FromServices] IMongoDatabase database, CancellationToken cancellationToken)
     {
-        // Simple mock for search since repository doesn't have GetAll yet
-        return Ok(new List<Property>());
+        var properties = await database.GetCollection<Property>("Properties").Find(Builders<Property>.Filter.Empty).ToListAsync(cancellationToken);
+        return Ok(properties);
     }
 
     [HttpPost("{id}/interests")]

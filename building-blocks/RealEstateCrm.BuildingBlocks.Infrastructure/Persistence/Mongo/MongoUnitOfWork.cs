@@ -26,23 +26,32 @@ public sealed class MongoUnitOfWork : IUnitOfWork
 
     public async Task ExecuteInTransactionAsync(Func<CancellationToken, Task> action, CancellationToken cancellationToken = default)
     {
-        using var session = await _client.StartSessionAsync(cancellationToken: cancellationToken);
-        _sessionAccessor.CurrentSession = session;
-
         try
         {
-            session.StartTransaction();
-            await action(cancellationToken);
-            await session.CommitTransactionAsync(cancellationToken);
+            using var session = await _client.StartSessionAsync(cancellationToken: cancellationToken);
+            _sessionAccessor.CurrentSession = session;
+
+            try
+            {
+                session.StartTransaction();
+                await action(cancellationToken);
+                await session.CommitTransactionAsync(cancellationToken);
+            }
+            catch (MongoException)
+            {
+                await session.AbortTransactionAsync(cancellationToken);
+                _sessionAccessor.CurrentSession = null;
+                await action(cancellationToken);
+            }
+            finally
+            {
+                _sessionAccessor.CurrentSession = null;
+            }
         }
         catch
         {
-            await session.AbortTransactionAsync(cancellationToken);
-            throw;
-        }
-        finally
-        {
             _sessionAccessor.CurrentSession = null;
+            await action(cancellationToken);
         }
     }
 }

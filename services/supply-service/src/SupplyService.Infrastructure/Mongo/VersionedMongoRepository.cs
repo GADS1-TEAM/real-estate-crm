@@ -12,6 +12,19 @@ public class VersionedMongoRepository : IListingRepository
 {
     private readonly IMongoCollection<Listing> _collection;
 
+    static VersionedMongoRepository()
+    {
+        if (!MongoDB.Bson.Serialization.BsonClassMap.IsClassMapRegistered(typeof(Listing)))
+        {
+            MongoDB.Bson.Serialization.BsonClassMap.RegisterClassMap<Listing>(cm =>
+            {
+                cm.AutoMap();
+                cm.MapIdMember(x => x.ListingId);
+                cm.SetIgnoreExtraElements(true);
+            });
+        }
+    }
+
     public VersionedMongoRepository(IMongoDatabase database)
     {
         _collection = database.GetCollection<Listing>("Listings");

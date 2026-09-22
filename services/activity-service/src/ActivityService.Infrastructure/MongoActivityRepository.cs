@@ -15,6 +15,19 @@ public class MongoActivityRepository : IActivityRepository
 {
     private readonly IMongoCollection<Activity> _collection;
 
+    static MongoActivityRepository()
+    {
+        if (!MongoDB.Bson.Serialization.BsonClassMap.IsClassMapRegistered(typeof(Activity)))
+        {
+            MongoDB.Bson.Serialization.BsonClassMap.RegisterClassMap<Activity>(cm =>
+            {
+                cm.AutoMap();
+                cm.MapIdMember(a => a.ActivityId);
+                cm.SetIgnoreExtraElements(true);
+            });
+        }
+    }
+
     public MongoActivityRepository(IMongoDatabase database)
     {
         _collection = database.GetCollection<Activity>("crm_activity");
