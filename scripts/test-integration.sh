@@ -91,6 +91,10 @@ done
 
 # 5. Compilar e iniciar CRM Web Frontend si no está corriendo
 if ! curl -s http://localhost:3000/inicio >/dev/null 2>&1; then
+    if [ ! -f "apps/crm-web/node_modules/.bin/next" ]; then
+        echo "==> Instalando dependencias de crm-web..."
+        (cd apps/crm-web && npm install --no-audit --no-fund)
+    fi
     echo "==> Iniciando CRM Web Frontend en puerto 3000..."
     (cd apps/crm-web && npm run dev -- -p 3000) &
     pids+=($!)
