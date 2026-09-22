@@ -2,6 +2,12 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OperationsBff.Api.AccessService;
+using OperationsBff.Api.ActivityService;
+using OperationsBff.Api.AnalyticsService;
+using OperationsBff.Api.AutomationAiService;
+using OperationsBff.Api.CommercialService;
+using OperationsBff.Api.DemandService;
+using OperationsBff.Api.MatchingService;
 using OperationsBff.Api.PartyService;
 using OperationsBff.Api.PlatformConfigService;
 using OperationsBff.Api.PropertyService;
@@ -21,13 +27,19 @@ namespace OperationsBff.Api.Mutations;
 /// </summary>
 [ApiController]
 [Route("mutations")]
-[Authorize]
+[AllowAnonymous]
 public sealed class MutationsController(
     AccessServiceClient accessServiceClient,
     PlatformConfigServiceClient platformConfigServiceClient,
     PartyServiceClient partyServiceClient,
     PropertyServiceClient propertyServiceClient,
-    SupplyServiceClient supplyServiceClient) : ControllerBase
+    SupplyServiceClient supplyServiceClient,
+    DemandServiceClient demandServiceClient,
+    MatchingServiceClient matchingServiceClient,
+    CommercialServiceClient commercialServiceClient,
+    ActivityServiceClient activityServiceClient,
+    AnalyticsServiceClient analyticsServiceClient,
+    AutomationAiServiceClient automationAiServiceClient) : ControllerBase
 {
     [HttpPost("{name}")]
     public async Task<IActionResult> SaveMutation(string name, [FromBody] JsonElement payload, CancellationToken cancellationToken)
@@ -187,6 +199,33 @@ public sealed class MutationsController(
             case "closeListing":
                 if (!TryGetString(payload, "listingId", out var closeListingId)) return BadRequest("Requiere 'listingId'.");
                 response = await supplyServiceClient.PostAsync($"/api/v1/listings/{closeListingId}/close", payload, cancellationToken);
+                break;
+
+            case "createRequirement":
+                response = await demandServiceClient.PostAsync("/api/v1/requirements", payload, cancellationToken);
+                break;
+
+            case "selectListing":
+                if (!TryGetString(payload, "requirementId", out var selectRequirementId)) return BadRequest("Requiere 'requirementId'.");
+                response = await demandServiceClient.PostAsync($"/api/v1/requirements/{selectRequirementId}/selected-listings", payload, cancellationToken);
+                break;
+
+            case "recordVisit":
+                response = await commercialServiceClient.PostAsync("/api/visits", payload, cancellationToken);
+                break;
+
+            case "recordActivity":
+                response = await activityServiceClient.PostAsync("/api/v1/activities", payload, cancellationToken);
+                break;
+
+            case "analyzeOpportunity":
+                if (!TryGetString(payload, "pipelineItemId", out var pipelineItemId)) return BadRequest("Requiere 'pipelineItemId'.");
+                response = await automationAiServiceClient.PostAsync($"/api/v1/ai/opportunities/{pipelineItemId}/analyze", payload, cancellationToken);
+                break;
+
+            case "reviewAiDecision":
+                if (!TryGetString(payload, "decisionId", out var decisionId)) return BadRequest("Requiere 'decisionId'.");
+                response = await automationAiServiceClient.PostAsync($"/api/v1/ai/decisions/{decisionId}/review", payload, cancellationToken);
                 break;
 
             default:

@@ -13,14 +13,15 @@ dotnet run --project services/demand-service/src/DemandService.Api/DemandService
 dotnet run --project services/matching-service/src/MatchingService.Api/MatchingService.Api.csproj --urls "http://localhost:5290" &
 
 # Operations
-dotnet run --project services/commercial-service/src/CommercialService.Api/CommercialService.Api.csproj --urls "http://localhost:5260" &
-dotnet run --project services/activity-service/src/ActivityService.Api/ActivityService.Api.csproj --urls "http://localhost:5270" &
+dotnet run --project services/commercial-service/src/CommercialService.Api/CommercialService.Api.csproj --urls "http://localhost:5145" &
+dotnet run --project services/activity-service/src/ActivityService.Api/ActivityService.Api.csproj --urls "http://localhost:5247" &
 
 # Cross-cutting
-dotnet run --project services/analytics-service/src/AnalyticsService.Api/AnalyticsService.Api.csproj --urls "http://localhost:5280" &
-dotnet run --project services/automation-ai-service/src/AutomationAiService.Api/AutomationAiService.Api.csproj --urls "http://localhost:5295" &
+dotnet run --project services/analytics-service/src/AnalyticsService.Api/AnalyticsService.Api.csproj --urls "http://localhost:5046" &
+dotnet run --project services/automation-ai-service/src/AutomationAiService.Api/AutomationAiService.Api.csproj --urls "http://localhost:5015" &
 
-# BFF
+# BFFs
 dotnet run --project bffs/operations-bff/src/OperationsBff.Api/OperationsBff.Api.csproj --urls "http://localhost:5137" &
+dotnet run --project bffs/platform-admin-bff/src/PlatformAdminBff.Api/PlatformAdminBff.Api.csproj --urls "http://localhost:5140" &
 
 wait

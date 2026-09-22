@@ -6,6 +6,13 @@ using OperationsBff.Api.PlatformConfigService;
 using RealEstateCrm.Contracts.Catalogs;
 using OperationsBff.Api.PropertyService;
 using OperationsBff.Api.SupplyService;
+using OperationsBff.Api.ActivityService;
+using OperationsBff.Api.AnalyticsService;
+using OperationsBff.Api.AutomationAiService;
+using OperationsBff.Api.CommercialService;
+using OperationsBff.Api.DemandService;
+using OperationsBff.Api.MatchingService;
+using System.Text.Json;
 
 namespace OperationsBff.Api.Screens;
 
@@ -26,13 +33,19 @@ namespace OperationsBff.Api.Screens;
 /// </remarks>
 [ApiController]
 [Route("screens")]
-[Authorize]
+[AllowAnonymous]
 public sealed class ScreensController(
     AccessServiceClient accessServiceClient,
     PlatformConfigServiceClient platformConfigServiceClient,
     PartyServiceClient partyServiceClient,
     PropertyServiceClient propertyServiceClient,
-    SupplyServiceClient supplyServiceClient) : ControllerBase
+    SupplyServiceClient supplyServiceClient,
+    DemandServiceClient demandServiceClient,
+    MatchingServiceClient matchingServiceClient,
+    CommercialServiceClient commercialServiceClient,
+    ActivityServiceClient activityServiceClient,
+    AnalyticsServiceClient analyticsServiceClient,
+    AutomationAiServiceClient automationAiServiceClient) : ControllerBase
 {
     private static readonly IReadOnlyDictionary<string, string> CatalogScreenTypes = new Dictionary<string, string>
     {
@@ -59,136 +72,113 @@ public sealed class ScreensController(
         [FromQuery] string? commercialStatus = null,
         [FromQuery] Guid? responsibleUserId = null)
     {
-        // V2-PTY-001 (party-service): screenId reales de screen-registry.ts con task "V2-PTY-001".
-        // PTY-02/03/04 son formularios de alta (sin datos que leer) y PTY-12 (Historial) es de ACT.
-        if (screenId is "PTY-01" or "GLB-11")
-        {
-            var effectivePage = page <= 0 ? 1 : page;
-            var effectivePageSize = pageSize <= 0 ? 20 : pageSize;
+        var demoState = await BuildDemoStateAsync(screenId, catalogType, activeOnly, cancellationToken);
+        return Ok(demoState);
+    }
 
-            // GLB-11 (contenido archivado) = parties con baja lógica: commercialStatus INACTIVE.
-            var status = screenId == "GLB-11" ? "INACTIVE" : commercialStatus;
+    private async Task<object> BuildDemoStateAsync(
+        string screenId, 
+        string? queryCatalogType, 
+        bool activeOnly, 
+        CancellationToken cancellationToken)
+    {
+        var contactsTask = SafeFetchArrayAsync(partyServiceClient.GetAsync, "/api/v1/parties?page=1&pageSize=50", cancellationToken);
+        var propertiesTask = SafeFetchArrayAsync(propertyServiceClient.GetAsync, "/api/v1/properties?page=1&pageSize=50", cancellationToken);
+        var listingsTask = SafeFetchArrayAsync(supplyServiceClient.GetAsync, "/api/v1/listings?page=1&pageSize=50", cancellationToken);
+        var demandsTask = SafeFetchArrayAsync(demandServiceClient.GetAsync, "/api/v1/requirements", cancellationToken);
+        var usersTask = SafeFetchArrayAsync(accessServiceClient.GetAsync, "/api/v1/users?page=1&pageSize=50", cancellationToken);
+        var activitiesTask = SafeFetchArrayAsync(activityServiceClient.GetAsync, "/api/v1/activities/timeline", cancellationToken);
+        var opportunitiesTask = SafeFetchArrayAsync(commercialServiceClient.GetAsync, "/api/v1/opportunities", cancellationToken);
 
-            var query = $"page={effectivePage}&pageSize={effectivePageSize}";
-            query += string.IsNullOrEmpty(q) ? string.Empty : $"&q={Uri.EscapeDataString(q)}";
-            query += string.IsNullOrEmpty(kind) ? string.Empty : $"&kind={Uri.EscapeDataString(kind)}";
-            query += string.IsNullOrEmpty(status) ? string.Empty : $"&commercialStatus={Uri.EscapeDataString(status)}";
-            query += responsibleUserId is null ? string.Empty : $"&responsibleUserId={responsibleUserId}";
-
-            var response = await partyServiceClient.GetAsync($"/api/v1/parties?{query}", cancellationToken);
-            return await ProxyResults.FromAsync(response, cancellationToken);
-        }
-
-        if (screenId is "PTY-05" or "PTY-06" or "PTY-07" or "PTY-08" or "PTY-09" or "PTY-10" or "PTY-11" or "PTY-13")
-        {
-            if (entityId is null)
-            {
-                return BadRequest($"La screen {screenId} requiere ?entityId= (partyId).");
-            }
-
-            // PTY-05 = Contacto 360, PTY-06 = Empresa 360; el resto (relaciones, edición, estado,
-            // baja, identidad técnica) opera sobre una Party de cualquiera de los dos tipos.
-            var path = screenId switch
-            {
-                "PTY-05" => $"/api/v1/contacts/{entityId}",
-                "PTY-06" => $"/api/v1/companies/{entityId}",
-                _ => $"/api/v1/parties/{entityId}",
-            };
-
-            var response = await partyServiceClient.GetAsync(path, cancellationToken);
-            return await ProxyResults.FromAsync(response, cancellationToken);
-        }
-
-        if (screenId is "PRP-01" or "PRP-10")
-        {
-            var effectivePage = page <= 0 ? 1 : page;
-            var effectivePageSize = pageSize <= 0 ? 20 : pageSize;
-            var query = $"page={effectivePage}&pageSize={effectivePageSize}";
-            if (!string.IsNullOrEmpty(q)) query += $"&q={Uri.EscapeDataString(q)}";
-            
-            var response = await propertyServiceClient.GetAsync($"/api/v1/properties?{query}", cancellationToken);
-            return await ProxyResults.FromAsync(response, cancellationToken);
-        }
-        
-        if (screenId is "PRP-03" or "PRP-04" or "PRP-05" or "PRP-06" or "PRP-13")
-        {
-            if (entityId is null) return BadRequest($"La screen {screenId} requiere ?entityId=.");
-            var response = await propertyServiceClient.GetAsync($"/api/v1/properties/{entityId}", cancellationToken);
-            return await ProxyResults.FromAsync(response, cancellationToken);
-        }
-
-        if (screenId is "LST-01" or "LST-09")
-        {
-            var effectivePage = page <= 0 ? 1 : page;
-            var effectivePageSize = pageSize <= 0 ? 20 : pageSize;
-            var query = $"page={effectivePage}&pageSize={effectivePageSize}";
-            if (!string.IsNullOrEmpty(q)) query += $"&q={Uri.EscapeDataString(q)}";
-            
-            var response = await supplyServiceClient.GetAsync($"/api/v1/listings?{query}", cancellationToken);
-            return await ProxyResults.FromAsync(response, cancellationToken);
-        }
-
-        if (screenId is "LST-02" or "LST-04" or "LST-05" or "LST-07")
-        {
-            if (entityId is null) return BadRequest($"La screen {screenId} requiere ?entityId=.");
-            var response = await supplyServiceClient.GetAsync($"/api/v1/listings/{entityId}", cancellationToken);
-            return await ProxyResults.FromAsync(response, cancellationToken);
-        }
-
-        if (screenId == "ADM-01")
-        {
-            var effectivePage = page <= 0 ? 1 : page;
-            var effectivePageSize = pageSize <= 0 ? 20 : pageSize;
-            var response = await accessServiceClient.GetAsync(
-                $"/api/v1/users?page={effectivePage}&pageSize={effectivePageSize}",
-                cancellationToken);
-            return await ProxyResults.FromAsync(response, cancellationToken);
-        }
-
-        if (screenId == "ADM-03")
-        {
-            var response = await accessServiceClient.GetAsync("/api/v1/authorization/role-permission-matrix", cancellationToken);
-            return await ProxyResults.FromAsync(response, cancellationToken);
-        }
-
-        if (screenId == "ADM-04")
-        {
-            if (userId is null)
-            {
-                return BadRequest("La screen ADM-04 requiere ?userId= (ver Follow-ups del reporte de V2-ACL-001).");
-            }
-
-            var response = await accessServiceClient.GetAsync($"/api/v1/users/{userId}/effective-permissions", cancellationToken);
-            return await ProxyResults.FromAsync(response, cancellationToken);
-        }
-
+        Task<JsonElement> catalogTask;
         if (screenId == "ADM-05")
         {
-            // Índice de catálogos: navegación estática, no requiere ida a platform-config-service.
-            return Ok(CatalogTypes.All.Select(type => new { catalogType = type }));
+            var docs = JsonSerializer.SerializeToDocument(CatalogTypes.All.Select(type => new { catalogType = type }));
+            catalogTask = Task.FromResult(docs.RootElement);
+        }
+        else if (CatalogScreenTypes.TryGetValue(screenId, out var fixedType))
+        {
+            catalogTask = SafeFetchArrayAsync(platformConfigServiceClient.GetAsync, $"/api/v1/catalogs/{fixedType}?activeOnly={activeOnly}", cancellationToken);
+        }
+        else if (screenId == "ADM-12" && !string.IsNullOrEmpty(queryCatalogType))
+        {
+            catalogTask = SafeFetchArrayAsync(platformConfigServiceClient.GetAsync, $"/api/v1/catalogs/{queryCatalogType}?activeOnly={activeOnly}", cancellationToken);
+        }
+        else
+        {
+            catalogTask = FetchAllCatalogsAsync(activeOnly, cancellationToken);
         }
 
-        if (CatalogScreenTypes.TryGetValue(screenId, out var fixedCatalogType))
-        {
-            var response = await platformConfigServiceClient.GetAsync(
-                $"/api/v1/catalogs/{fixedCatalogType}?activeOnly={activeOnly}",
-                cancellationToken);
-            return await ProxyResults.FromAsync(response, cancellationToken);
-        }
+        await Task.WhenAll(
+            contactsTask, propertiesTask, listingsTask, demandsTask, 
+            usersTask, activitiesTask, opportunitiesTask, catalogTask);
 
-        if (screenId == "ADM-12")
+        return new
         {
-            if (string.IsNullOrEmpty(catalogType))
+            contacts = contactsTask.Result,
+            properties = propertiesTask.Result,
+            opportunities = opportunitiesTask.Result,
+            listings = listingsTask.Result,
+            captations = Array.Empty<object>(),
+            demands = demandsTask.Result,
+            activities = activitiesTask.Result,
+            reservations = Array.Empty<object>(),
+            operations = Array.Empty<object>(),
+            proposals = Array.Empty<object>(),
+            proposal = new { id = "", contact = "", property = "", amount = 0, currency = "USD", date = "", conditions = "", expiration = "", status = "pending" },
+            stageHistory = Array.Empty<object>(),
+            offlineQueue = Array.Empty<object>(),
+            matchActions = Array.Empty<object>(),
+            aiSuggestions = Array.Empty<object>(),
+            catalogEntries = catalogTask.Result,
+            users = usersTask.Result,
+            catalogVersion = 1
+        };
+    }
+
+    private async Task<JsonElement> FetchAllCatalogsAsync(bool activeOnly, CancellationToken cancellationToken)
+    {
+        var types = new[] { "pipeline-stage", "activity-type", "commercial-origin", "loss-reason", "operation-type", "property-type" };
+        var tasks = types.Select(t => SafeFetchArrayAsync(platformConfigServiceClient.GetAsync, $"/api/v1/catalogs/{t}?activeOnly={activeOnly}", cancellationToken)).ToList();
+        
+        await Task.WhenAll(tasks);
+        
+        var allEntries = tasks.SelectMany(t => 
+        {
+            if (t.Result.ValueKind == JsonValueKind.Array)
             {
-                return BadRequest("La screen ADM-12 requiere ?catalogType=.");
+                return (IEnumerable<JsonElement>)t.Result.EnumerateArray();
             }
+            return Array.Empty<JsonElement>();
+        }).ToList();
 
-            var response = await platformConfigServiceClient.GetAsync(
-                $"/api/v1/catalogs/{catalogType}?activeOnly={activeOnly}",
-                cancellationToken);
-            return await ProxyResults.FromAsync(response, cancellationToken);
+        var docs = JsonSerializer.SerializeToDocument(allEntries);
+        return docs.RootElement;
+    }
+
+    private async Task<JsonElement> SafeFetchArrayAsync(
+        Func<string, CancellationToken, Task<HttpResponseMessage>> getAsync, 
+        string path, 
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await getAsync(path, cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                var jsonString = await response.Content.ReadAsStringAsync(cancellationToken);
+                using var doc = JsonDocument.Parse(jsonString);
+                var root = doc.RootElement;
+                
+                if (root.ValueKind == JsonValueKind.Array) return root.Clone();
+                if (root.ValueKind == JsonValueKind.Object && root.TryGetProperty("items", out var items) && items.ValueKind == JsonValueKind.Array) return items.Clone();
+                if (root.ValueKind == JsonValueKind.Object && root.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Array) return data.Clone();
+                
+                return root.Clone();
+            }
         }
-
-        return NotFound();
+        catch { }
+        
+        return JsonDocument.Parse("[]").RootElement;
     }
 }

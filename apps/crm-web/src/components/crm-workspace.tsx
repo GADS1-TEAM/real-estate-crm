@@ -1,11 +1,11 @@
 "use client";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { CrmShell, UserMenu, type ShellNavItem } from "@/components/crm-shell";
 import { Alert, Avatar, Button, Card, Chip, Drawer, EmptyState, Field, Icon, Modal, Pagination, SelectField, Skeleton, StatusDot, Tabs, Tag, TextAreaField, Toast, } from "@/components/ui/primitives";
 import { AISuggestion, CriterionEditor, CurrencyAmount, MatchScoreExplanation, PipelineCard, PropertyPlaceholder, UnknownIndicator, type CriterionEvidence } from "@/components/domain/domain-components";
 import { crmCatalogFamilies, DemoStoreProvider, getAnalyticsSnapshot, useDemoStore, type AnalyticsFilters, type AnalyticsMetricValue, type CatalogFamily, type DemoAction, type DemoActivity, type DemoDemand, type DemoListing, normalizeDemoState, type DemoState, type OpportunityStage, } from "@/lib/demo-store";
-import { createCrmDataSource } from "@/lib/data-source";
+import { createCrmDataSource, type CrmDataSource } from "@/lib/data-source";
 import { crmPersonas, getRole, hasPermission, permissionLabel, permissionReason, type Permission, type RoleId } from "@/lib/permissions";
 import { getScreenById, screenRegistry, type ScreenDefinition } from "@/lib/screen-registry";
 import { buildCrmScreenUrl } from "@/lib/navigation";
@@ -115,6 +115,53 @@ export function CrmApp({ initialSection, catalogOnly = false }: {
 <CrmWorkspace initialSection={initialSection} catalogOnly={catalogOnly}/>
 </DemoStoreProvider>;
 }
+function saveActionMutation(dataSource: CrmDataSource, action: DemoAction) {
+    try {
+        switch (action.type) {
+            case "contact/create":
+                dataSource.saveMutation("createContact", action.item);
+                break;
+            case "contact/update":
+                dataSource.saveMutation("updateContact", { partyId: action.id, ...action.changes });
+                break;
+            case "party/relate":
+                dataSource.saveMutation("relateContactToCompany", action);
+                break;
+            case "property/create":
+                dataSource.saveMutation("createProperty", action.item);
+                break;
+            case "property/update":
+                dataSource.saveMutation("updateProperty", { propertyId: action.id, ...action.changes });
+                break;
+            case "listing/create":
+                dataSource.saveMutation("createListing", action.item);
+                break;
+            case "listing/update":
+                dataSource.saveMutation("updateListing", { listingId: action.id, ...action.changes });
+                break;
+            case "demand/create":
+                dataSource.saveMutation("createRequirement", action.item);
+                break;
+            case "activity/add":
+                dataSource.saveMutation("recordActivity", action.item);
+                break;
+            case "user/invite":
+                dataSource.saveMutation("createUser", action.item);
+                break;
+            case "user/update":
+                dataSource.saveMutation("updateUser", { userId: action.id, ...action.changes });
+                break;
+            case "catalog/update-entry":
+                dataSource.saveMutation("updateCatalogEntry", { entryId: action.id, label: action.label, status: action.status });
+                break;
+            default:
+                break;
+        }
+    } catch (e) {
+        console.error("Error sending mutation to BFF:", e);
+    }
+}
+
 function CrmWorkspace({ initialSection, catalogOnly }: {
     initialSection: string;
     catalogOnly: boolean;
@@ -122,7 +169,7 @@ function CrmWorkspace({ initialSection, catalogOnly }: {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
-    const { state, dispatch } = useDemoStore();
+    const { state, dispatch: rawDispatch } = useDemoStore();
     const [roleId, setRoleId] = useState<RoleId>("vendedor");
     const [searchOpen, setSearchOpen] = useState(false);
     const [quickCreateOpen, setQuickCreateOpen] = useState(false);
@@ -134,6 +181,12 @@ function CrmWorkspace({ initialSection, catalogOnly }: {
     const [sourceAttempt, setSourceAttempt] = useState(0);
     const [remoteState, setRemoteState] = useState<DemoState | null>(null);
     const dataSource = useMemo(() => createCrmDataSource(mode), []);
+    const dispatch = useCallback((action: DemoAction) => {
+        rawDispatch(action);
+        if (mode !== "demo") {
+            saveActionMutation(dataSource, action);
+        }
+    }, [rawDispatch, dataSource]);
     const [toast, setToast] = useState<{
         message: string;
         tone?: "success" | "info" | "warning";
@@ -254,7 +307,7 @@ function isDemoStateSnapshot(value: unknown): value is DemoState {
     if (!value || typeof value !== "object")
         return false;
     const record = value as Record<string, unknown>;
-    return Array.isArray(record.contacts) && Array.isArray(record.properties) && Array.isArray(record.opportunities);
+    return Array.isArray(record.contacts) && Array.isArray(record.properties);
 }
 function BffLoadingState() {
     return <Card className="blocking-state">
@@ -3167,7 +3220,13 @@ function AuthSurface({ screen, onNavigate }: {
 <span className="eyebrow">Acceso al CRM</span>
 <h2>Ingresá a tu instalación</h2>
 <p>La autenticación se completa con el proveedor de identidad.</p>
-<Button fullWidth onClick={() => onNavigate("INI-01")}>Continuar con proveedor de identidad</Button>
+<Button fullWidth onClick={() => {
+    if (process.env.NEXT_PUBLIC_CRM_WEB_MODE !== "demo" && process.env.NEXT_PUBLIC_CRM_BFF_URL) {
+        window.location.href = `${process.env.NEXT_PUBLIC_CRM_BFF_URL}/api/v1/auth/login`;
+    } else {
+        onNavigate("INI-01");
+    }
+}}>Continuar con proveedor de identidad</Button>
 <small>Esta vista no solicita credenciales.</small>
 </Card>;
     if (screen.id === "AUT-03")

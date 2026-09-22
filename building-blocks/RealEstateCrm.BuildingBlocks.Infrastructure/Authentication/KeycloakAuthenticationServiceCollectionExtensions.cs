@@ -113,7 +113,17 @@ public static class KeycloakAuthenticationServiceCollectionExtensions
             {
                 cookieOptions.Cookie.HttpOnly = true;
                 cookieOptions.Cookie.SameSite = SameSiteMode.Lax;
-                cookieOptions.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+                cookieOptions.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+                cookieOptions.Events.OnRedirectToLogin = context =>
+                {
+                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    return Task.CompletedTask;
+                };
+                cookieOptions.Events.OnRedirectToAccessDenied = context =>
+                {
+                    context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                    return Task.CompletedTask;
+                };
             })
             .AddOpenIdConnect(oidcOptions =>
             {

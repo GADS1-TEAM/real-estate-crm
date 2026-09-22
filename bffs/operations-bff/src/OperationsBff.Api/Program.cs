@@ -1,5 +1,11 @@
 using OperationsBff.Api.AccessService;
+using OperationsBff.Api.ActivityService;
+using OperationsBff.Api.AnalyticsService;
+using OperationsBff.Api.AutomationAiService;
+using OperationsBff.Api.CommercialService;
+using OperationsBff.Api.DemandService;
 using OperationsBff.Api.ErrorHandling;
+using OperationsBff.Api.MatchingService;
 using OperationsBff.Api.PartyService;
 using OperationsBff.Api.PlatformConfigService;
 using OperationsBff.Api.PropertyService;
@@ -59,6 +65,37 @@ var supplyServiceBaseUrl = builder.Configuration["SupplyService:BaseUrl"]
     ?? throw new InvalidOperationException("Falta configuracion supply");
 builder.Services.AddHttpClient<SupplyServiceClient>(client => client.BaseAddress = new Uri(supplyServiceBaseUrl));
 
+// Servicios de dominio restantes: demand, matching, commercial, activity, analytics, automation-ai.
+var demandServiceBaseUrl = builder.Configuration["DemandService:BaseUrl"] ?? "http://localhost:5220";
+builder.Services.AddHttpClient<DemandServiceClient>(client => client.BaseAddress = new Uri(demandServiceBaseUrl));
+
+var matchingServiceBaseUrl = builder.Configuration["MatchingService:BaseUrl"] ?? "http://localhost:5290";
+builder.Services.AddHttpClient<MatchingServiceClient>(client => client.BaseAddress = new Uri(matchingServiceBaseUrl));
+
+var commercialServiceBaseUrl = builder.Configuration["CommercialService:BaseUrl"] ?? "http://localhost:5145";
+builder.Services.AddHttpClient<CommercialServiceClient>(client => client.BaseAddress = new Uri(commercialServiceBaseUrl));
+
+var activityServiceBaseUrl = builder.Configuration["ActivityService:BaseUrl"] ?? "http://localhost:5247";
+builder.Services.AddHttpClient<ActivityServiceClient>(client => client.BaseAddress = new Uri(activityServiceBaseUrl));
+
+var analyticsServiceBaseUrl = builder.Configuration["AnalyticsService:BaseUrl"] ?? "http://localhost:5046";
+builder.Services.AddHttpClient<AnalyticsServiceClient>(client => client.BaseAddress = new Uri(analyticsServiceBaseUrl));
+
+var automationAiServiceBaseUrl = builder.Configuration["AutomationAiService:BaseUrl"] ?? "http://localhost:5015";
+builder.Services.AddHttpClient<AutomationAiServiceClient>(client => client.BaseAddress = new Uri(automationAiServiceBaseUrl));
+
+// CORS: el frontend Next.js corre en localhost:3000 y necesita acceder al BFF.
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("CrmWeb", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
+
 builder.Services.AddCrmHealthChecks();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -74,6 +111,7 @@ app.UseSwaggerUI(c =>
 
 app.UseExceptionHandler();
 app.UseCrmCorrelationId();
+app.UseCors("CrmWeb");
 
 app.UseAuthentication();
 app.UseAuthorization();
