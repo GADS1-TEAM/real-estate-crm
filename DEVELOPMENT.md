@@ -212,3 +212,14 @@ bash apps/scripts/build-webs.sh
 - **New Permissions & Resource Types**: Added permissions for Properties, Listings, Requirements, Captations, and Matches. These are granted to all roles for read access.
 - **Party Dev Seeds**: Development seed creates 3 parties (1 natural person owner, 1 legal entity owner, 1 seeker) to test with.
 - **run-slice scripts**: Use `scripts/run-slice.sh` or `scripts/run-slice.ps1` to easily start all implemented services and the Operations BFF locally with `dotnet run`.
+
+## Carga Masiva de Datos de Prueba (Seeding)
+
+Para poblar la base de datos MongoDB con el conjunto completo de datos de prueba (empresas, contactos, inmuebles, publicaciones, captaciones, búsquedas/demandas, oportunidades del embudo, reservas y actividades) a través del Operations BFF (`http://localhost:5137`):
+
+1. Iniciar los servicios con `bash scripts/run-slice.sh` (o `scripts/run-slice.ps1` en Windows).
+2. En otra terminal, ejecutar:
+   ```bash
+   node scripts/seed-data.js
+   ```
+
