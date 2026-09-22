@@ -5,6 +5,7 @@ using PlatformConfigService.Api.ExecutionContextResolution;
 using PlatformConfigService.Application.Catalogs;
 using RealEstateCrm.BuildingBlocks.Authorization;
 using RealEstateCrm.Contracts.Authorization;
+using RealEstateCrm.Contracts.Context;
 using RealEstateCrm.Contracts.Events.PlatformConfig;
 
 namespace PlatformConfigService.Api.Catalogs;
@@ -17,7 +18,6 @@ namespace PlatformConfigService.Api.Catalogs;
 /// </summary>
 [ApiController]
 [Route("api/v1/catalogs")]
-[AllowAnonymous]
 public sealed class CatalogsController(
     CatalogService catalogService,
     IAuthorizationPort authorizationPort,
@@ -30,32 +30,21 @@ public sealed class CatalogsController(
         [FromQuery] bool activeOnly = false,
         [FromQuery] int? version = null)
     {
-        var context = await executionContextProvider.GetAsync(cancellationToken);
-        var decision = await authorizationPort.EvaluateAsync(context!.ActorId, Permissions.CatalogsRead, ResourceTypes.Catalog, resourceId: null, cancellationToken);
-
-        if (!decision.Allowed)
-        {
-            return ProblemDetailsResults.Forbidden(decision.ReasonCode!, context.CorrelationId, Request.Path);
-        }
+        var (context, forbidden) = await AuthorizeAsync(Permissions.CatalogsRead, resourceId: null, cancellationToken);
+        if (forbidden is not null) return forbidden;
 
         var result = await catalogService.GetCatalogAsync(catalogType, activeOnly, version, cancellationToken);
-
         return Ok(result);
     }
 
     [HttpPost]
     public async Task<IActionResult> CreateCatalogEntry([FromBody] CreateCatalogEntryRequest request, CancellationToken cancellationToken)
     {
-        var context = await executionContextProvider.GetAsync(cancellationToken);
-        var decision = await authorizationPort.EvaluateAsync(context!.ActorId, Permissions.CatalogsManage, ResourceTypes.Catalog, resourceId: null, cancellationToken);
-
-        if (!decision.Allowed)
-        {
-            return ProblemDetailsResults.Forbidden(decision.ReasonCode!, context.CorrelationId, Request.Path);
-        }
+        var (context, forbidden) = await AuthorizeAsync(Permissions.CatalogsManage, resourceId: null, cancellationToken);
+        if (forbidden is not null) return forbidden;
 
         var entry = await catalogService.CreateCatalogEntryAsync(
-            context, request.CatalogType, request.Code, request.Label, request.Order, request.PipelineKind, request.SemanticState, cancellationToken);
+            context!, request.CatalogType, request.Code, request.Label, request.Order, request.PipelineKind, request.SemanticState, cancellationToken);
 
         return Created($"/api/v1/catalogs/{entry.CatalogType}", entry);
     }
@@ -63,48 +52,48 @@ public sealed class CatalogsController(
     [HttpPut("{entryId:guid}")]
     public async Task<IActionResult> UpdateCatalogEntry(Guid entryId, [FromBody] UpdateCatalogEntryRequest request, CancellationToken cancellationToken)
     {
-        var context = await executionContextProvider.GetAsync(cancellationToken);
-        var decision = await authorizationPort.EvaluateAsync(context!.ActorId, Permissions.CatalogsManage, ResourceTypes.Catalog, entryId, cancellationToken);
+        var (context, forbidden) = await AuthorizeAsync(Permissions.CatalogsManage, resourceId: entryId, cancellationToken);
+        if (forbidden is not null) return forbidden;
 
-        if (!decision.Allowed)
-        {
-            return ProblemDetailsResults.Forbidden(decision.ReasonCode!, context.CorrelationId, Request.Path);
-        }
-
-        var entry = await catalogService.UpdateCatalogEntryAsync(context, entryId, request.Label, request.Order, cancellationToken);
-
+        var entry = await catalogService.UpdateCatalogEntryAsync(context!, entryId, request.Label, request.Order, cancellationToken);
         return Ok(entry);
     }
 
     [HttpPost("{entryId:guid}/deactivate")]
     public async Task<IActionResult> DeactivateCatalogEntry(Guid entryId, CancellationToken cancellationToken)
     {
-        var context = await executionContextProvider.GetAsync(cancellationToken);
-        var decision = await authorizationPort.EvaluateAsync(context!.ActorId, Permissions.CatalogsManage, ResourceTypes.Catalog, entryId, cancellationToken);
+        var (context, forbidden) = await AuthorizeAsync(Permissions.CatalogsManage, resourceId: entryId, cancellationToken);
+        if (forbidden is not null) return forbidden;
 
-        if (!decision.Allowed)
-        {
-            return ProblemDetailsResults.Forbidden(decision.ReasonCode!, context.CorrelationId, Request.Path);
-        }
-
-        var entry = await catalogService.DeactivateCatalogEntryAsync(context, entryId, cancellationToken);
-
+        var entry = await catalogService.DeactivateCatalogEntryAsync(context!, entryId, cancellationToken);
         return Ok(entry);
     }
 
     [HttpPost("{catalogType}/publish")]
     public async Task<IActionResult> PublishCatalogVersion(string catalogType, CancellationToken cancellationToken)
     {
-        var context = await executionContextProvider.GetAsync(cancellationToken);
-        var decision = await authorizationPort.EvaluateAsync(context!.ActorId, Permissions.CatalogsManage, ResourceTypes.Catalog, resourceId: null, cancellationToken);
+        var (context, forbidden) = await AuthorizeAsync(Permissions.CatalogsManage, resourceId: null, cancellationToken);
+        if (forbidden is not null) return forbidden;
 
-        if (!decision.Allowed)
+        var newVersion = await catalogService.PublishCatalogVersionAsync(context!, catalogType, cancellationToken);
+        return Ok(new CatalogVersionPublishedV1(catalogType, newVersion));
+    }
+
+    private async Task<(ExecutionContextV1? Context, IActionResult? Forbidden)> AuthorizeAsync(
+        string permission,
+        Guid? resourceId,
+        CancellationToken cancellationToken)
+    {
+        var context = await executionContextProvider.GetAsync(cancellationToken);
+        if (context is null)
         {
-            return ProblemDetailsResults.Forbidden(decision.ReasonCode!, context.CorrelationId, Request.Path);
+            return (null, ProblemDetailsResults.Unauthorized("Token ausente o inválido.", Guid.NewGuid(), Request.Path));
         }
 
-        var newVersion = await catalogService.PublishCatalogVersionAsync(context, catalogType, cancellationToken);
+        var decision = await authorizationPort.EvaluateAsync(context.ActorId, permission, ResourceTypes.Catalog, resourceId, cancellationToken);
 
-        return Ok(new CatalogVersionPublishedV1(catalogType, newVersion));
+        return decision.Allowed
+            ? (context, null)
+            : (context, ProblemDetailsResults.Forbidden(decision.ReasonCode!, context.CorrelationId, Request.Path));
     }
 }
