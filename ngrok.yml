@@ -1,16 +1,16 @@
-authtoken: 3JhWAFSGOXyj13znqlnrqBKwfEJ_4oSTp2ZH8VKBFb77f66Mv
+version: "3"
+agent:
+  authtoken: 3JhWAFSGOXyj13znqlnrqBKwfEJ_4oSTp2ZH8VKBFb77f66Mv
+  region: us
+  log_level: info
+  web_addr: localhost:4040
 
-version: 2
-region: us
-log_level: info
-web_addr: localhost:4040
+endpoints:
+  - name: operations
+    upstream:
+      url: http://localhost:5137
+    # host_header: rewrite   # opcional, según necesidad
+    # inspect: false        # opcional
 
-tunnels:
-  your_endpoint_name:
-    proto: http
-    addr: 5137
-    host_header: rewrite
-    inspect: false
-    bind_tls: true
     # La URL pública será generada automáticamente; si necesitas un sub‑dominio estático deberás
     # usar el plan Pro de ngrok y especificar "subdomain: <tu-subdominio>" aquí.

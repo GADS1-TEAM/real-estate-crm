@@ -2,13 +2,9 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 # Copy solution and restore dependencies
-COPY *.sln .
-COPY **/*.csproj .
-RUN dotnet restore
-
-# Copy source and publish
+#COPY *.sln .
 COPY . .
-RUN dotnet publish bffs/operations-bff/src/OperationsBff.Api/OperationsBff.Api.csproj -c Release -o /app --no-restore
+RUN dotnet publish bffs/operations-bff/src/OperationsBff.Api/OperationsBff.Api.csproj -c Release -o /app
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
