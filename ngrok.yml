@@ -9,8 +9,3 @@ endpoints:
   - name: operations
     upstream:
       url: http://localhost:5137
-    # host_header: rewrite   # opcional, según necesidad
-    # inspect: false        # opcional
-
-    # La URL pública será generada automáticamente; si necesitas un sub‑dominio estático deberás
-    # usar el plan Pro de ngrok y especificar "subdomain: <tu-subdominio>" aquí.
