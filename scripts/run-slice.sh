@@ -57,7 +57,9 @@ run_service "services/automation-ai-service/src/AutomationAiService.Api/Automati
 run_service "bffs/operations-bff/src/OperationsBff.Api/OperationsBff.Api.csproj" "http://localhost:5137"
 run_service "bffs/platform-admin-bff/src/PlatformAdminBff.Api/PlatformAdminBff.Api.csproj" "http://localhost:5140"
 
-echo "🚀 Todos los microservicios y BFFs iniciados."
+echo "============================================================"
+echo " Todos los microservicios y BFFs iniciados"
+echo "============================================================"
 echo "Presioná Ctrl+C para detener todos los procesos."
 
 wait
