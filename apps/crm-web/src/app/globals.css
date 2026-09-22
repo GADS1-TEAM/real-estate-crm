@@ -317,3 +317,220 @@ kbd { border: 1px solid rgba(255,255,255,.22); border-radius: 3px; color: inheri
 @media (max-width: 860px) { .sidebar { display: none; }.main-content { padding: 24px 18px 95px; }.topbar { height: 58px; padding: 0 18px; }.mobile-brand { display: flex; }.mobile-brand strong { color: var(--eminent-dark); font-size: 12px; font-weight: 500; }.global-search-trigger { margin-left: 20px; max-width: none; }.global-search-trigger span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.topbar-actions .topbar-icon, .topbar-actions > .chip:not(:last-of-type) { display: none; }.mobile-bottom-nav { background: #fff; border-top: 1px solid var(--border-subtle); bottom: 0; display: grid; grid-template-columns: repeat(5, 1fr); left: 0; padding: 6px 5px calc(6px + env(safe-area-inset-bottom)); pointer-events: auto; position: fixed; right: 0; z-index: 10; }.mobile-nav-item { align-items: center; background: transparent; border: 0; color: var(--text-secondary); display: flex; flex-direction: column; font-size: 10px; gap: 4px; justify-content: center; min-height: 48px; }.mobile-nav-item.is-active { color: var(--brand-dark); }.mobile-nav-item.is-active svg { color: var(--brand-primary); }.page-header { align-items: flex-start; flex-direction: column; gap: 14px; margin-bottom: 21px; }.page-actions { width: 100%; }.page-actions .button { flex: 1; }.hero-grid, .detail-grid, .content-grid, .content-grid-home { grid-template-columns: 1fr; }.kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }.mobile-day-card { display: block; }.quick-mobile-actions { display: grid; gap: 8px; grid-template-columns: repeat(3, 1fr); }.quick-mobile-actions button { align-items: center; background: var(--surface-page); border: 1px solid var(--border-subtle); border-radius: 4px; color: var(--eminent-primary); display: flex; flex-direction: column; font-size: 10px; gap: 6px; justify-content: center; min-height: 74px; }.offline-banner { bottom: 68px; left: 10px; right: 10px; }.pipeline-board, .kanban-board { grid-template-columns: repeat(3, minmax(180px, 1fr)); }.match-result { flex-direction: column; }.match-result > .property-placeholder { height: 115px; width: 100%; }.catalog-grid { grid-template-columns: 1fr; }.catalog-side { display: grid; grid-template-columns: repeat(2, 1fr); }.catalog-side > .card:last-child { grid-column: 1 / -1; } }
 @media (max-width: 560px) { h1 { font-size: 25px; }.topbar { gap: 8px; }.global-search-trigger { margin-left: 0; padding: 0 8px; }.global-search-trigger kbd { display: none; }.topbar-actions { gap: 4px; }.topbar-actions > .chip { font-size: 9px; padding: 0 6px; }.hero-overline { align-items: flex-start; flex-direction: column; gap: 8px; }.home-hero h2 { font-size: 24px; margin-top: 28px; }.hero-actions { flex-direction: column; }.hero-actions .button { width: 100%; }.kpi-card { min-height: 110px; padding: 13px; }.kpi-card > strong { font-size: 20px; }.kpi-detail { font-size: 10px; }.table-toolbar { align-items: stretch; flex-wrap: wrap; }.inline-search { flex-basis: 100%; }.toolbar-count { margin-left: 0; }.form-grid, .definition-grid, .evidence-columns, .unknown-grid { grid-template-columns: 1fr; }.form-card-heading, .detail-hero, .match-toolbar, .board-toolbar, .activity-toolbar, .analytics-header, .admin-header { align-items: flex-start; flex-direction: column; }.form-card-heading > .property-placeholder { align-self: stretch; width: 100%; }.detail-identity { align-items: flex-start; }.detail-identity h2 { font-size: 20px; }.detail-actions { flex-wrap: wrap; width: 100%; }.detail-actions .button:not(.button-xsmall) { flex: 1; }.match-toolbar-actions, .board-actions, .analytics-actions { width: 100%; }.match-toolbar-actions .button, .board-actions .button, .analytics-actions .button { flex: 1; }.valuation-compare { grid-template-columns: 1fr; }.valuation-arrow { transform: rotate(90deg); justify-self: center; }.inline-stage-editor { grid-template-columns: 1fr; }.stage-progress { min-width: 480px; }.stage-progress { overflow-x: auto; }.activity-type-grid { grid-template-columns: repeat(3, 1fr); }.activity-type:nth-child(4), .activity-type:nth-child(5) { min-height: 54px; }.visit-capture-row { grid-template-columns: 1fr; }.stepper { align-items: flex-start; flex-direction: column; gap: 8px; }.stepper-line { height: 15px; margin: 0 0 0 12px; width: 1px; }.role-matrix-head, .catalog-controls, .catalog-intro { align-items: flex-start; flex-direction: column; }.role-options { grid-template-columns: 1fr; }.catalog-intro h1 { font-size: 30px; }.catalog-counts { gap: 18px; }.catalog-table { overflow-x: auto; }.catalog-table-head, .catalog-table-row { min-width: 500px; }.catalog-side { display: flex; }.search-panel { width: calc(100% - 20px); }.search-footer { gap: 8px; justify-content: space-between; }.search-footer span { font-size: 9px; }.drawer { width: 100%; }.modal { width: calc(100% - 20px); }.toast { bottom: 75px; right: 10px; }.deferred-state, .blocking-state, .state-card { align-items: flex-start; flex-direction: column; margin-top: 4vh; }.deferred-meta { flex-direction: column; gap: 10px; }.assistant-hero { align-items: flex-start; flex-wrap: wrap; }.assistant-hero > .chip { margin-left: 69px; margin-top: -8px; } }
 @media (min-width: 861px) { .mobile-bottom-nav { display: none; } }
+
+/* ==========================================================================
+   FLUID MOBILE-STYLE ANIMATIONS & MICRO-INTERACTIONS
+   ========================================================================== */
+
+/* 1. General Smooth Transitions & Touch Feedback for Interactive Elements */
+.button, 
+.nav-item, 
+.tab, 
+.chip, 
+.tag, 
+.card, 
+.data-table tbody tr, 
+.attention-row, 
+.quick-create-option, 
+.role-option, 
+.activity-filter, 
+.weight-button, 
+.user-menu-item, 
+.search-result,
+.pipeline-card,
+.captation-card,
+.role-pill,
+.global-search-trigger {
+  transition: transform 140ms cubic-bezier(0.2, 0.8, 0.2, 1),
+              background-color 160ms cubic-bezier(0.2, 0.8, 0.2, 1),
+              border-color 160ms ease,
+              box-shadow 160ms ease,
+              color 140ms ease;
+  will-change: transform;
+}
+
+/* Active Press/Touch Feedback (iOS/Android tactile feel) */
+.button:active:not(:disabled),
+.nav-item:active,
+.tab:active,
+.chip:active,
+.activity-filter:active,
+.quick-create-option:active,
+.role-option:active,
+.weight-button:active,
+.data-table tbody tr:active,
+.attention-row:active,
+.search-result:active,
+.pipeline-card:active,
+.captation-card:active,
+.role-pill:active,
+.global-search-trigger:active {
+  transform: scale(0.972) !important;
+}
+
+/* Hover Elevations */
+.button-primary:hover:not(:disabled) {
+  box-shadow: 0 4px 14px rgba(250, 100, 0, 0.3);
+  transform: translateY(-1px);
+}
+
+.button-secondary:hover:not(:disabled) {
+  box-shadow: 0 4px 14px rgba(0, 57, 115, 0.25);
+  transform: translateY(-1px);
+}
+
+.button-outline:hover:not(:disabled) {
+  box-shadow: 0 3px 10px rgba(0, 32, 65, 0.08);
+  transform: translateY(-1px);
+}
+
+.card {
+  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 220ms ease, border-color 220ms ease;
+}
+
+.card:hover {
+  box-shadow: var(--shadow-2);
+}
+
+/* 2. Screen & Section Navigation Entrance Animations */
+@keyframes mobileScreenEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.993);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.main-content,
+.feature-stack,
+.form-card,
+.detail-hero,
+.pipeline-board,
+.kanban-board,
+.analytics-kpis,
+.content-grid,
+.hero-grid,
+.kpi-grid,
+.detail-grid {
+  animation: mobileScreenEnter 280ms cubic-bezier(0.16, 1, 0.3, 1) ease-out;
+}
+
+/* 3. Modal Spring Entrance */
+@keyframes modalSpringIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.93) translateY(18px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.modal {
+  animation: modalSpringIn 280ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* 4. Backdrop Blur & Smooth Fade */
+@keyframes backdropFadeIn {
+  0% {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+  100% {
+    opacity: 1;
+    backdrop-filter: blur(3px);
+  }
+}
+
+.overlay-backdrop {
+  animation: backdropFadeIn 220ms ease-out forwards;
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+/* 5. Drawer Smooth Slide-In */
+@keyframes drawerSlideInRight {
+  0% {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.drawer {
+  animation: drawerSlideInRight 320ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* 6. Quick Search & User Menu Dropdown Transitions */
+@keyframes dropdownSpringIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.user-menu,
+.search-panel {
+  animation: dropdownSpringIn 240ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* 7. Toast Spring Animation */
+@keyframes toastSpringIn {
+  0% {
+    opacity: 0;
+    transform: translateY(24px) scale(0.88);
+  }
+  70% {
+    transform: translateY(-3px) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.toast {
+  animation: toastSpringIn 320ms cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+/* 8. Inline Expandables, Alerts & Form Editors */
+@keyframes inlineExpand {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.alert,
+.inline-stage-editor,
+.trace-panel,
+.form-grid,
+.criterion-editor,
+.ai-suggestion {
+  animation: inlineExpand 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* 9. Input & Control Focus Micro-Elevation */
+.field input, .field textarea, .field select, .data-table select {
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 140ms ease;
+}
+
+.field input:focus, .field textarea:focus, .field select:focus, .data-table select:focus {
+  transform: translateY(-1px);
+}
+
