@@ -802,7 +802,13 @@ export function normalizeDemoState(snapshot: unknown): DemoState {
     matchActions: arrayOrDefault(candidate.matchActions, demoInitialState.matchActions),
     aiSuggestions: arrayOrDefault(candidate.aiSuggestions, demoInitialState.aiSuggestions),
     catalogEntries: arrayOrDefault(candidate.catalogEntries, demoInitialState.catalogEntries).map((entry) => ({ ...entry, catalogType: entry.catalogType ?? catalogTypeFromLegacyId(entry.id) })),
-    users: arrayOrDefault(candidate.users, demoInitialState.users),
+    users: arrayOrDefault(candidate.users, demoInitialState.users).map((user: any) => ({
+      id: user.id ?? user.userId ?? `usr-${Math.random()}`,
+      name: user.name ?? user.displayName ?? "Usuario",
+      email: user.email ?? "usuario@inmobiliaria.com",
+      role: user.role ?? "Vendedor",
+      status: user.status ?? "Habilitado",
+    })),
   };
 }
 

@@ -79,9 +79,10 @@ export function Alert({ children, tone = "info", title, action }: { children: Re
   return <div className={`alert alert-${tone}`} role={tone === "error" ? "alert" : "status"}><Icon name={tone === "success" ? "check" : tone === "warning" || tone === "error" ? "alert" : "info"} size={18} /><div className="alert-copy">{title && <strong>{title}</strong>}<span>{children}</span></div>{action}</div>;
 }
 
-export function Avatar({ name, size = "regular" }: { name: string; size?: "small" | "regular" | "large" }) {
-  const initials = name.split(" ").slice(0, 2).map((part) => part[0]).join("").toUpperCase();
-  return <span className={`avatar avatar-${size}`} aria-label={name}>{initials}</span>;
+export function Avatar({ name = "", size = "regular" }: { name?: string; size?: "small" | "regular" | "large" }) {
+  const safeName = (name || "Usuario").trim();
+  const initials = safeName.split(" ").slice(0, 2).map((part) => part[0] || "").join("").toUpperCase() || "U";
+  return <span className={`avatar avatar-${size}`} aria-label={safeName}>{initials}</span>;
 }
 
 export function Skeleton({ width = "100%", height = 16, className = "" }: { width?: string | number; height?: number; className?: string }) {
