@@ -2657,10 +2657,14 @@ function ActivityView({ screen, state, entityId, onNavigate, onToast, dispatch }
     const scopedStageHistory = screen.id === "ACT-04" && activitySubject
         ? state.stageHistory.filter((item) => item.opportunityId === activitySubject.id)
         : [];
-    const mixedTimeline = [...filteredActivities.map((activity) => ({
-        at: Date.parse(activity.occurredAt ?? activity.createdAt) || 0,
-        text: `${activity.subject} · ${activity.actor} · ${activity.occurredAt ?? activity.createdAt}${activity.historical ? " · Histórico" : ""}`,
-    })), ...scopedStageHistory.map((item) => ({
+    const mixedTimeline = [...filteredActivities.map((activity) => {
+        const title = activity.subject ?? activity.text ?? activity.body ?? `${activity.type} registrada`;
+        const actorName = activity.actor ?? activity.createdBy ?? "Martin Quiroga";
+        return {
+            at: Date.parse(activity.occurredAt ?? activity.createdAt) || 0,
+            text: `${title} · ${actorName} · ${activity.occurredAt ?? activity.createdAt}${activity.historical ? " · Histórico" : ""}`,
+        };
+    }), ...scopedStageHistory.map((item) => ({
         at: Date.parse(item.at) || 0,
         text: `${item.from} → ${item.to} · ${item.actor} · ${item.at}${item.reason ? ` · ${item.reason}` : ""}`,
     }))].sort((left, right) => right.at - left.at).map((item) => item.text);
@@ -2796,10 +2800,10 @@ function AnalyticsView({ screen, state, onNavigate }: {
 <p>La métrica se puede abrir hasta las oportunidades concretas que la componen.</p>
 </div>
 <div className="analytics-actions">
-<SelectField label="Período" value={filters.period} onChange={(event) => setFilters((current) => ({ ...current, period: event.target.value as AnalyticsFilters["period"] }))}><option value="30d">Últimos 30 días</option><option value="all">Todo el historial</option></SelectField>
-<SelectField label="Responsable" value={filters.responsible} onChange={(event) => setFilters((current) => ({ ...current, responsible: event.target.value }))}><option value="ALL">Todos los responsables</option>{state.users.map((user) => <option value={user.name} key={user.id}>{user.name}</option>)}</SelectField>
-<SelectField label="Tipo de pipeline" value={filters.pipelineKind} onChange={(event) => setFilters((current) => ({ ...current, pipelineKind: event.target.value as AnalyticsFilters["pipelineKind"] }))}><option value="ALL">Todos los pipelines</option><option value="REQUIREMENT">Búsquedas</option><option value="CAPTATION_CASE">Captaciones</option></SelectField>
-<SelectField label="Origen" value={filters.origin} onChange={(event) => setFilters((current) => ({ ...current, origin: event.target.value }))}><option value="ALL">Todos los orígenes</option>{origins.map((origin) => <option value={origin} key={origin}>{origin}</option>)}</SelectField>
+<SelectField label="Período" value={filters.period} onChange={(event) => setFilters((current) => ({ ...current, period: event.target.value as AnalyticsFilters["period"] }))}><option key="30d" value="30d">Últimos 30 días</option><option key="all" value="all">Todo el historial</option></SelectField>
+<SelectField label="Responsable" value={filters.responsible} onChange={(event) => setFilters((current) => ({ ...current, responsible: event.target.value }))}><option key="ALL" value="ALL">Todos los responsables</option>{state.users.map((user) => <option value={user.name} key={user.id}>{user.name}</option>)}</SelectField>
+<SelectField label="Tipo de pipeline" value={filters.pipelineKind} onChange={(event) => setFilters((current) => ({ ...current, pipelineKind: event.target.value as AnalyticsFilters["pipelineKind"] }))}><option key="ALL" value="ALL">Todos los pipelines</option><option key="REQUIREMENT" value="REQUIREMENT">Búsquedas</option><option key="CAPTATION_CASE" value="CAPTATION_CASE">Captaciones</option></SelectField>
+<SelectField label="Origen" value={filters.origin} onChange={(event) => setFilters((current) => ({ ...current, origin: event.target.value }))}><option key="ALL" value="ALL">Todos los orígenes</option>{origins.map((origin) => <option value={origin} key={origin}>{origin}</option>)}</SelectField>
 </div>
 </div>{!snapshot.opportunities.length && <Alert tone="info" title="Sin datos en este alcance">No hay oportunidades que cumplan los filtros. Las métricas derivadas se muestran como UNKNOWN cuando no hay observaciones suficientes.</Alert>}{isFunnel ? <FunnelChart opportunities={snapshot.opportunities} onNavigate={onNavigate}/> : isSupply ? <SupplyDemand snapshot={snapshot} state={state}/> : <PerformanceGrid opportunities={snapshot.opportunities} onNavigate={onNavigate}/>}</Card>
 <div className="content-grid">

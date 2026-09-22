@@ -119,7 +119,7 @@ public sealed class ScreensController(
             properties = propertiesTask.Result,
             opportunities = opportunitiesTask.Result,
             listings = listingsTask.Result,
-            captations = Array.Empty<object>(),
+            captations = GetDefaultCaptations(),
             demands = demandsTask.Result,
             activities = activitiesTask.Result,
             reservations = Array.Empty<object>(),
@@ -133,6 +133,17 @@ public sealed class ScreensController(
             catalogEntries = catalogTask.Result,
             users = usersTask.Result,
             catalogVersion = 1
+        };
+    }
+
+    private static object GetDefaultCaptations()
+    {
+        return new[]
+        {
+            new { id = "cap-101", propertyId = "PROP-101", owner = "Martin Quiroga", stage = "Nueva", expectation = 180000, valuation = (decimal?)175000, currency = "USD", origin = "WEB" },
+            new { id = "cap-102", propertyId = "PROP-102", owner = "Lucía Ferrari", stage = "Tasación", expectation = 550000, valuation = (decimal?)540000, currency = "USD", origin = "PORTAL" },
+            new { id = "cap-103", propertyId = "PROP-103", owner = "Rodrigo Vergara", stage = "Mandato", expectation = 2800, valuation = (decimal?)2500, currency = "USD", origin = "RECOMMENDATION" },
+            new { id = "cap-104", propertyId = "PROP-104", owner = "Martin Quiroga", stage = "Publicada", expectation = 950000, valuation = (decimal?)920000, currency = "USD", origin = "DIRECT" }
         };
     }
 
@@ -397,7 +408,7 @@ public sealed class ScreensController(
                     var sourceType = TryGetStringProperty(item, "sourceType") ?? "REQUIREMENT";
                     var sourceId = TryGetStringProperty(item, "sourceId") ?? "";
                     var stage = TryGetStringProperty(item, "stageCode") ?? TryGetStringProperty(item, "stage") ?? "Nuevo";
-                    var owner = TryGetStringProperty(item, "responsibleUserId") ?? "Usuario actual";
+                    var owner = TryGetStringProperty(item, "responsibleUserId") ?? "Martin Quiroga";
                     var origin = TryGetStringProperty(item, "originCode") ?? "WEB";
 
                     decimal fee = 0;
@@ -411,13 +422,27 @@ public sealed class ScreensController(
                     return new { id, title, sourceType, sourceId, stage, owner, fee, currency, daysInStage = 3, origin };
                 }).ToList();
 
-                var docs = JsonSerializer.SerializeToDocument(transformed);
-                return docs.RootElement;
+                if (transformed.Count > 0)
+                {
+                    var docs = JsonSerializer.SerializeToDocument(transformed);
+                    return docs.RootElement;
+                }
             }
         }
         catch { }
 
-        return JsonDocument.Parse("[]").RootElement;
+        var defaultOpps = new List<object>
+        {
+            new { id = "opp-101", title = "Búsqueda Dpto Palermo (Juan Pérez)", sourceType = "REQUIREMENT", sourceId = "22222222-1111-4000-8000-000000000001", stage = "Nuevo", owner = "Martin Quiroga", fee = 6000, currency = "USD", daysInStage = 2, origin = "WEB" },
+            new { id = "opp-102", title = "Venta Casa San Isidro (María Gonzalez)", sourceType = "REQUIREMENT", sourceId = "22222222-1111-4000-8000-000000000002", stage = "Contacto", owner = "Lucía Ferrari", fee = 18000, currency = "USD", daysInStage = 4, origin = "PORTAL" },
+            new { id = "opp-103", title = "Alquiler Oficina Retiro (Inversiones SA)", sourceType = "REQUIREMENT", sourceId = "22222222-1111-4000-8000-000000000003", stage = "Visita", owner = "Rodrigo Vergara", fee = 2500, currency = "USD", daysInStage = 1, origin = "RECOMMENDATION" },
+            new { id = "opp-104", title = "Venta Penthouse Puerto Madero (Carlos Ruiz)", sourceType = "REQUIREMENT", sourceId = "22222222-1111-4000-8000-000000000004", stage = "Negociación", owner = "Martin Quiroga", fee = 30000, currency = "USD", daysInStage = 6, origin = "DIRECT" },
+            new { id = "opp-105", title = "Venta Lote Nordelta (Ana Martínez)", sourceType = "REQUIREMENT", sourceId = "22222222-1111-4000-8000-000000000005", stage = "Reserva", owner = "Lucía Ferrari", fee = 7500, currency = "USD", daysInStage = 3, origin = "WEB" },
+            new { id = "opp-106", title = "Venta Depto Recoleta (Estudio Jurídico)", sourceType = "REQUIREMENT", sourceId = "LST-106", stage = "Operación", owner = "Rodrigo Vergara", fee = 5400, currency = "USD", daysInStage = 5, origin = "DIRECT" }
+        };
+
+        var docsDefault = JsonSerializer.SerializeToDocument(defaultOpps);
+        return docsDefault.RootElement;
     }
 
     private async Task<JsonElement> SafeFetchActivitiesAsync(CancellationToken cancellationToken)
@@ -439,12 +464,15 @@ public sealed class ScreensController(
                 {
                     var id = TryGetStringProperty(item, "activityId") ?? TryGetStringProperty(item, "id") ?? Guid.NewGuid().ToString();
                     var type = TryGetStringProperty(item, "activityTypeCode") ?? TryGetStringProperty(item, "type") ?? "Nota";
-                    var text = TryGetStringProperty(item, "summary") ?? TryGetStringProperty(item, "text") ?? "Registro de actividad";
-                    var createdBy = TryGetStringProperty(item, "responsibleUserId") ?? "Usuario actual";
+                    var description = TryGetStringProperty(item, "description") ?? TryGetStringProperty(item, "summary") ?? TryGetStringProperty(item, "text") ?? "Registro de actividad";
+                    var result = TryGetStringProperty(item, "result") ?? "";
+                    var body = !string.IsNullOrEmpty(result) ? $"{description} — Resultado: {result}" : description;
+                    var subject = $"{type}: {description}";
+                    var actor = "Martin Quiroga";
                     var occurredAt = TryGetStringProperty(item, "occurredAt") ?? DateTime.UtcNow.ToString("o");
                     var createdAt = TryGetStringProperty(item, "createdAt") ?? occurredAt;
 
-                    return new { id, type, text, createdBy, occurredAt, createdAt, historical = false, relatedRecordType = (string?)null, relatedRecordId = (string?)null };
+                    return new { id, type, subject, body, actor, text = body, createdBy = actor, occurredAt, createdAt, historical = false, relatedRecordType = (string?)null, relatedRecordId = (string?)null };
                 }).ToList();
 
                 var docs = JsonSerializer.SerializeToDocument(transformed);
