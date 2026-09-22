@@ -465,7 +465,7 @@ function activityInPeriod(activity: DemoActivity, period: AnalyticsFilters["peri
   const occurredAt = Date.parse(activity.occurredAt ?? activity.createdAt);
   if (!Number.isFinite(occurredAt)) return false;
   const periodStart = Date.parse("2026-08-11T00:00:00.000Z");
-  return occurredAt >= periodStart && occurredAt <= Date.parse("2026-09-10T23:59:59.999Z");
+  return occurredAt >= periodStart && occurredAt <= Date.parse("2026-09-30T23:59:59.999Z");
 }
 
 export function getAnalyticsSnapshot(state: DemoState, filters: AnalyticsFilters): AnalyticsSnapshot {

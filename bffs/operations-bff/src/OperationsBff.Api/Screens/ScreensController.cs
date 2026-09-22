@@ -122,7 +122,7 @@ public sealed class ScreensController(
             captations = GetDefaultCaptations(),
             demands = demandsTask.Result,
             activities = activitiesTask.Result,
-            reservations = Array.Empty<object>(),
+            reservations = GetDefaultReservations(),
             operations = Array.Empty<object>(),
             proposals = Array.Empty<object>(),
             proposal = new { id = "", contact = "", property = "", amount = 0, currency = "USD", date = "", conditions = "", expiration = "", status = "pending" },
@@ -133,6 +133,14 @@ public sealed class ScreensController(
             catalogEntries = catalogTask.Result,
             users = usersTask.Result,
             catalogVersion = 1
+        };
+    }
+
+    private static object GetDefaultReservations()
+    {
+        return new[]
+        {
+            new { id = "res-101", opportunityId = "opp-105", propertyTitle = "Lote al Lago Central en Nordelta", deposit = (decimal?)10000, currency = "USD", status = "Activa" }
         };
     }
 
@@ -463,7 +471,16 @@ public sealed class ScreensController(
                 var transformed = items.Select(item =>
                 {
                     var id = TryGetStringProperty(item, "activityId") ?? TryGetStringProperty(item, "id") ?? Guid.NewGuid().ToString();
-                    var type = TryGetStringProperty(item, "activityTypeCode") ?? TryGetStringProperty(item, "type") ?? "Nota";
+                    var rawType = TryGetStringProperty(item, "activityTypeCode") ?? TryGetStringProperty(item, "type") ?? "NOTE";
+                    var type = rawType switch
+                    {
+                        "VISIT" or "Visita" => "Visita",
+                        "CALL" or "Llamada" => "Llamada",
+                        "MEETING" or "Reunión" => "Reunión",
+                        "EMAIL" or "Email" => "Email",
+                        "INSPECTION" or "Inspección" => "Inspección",
+                        _ => "Nota"
+                    };
                     var description = TryGetStringProperty(item, "description") ?? TryGetStringProperty(item, "summary") ?? TryGetStringProperty(item, "text") ?? "Registro de actividad";
                     var result = TryGetStringProperty(item, "result") ?? "";
                     var body = !string.IsNullOrEmpty(result) ? $"{description} — Resultado: {result}" : description;
