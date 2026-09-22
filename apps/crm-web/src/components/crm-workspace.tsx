@@ -2658,8 +2658,9 @@ function ActivityView({ screen, state, entityId, onNavigate, onToast, dispatch }
         ? state.stageHistory.filter((item) => item.opportunityId === activitySubject.id)
         : [];
     const mixedTimeline = [...filteredActivities.map((activity) => {
-        const title = activity.subject ?? activity.text ?? activity.body ?? `${activity.type} registrada`;
-        const actorName = activity.actor ?? activity.createdBy ?? "Martin Quiroga";
+        const act = activity as { subject?: string; text?: string; body?: string; actor?: string; createdBy?: string };
+        const title = act.subject ?? act.text ?? act.body ?? `${activity.type} registrada`;
+        const actorName = act.actor ?? act.createdBy ?? "Martin Quiroga";
         return {
             at: Date.parse(activity.occurredAt ?? activity.createdAt) || 0,
             text: `${title} · ${actorName} · ${activity.occurredAt ?? activity.createdAt}${activity.historical ? " · Histórico" : ""}`,
