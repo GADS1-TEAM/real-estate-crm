@@ -13,3 +13,7 @@ Thumbs.db
 
 # Infra local (V2-FND-003): nunca commitear un .env real, aunque solo tenga secretos ficticios.
 .env
+
+# Binario de Caddy bajado a mano para la demo remota (ver DEVELOPMENT.md)
+caddy.exe
+caddy

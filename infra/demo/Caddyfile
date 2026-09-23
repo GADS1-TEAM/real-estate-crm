@@ -1,0 +1,45 @@
+# Proxy local para la demo remota: sirve front + BFF + Keycloak bajo un mismo origen
+# en el puerto 8000, que es el unico que se expone por el tunel.
+#
+# Uso:
+#   $env:DEMO_PUBLIC_DOMAIN="tu-dominio.ngrok-free.dev"
+#   caddy run --config infra/demo/Caddyfile
+#
+# Mismo origen = sin CORS y sin cookies cross-site. El Host forzado hacia el BFF es lo
+# que hace que el redirect_uri de OIDC salga con el dominio publico y no con localhost.
+
+(bff) {
+	reverse_proxy localhost:5137 {
+		header_up Host {$DEMO_PUBLIC_DOMAIN}
+		header_up X-Forwarded-Proto https
+		header_up X-Forwarded-Host {$DEMO_PUBLIC_DOMAIN}
+	}
+}
+
+:8000 {
+	# /api/crm/screens/X -> BFF /screens/X  (handle_path saca el prefijo)
+	handle_path /api/crm/* {
+		import bff
+	}
+
+	# login/logout/userinfo y callbacks de OIDC
+	handle /api/v1/auth/* {
+		import bff
+	}
+	handle /signin-oidc* {
+		import bff
+	}
+	handle /signout-callback-oidc* {
+		import bff
+	}
+
+	# Keycloak (KC_HTTP_RELATIVE_PATH=/auth en docker-compose.demo.yml)
+	handle /auth/* {
+		reverse_proxy localhost:8080
+	}
+
+	# Todo lo demas: el front de Next.js
+	handle {
+		reverse_proxy localhost:3000
+	}
+}

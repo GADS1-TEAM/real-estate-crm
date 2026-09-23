@@ -223,3 +223,53 @@ Para poblar la base de datos MongoDB con el conjunto completo de datos de prueba
    node scripts/seed-data.js
    ```
 
+## Demo remota por tunel (ngrok u otro)
+
+Para que alguien fuera de la red vea la app completa (front + BFF + servicios), se expone
+**un solo puerto**: un proxy local (Caddy) sirve front, BFF y Keycloak bajo el mismo origen.
+Asi no hay CORS, ni cookies cross-site, y el login OIDC funciona.
+
+Requisitos extra: [Caddy](https://caddyserver.com/) (`winget install CaddyServer.Caddy`) y un
+tunel con dominio fijo (el plan free de ngrok da uno).
+
+```powershell
+# 0) dominio publico, sin https:// ni barra final
+$env:DEMO_PUBLIC_DOMAIN="tu-dominio.ngrok-free.dev"
+
+# 1) infra con el overlay de demo (Keycloak pasa a colgar de /auth)
+docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d
+
+# 2) backend (servicios + BFF) apuntando al dominio publico
+.\scripts\start-remote-demo.ps1
+
+# 3) front (otra terminal)
+Copy-Item apps\crm-web\.env.demo.example apps\crm-web\.env.local
+cd apps\crm-web ; npm install ; npm run build ; npm run start
+
+# 4) proxy (otra terminal, desde la raiz)
+caddy run --config infra\demo\Caddyfile
+
+# 5) tunel (otra terminal)
+ngrok http --domain=$env:DEMO_PUBLIC_DOMAIN 8000
+```
+
+**Paso obligatorio en Keycloak** (una vez por dominio): entrar a `http://localhost:8080/auth`
+con `admin` / `admin-dev-only`, realm `crm-dev`, cliente `operations-bff`, y agregar:
+
+- Valid redirect URIs: `https://<dominio>/*` y `http://<dominio>/*`
+- Web origins: `https://<dominio>`
+- Valid post logout redirect URIs: `https://<dominio>/*`
+
+Como el Compose no tiene volumenes persistentes, esto se repite cada vez que se recrea el
+contenedor de Keycloak. La alternativa es agregar el dominio al realm-export.
+
+Datos de prueba: `node scripts/seed-data.js` con todo arriba. **No es idempotente**: para
+recargar desde cero, `docker compose down` y volver a levantar.
+
+Notas:
+
+- La primera visita de ngrok muestra una pantalla de advertencia; hay que darle "Visit Site".
+- El error tipico es `Invalid redirect_uri` de Keycloak: falta el paso de arriba.
+- Un `502 bad_gateway` del BFF significa que el servicio destino no esta levantado.
+- Sin el overlay, `docker compose up -d` sigue funcionando como siempre (Keycloak en
+  `http://localhost:8080`, sin `/auth`).
