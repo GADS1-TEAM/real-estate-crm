@@ -35,8 +35,18 @@ builder.Services.AddProblemDetails();
 
 // Primer wire-up real de auth en el BFF (V2-ACL-001): cookie de sesión OIDC (AUTH-001,
 // V2-FND-002). El front nunca ve el access token.
-builder.Services.AddKeycloakOpenIdConnectCookieAuthentication(builder.Configuration);
-builder.Services.AddAuthorization();
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddAuthentication("FakeScheme")
+        .AddScheme<AuthenticationSchemeOptions, OperationsBff.Api.Authorization.FakeAuthHandler>("FakeScheme", options => {});
+    builder.Services.AddAuthorization();
+}
+else
+{
+    // Existing production auth
+    builder.Services.AddKeycloakOpenIdConnectCookieAuthentication(builder.Configuration);
+    builder.Services.AddAuthorization();
+}
 
 // Token relay (D6): el BFF reenvía el access token de la sesión como Bearer a access-service.
 var accessServiceBaseUrl = builder.Configuration["AccessService:BaseUrl"]
