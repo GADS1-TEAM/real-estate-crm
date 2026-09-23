@@ -1,0 +1,17 @@
+# Overlay para exponer la demo por un tunel publico (ngrok, Cloudflare Tunnel, etc.).
+# Solo cambia Keycloak: pasa a colgar de /auth y a emitir tokens con el dominio publico.
+#
+# Uso (PowerShell):
+#   $env:DEMO_PUBLIC_DOMAIN="tu-dominio.ngrok-free.dev"
+#   docker compose -f docker-compose.yml -f docker-compose.demo.yml up -d
+#
+# Sin este overlay, `docker compose up -d` sigue funcionando igual que siempre
+# (Keycloak en http://localhost:8080, sin prefijo /auth).
+
+services:
+  keycloak:
+    environment:
+      KC_HTTP_RELATIVE_PATH: /auth
+      KC_HOSTNAME: https://${DEMO_PUBLIC_DOMAIN}/auth
+      KC_HOSTNAME_STRICT: "false"
+      KC_PROXY_HEADERS: xforwarded
