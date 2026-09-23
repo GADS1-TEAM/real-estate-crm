@@ -26,6 +26,11 @@ builder.Services
 
         foreach (var converter in RealEstateCrmJsonDefaults.Options.Converters)
         {
+            policy.WithOrigins("http://localhost:3000", "https://overhear-grafting-balcony.ngrok-free.dev")
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials();
+        }
             options.JsonSerializerOptions.Converters.Add(converter);
         }
     });

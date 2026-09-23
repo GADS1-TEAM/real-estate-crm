@@ -88,3 +88,156 @@ services:
       - ASPNETCORE_URLS=http://*:80
     ports:
       - "5140:80"
+  activity-service:
+    image: mcr.microsoft.com/dotnet/aspnet:10.0
+    container_name: crm-activity-service
+    working_dir: /app
+    volumes:
+      - ./services/activity-service/src/ActivityService.Api/bin/Release/net10.0:/app
+    command: ["dotnet", "ActivityService.Api.dll", "--urls", "http://0.0.0.0:5247"]
+    ports:
+      - "5247:5247"
+    depends_on:
+      - mongo
+      - rabbitmq
+      - keycloak
+
+  property-service:
+    image: mcr.microsoft.com/dotnet/aspnet:10.0
+    container_name: crm-property-service
+    working_dir: /app
+    volumes:
+      - ./services/property-service/src/PropertyService.Api/bin/Release/net10.0:/app
+    command: ["dotnet", "PropertyService.Api.dll", "--urls", "http://0.0.0.0:5117"]
+    ports:
+      - "5117:5117"
+    depends_on:
+      - mongo
+      - rabbitmq
+      - keycloak
+
+  supply-service:
+    image: mcr.microsoft.com/dotnet/aspnet:10.0
+    container_name: crm-supply-service
+    working_dir: /app
+    volumes:
+      - ./services/supply-service/src/SupplyService.Api/bin/Release/net10.0:/app
+    command: ["dotnet", "SupplyService.Api.dll", "--urls", "http://0.0.0.0:5069"]
+    ports:
+      - "5069:5069"
+    depends_on:
+      - mongo
+      - rabbitmq
+      - keycloak
+
+  demand-service:
+    image: mcr.microsoft.com/dotnet/aspnet:10.0
+    container_name: crm-demand-service
+    working_dir: /app
+    volumes:
+      - ./services/demand-service/src/DemandService.Api/bin/Release/net10.0:/app
+    command: ["dotnet", "DemandService.Api.dll", "--urls", "http://0.0.0.0:5220"]
+    ports:
+      - "5220:5220"
+    depends_on:
+      - mongo
+      - rabbitmq
+      - keycloak
+
+  matching-service:
+    image: mcr.microsoft.com/dotnet/aspnet:10.0
+    container_name: crm-matching-service
+    working_dir: /app
+    volumes:
+      - ./services/matching-service/src/MatchingService.Api/bin/Release/net10.0:/app
+    command: ["dotnet", "MatchingService.Api.dll", "--urls", "http://0.0.0.0:5290"]
+    ports:
+      - "5290:5290"
+    depends_on:
+      - mongo
+      - rabbitmq
+      - keycloak
+
+  commercial-service:
+    image: mcr.microsoft.com/dotnet/aspnet:10.0
+    container_name: crm-commercial-service
+    working_dir: /app
+    volumes:
+      - ./services/commercial-service/src/CommercialService.Api/bin/Release/net10.0:/app
+    command: ["dotnet", "CommercialService.Api.dll", "--urls", "http://0.0.0.0:5145"]
+    ports:
+      - "5145:5145"
+    depends_on:
+      - mongo
+      - rabbitmq
+      - keycloak
+
+  analytics-service:
+    image: mcr.microsoft.com/dotnet/aspnet:10.0
+    container_name: crm-analytics-service
+    working_dir: /app
+    volumes:
+      - ./services/analytics-service/src/AnalyticsService.Api/bin/Release/net10.0:/app
+    command: ["dotnet", "AnalyticsService.Api.dll", "--urls", "http://0.0.0.0:5046"]
+    ports:
+      - "5046:5046"
+    depends_on:
+      - mongo
+      - rabbitmq
+      - keycloak
+
+  automation-ai-service:
+    image: mcr.microsoft.com/dotnet/aspnet:10.0
+    container_name: crm-automation-ai-service
+    working_dir: /app
+    volumes:
+      - ./services/automation-ai-service/src/AutomationAiService.Api/bin/Release/net10.0:/app
+    command: ["dotnet", "AutomationAiService.Api.dll", "--urls", "http://0.0.0.0:5015"]
+    ports:
+      - "5015:5015"
+    depends_on:
+      - mongo
+      - rabbitmq
+      - keycloak
+
+  access-service:
+    image: mcr.microsoft.com/dotnet/aspnet:10.0
+    container_name: crm-access-service
+    working_dir: /app
+    volumes:
+      - ./services/access-service/src/AccessService.Api/bin/Release/net10.0:/app
+    command: ["dotnet", "AccessService.Api.dll", "--urls", "http://0.0.0.0:5080"]
+    ports:
+      - "5080:5080"
+    depends_on:
+      - mongo
+      - rabbitmq
+      - keycloak
+
+  party-service:
+    image: mcr.microsoft.com/dotnet/aspnet:10.0
+    container_name: crm-party-service
+    working_dir: /app
+    volumes:
+      - ./services/party-service/src/PartyService.Api/bin/Release/net10.0:/app
+    command: ["dotnet", "PartyService.Api.dll", "--urls", "http://0.0.0.0:5110"]
+    ports:
+      - "5110:5110"
+    depends_on:
+      - mongo
+      - rabbitmq
+      - keycloak
+
+  platform-config-service:
+    image: mcr.microsoft.com/dotnet/aspnet:10.0
+    container_name: crm-platform-config-service
+    working_dir: /app
+    volumes:
+      - ./services/platform-config-service/src/PlatformConfigService.Api/bin/Release/net10.0:/app
+    command: ["dotnet", "PlatformConfigService.Api.dll", "--urls", "http://0.0.0.0:5070"]
+    ports:
+      - "5070:5070"
+    depends_on:
+      - mongo
+      - rabbitmq
+      - keycloak
