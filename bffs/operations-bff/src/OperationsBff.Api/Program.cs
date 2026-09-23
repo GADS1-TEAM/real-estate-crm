@@ -118,6 +118,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapCrmHealthEndpoints();
+app.MapGet("/health", () => Results.Ok("OK"));
 
 app.Run();
 
