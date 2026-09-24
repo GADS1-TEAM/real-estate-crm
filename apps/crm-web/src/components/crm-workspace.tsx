@@ -551,21 +551,78 @@ function FeatureView({ screen, state, entityId, roleId, onRoleChange, onNavigate
         case "analytics": return <AnalyticsView screen={screen} state={state} onNavigate={onNavigate}/>;
         case "assistant": return <AssistantView screen={screen} state={state} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
         case "admin": return <AdminView screen={screen} state={state} roleId={roleId} onRoleChange={onRoleChange} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
-        default: return <HomeView state={state} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
+        default: return <HomeView screen={screen} state={state} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
     }
 }
-function HomeView({ state, onNavigate, onToast, dispatch }: {
+function HomeView({ screen, state, onNavigate, onToast, dispatch }: {
+    screen: ScreenDefinition;
     state: DemoState;
     onNavigate: ScreenNavigator;
     onToast: (message: string, tone?: "success" | "info" | "warning") => void;
     dispatch: React.Dispatch<DemoAction>;
 }) {
-    const attention = state.opportunities.filter((item) => item.daysInStage >= 4).slice(0, 3);
+    const allAttention = state.opportunities.filter((item) => item.daysInStage >= 4).sort((a, b) => b.daysInStage - a.daysInStage);
+    const attention = allAttention.slice(0, 3);
     const grossFees = state.opportunities.reduce((total, opportunity) => total + opportunity.fee, 0);
     const activeContacts = state.contacts.filter((contact) => contactCommercialStatus(contact) !== "INACTIVE" && contactCommercialStatus(contact) !== "DO_NOT_CONTACT").length;
     const activeDemands = state.demands.filter((demand) => demand.status === "Activa").length;
     const visits = state.activities.filter((activity) => activity.type === "Visita").length;
-    const listingsWithoutMandate = state.listings.filter((listing) => listing.status === "Activa" && listing.mandate !== "Firmado").length;
+    const listingsWithoutMandateList = state.listings.filter((listing) => listing.status === "Activa" && listing.mandate !== "Firmado");
+    const listingsWithoutMandate = listingsWithoutMandateList.length;
+    const incompleteDemandsList = state.demands.filter((demand) => demand.status === "Activa" && (demand.criteria || []).some((criterion) => criterion.value === "UNKNOWN"));
+    if (screen.id === "INI-02") {
+        const displayOpportunities = allAttention.length > 0 ? allAttention : state.opportunities;
+        return <div className="feature-stack">
+        <div className="hero-actions" style={{ justifyContent: "space-between", alignItems: "center" }}>
+            <Button variant="secondary" onClick={() => onNavigate("INI-01")}>← Volver al inicio</Button>
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+                <Button variant="outline" onClick={() => onNavigate("OPP-01")}>Abrir tablero de oportunidades</Button>
+                <Button icon="plus" onClick={() => onNavigate("ACT-01")}>Registrar actividad</Button>
+            </div>
+        </div>
+        <Alert tone="warning" title={`${allAttention.length} oportunidades requieren atención`}>La señal se deriva de la antigüedad de la etapa (4 o más días sin cambio). Seleccioná una oportunidad para ver su detalle, avanzar etapa o registrar actividad.</Alert>
+        <Card>
+            <SectionHeading eyebrow="Oportunidades con seguimiento pendiente" title={`Oportunidades para revisar (${displayOpportunities.length})`} action={<Button variant="ghost" size="small" onClick={() => onNavigate("OPP-02")}>Ver listado completo <Icon name="arrow" size={14}/></Button>}/>
+            {displayOpportunities.length === 0 ? <EmptyState title="Sin oportunidades pendientes" description="No hay oportunidades activas que requieran atención en este momento."/> : <div className="attention-list">{displayOpportunities.map((opportunity) => <div className="attention-row" key={opportunity.id} style={{ cursor: "pointer" }} onClick={() => onNavigate("OPP-04", opportunity.id)}>
+                <span className="attention-icon">
+                    <Icon name={opportunity.daysInStage >= 8 ? "clock" : "alert"} size={17}/>
+                </span>
+                <span style={{ flex: 1 }}>
+                    <strong>{opportunity.title}</strong>
+                    <small>{opportunity.stage} · {opportunity.daysInStage} días sin cambio · Responsable: {opportunity.owner} · Origen: {opportunity.sourceType}</small>
+                </span>
+                <div style={{ display: "flex", gap: "0.5rem" }} onClick={(e) => e.stopPropagation()}>
+                    <Button variant="outline" size="small" onClick={() => onNavigate("OPP-05", opportunity.id)}>Cambiar etapa</Button>
+                    <Button variant="secondary" size="small" onClick={() => onNavigate("OPP-04", opportunity.id)}>Abrir detalle <Icon name="arrow" size={14}/></Button>
+                </div>
+            </div>)}</div>}
+        </Card>
+        <div className="content-grid content-grid-home">
+            <Card>
+                <SectionHeading eyebrow="Publicaciones" title={`Publicaciones activas sin mandato (${listingsWithoutMandateList.length})`} action={<Button variant="ghost" size="small" onClick={() => onNavigate("LST-01")}>Ver publicaciones <Icon name="arrow" size={14}/></Button>}/>
+                {listingsWithoutMandateList.length === 0 ? <p className="muted">Todas las publicaciones activas cuentan con mandato firmado.</p> : <div className="attention-list">{listingsWithoutMandateList.map((listing) => <button className="attention-row" key={listing.id} onClick={() => onNavigate("LST-04", listing.id)}>
+                    <span className="attention-icon"><Icon name="alert" size={17}/></span>
+                    <span>
+                        <strong>{listing.title}</strong>
+                        <small>Estado: {listing.status} · Mandato: {listing.mandate}</small>
+                    </span>
+                    <Icon name="arrow" size={15}/>
+                </button>)}</div>}
+            </Card>
+            <Card>
+                <SectionHeading eyebrow="Demandas" title={`Búsquedas con datos por completar (${incompleteDemandsList.length})`} action={<Button variant="ghost" size="small" onClick={() => onNavigate("DEM-01")}>Ver búsquedas <Icon name="arrow" size={14}/></Button>}/>
+                {incompleteDemandsList.length === 0 ? <p className="muted">Todas las búsquedas activas tienen sus criterios completos.</p> : <div className="attention-list">{incompleteDemandsList.map((demand) => <button className="attention-row" key={demand.id} onClick={() => onNavigate("DEM-03", demand.id)}>
+                    <span className="attention-icon"><Icon name="target" size={17}/></span>
+                    <span>
+                        <strong>{demand.title}</strong>
+                        <small>Origen: {demand.origin} · Criterios con valores desconocidos</small>
+                    </span>
+                    <Icon name="arrow" size={15}/>
+                </button>)}</div>}
+            </Card>
+        </div>
+        </div>;
+    }
     return <div className="feature-stack">
     <Alert tone="warning" title={`${attention.length} oportunidades requieren atención`}>La señal se deriva de la antigüedad de la etapa. No crea una tarea ni un recordatorio.</Alert>
     <div className="hero-grid">
