@@ -818,6 +818,44 @@ function normalizeCatalogEntries(rawEntries: unknown): DemoState["catalogEntries
   return [...mapped, ...missingDefaults];
 }
 
+const knownPropertyMetadata: Record<string, { title: string; address: string; type: DemoProperty["type"] }> = {
+  "PROP-101": { title: "Departamento en Gorriti 4800 · Palermo Soho", address: "Gorriti 4800, Palermo Soho", type: "Departamento" },
+  "PROP-102": { title: "Casa en Av. del Libertador 16200 · San Isidro", address: "Av. del Libertador 16200, Las Lomas", type: "Casa" },
+  "PROP-103": { title: "Oficina en Av. Leandro N. Alem 850 · Retiro", address: "Av. Leandro N. Alem 850, Retiro", type: "Local" },
+  "PROP-104": { title: "Departamento en Juana Manso 1100 · Puerto Madero", address: "Juana Manso 1100, Puerto Madero", type: "Departamento" },
+  "PROP-105": { title: "Local comercial en Zapiola 2100 · Belgrano R", address: "Zapiola 2100, Belgrano R", type: "Local" },
+  "PROP-106": { title: "Departamento en Av. Las Heras 2300 · Recoleta", address: "Av. Las Heras 2300, Recoleta", type: "Departamento" },
+  "PROP-107": { title: "Lote en Av. de los Lagos 500 · Nordelta", address: "Av. de los Lagos 500, Nordelta", type: "Terreno" },
+  "PROP-108": { title: "Casa en Maipú 1400 · Olivos", address: "Maipú 1400, Olivos", type: "Casa" },
+  "PROP-109": { title: "Departamento en Av. Pedro Goyena 900 · Caballito", address: "Av. Pedro Goyena 900, Caballito", type: "Departamento" },
+  "PROP-110": { title: "Casa en Triunvirato 4500 · Villa Urquiza", address: "Triunvirato 4500, Villa Urquiza", type: "Casa" },
+};
+
+function normalizeProperty(property: DemoProperty): DemoProperty {
+  const known = knownPropertyMetadata[property.id];
+  const rawTitle = (property.title ?? "").trim();
+  const isGenericTitle = !rawTitle || rawTitle.toLowerCase() === "inmueble";
+  const rawAddress = (property.address ?? "").trim();
+  const isGenericAddress = !rawAddress || rawAddress.toLowerCase() === "capital federal";
+  const normalizedType: DemoProperty["type"] =
+    (property.type as string) === "APARTMENT" ? "Departamento" :
+    (property.type as string) === "HOUSE" ? "Casa" :
+    (property.type as string) === "COMMERCIAL" ? "Local" :
+    (property.type as string) === "LAND" ? "Terreno" :
+    property.type ?? known?.type ?? "Departamento";
+  const address = isGenericAddress && known ? known.address : (rawAddress || "Capital Federal");
+  const title = isGenericTitle
+    ? (known?.title ?? (address && address !== "Capital Federal" ? `${normalizedType} en ${address}` : `${normalizedType} · ${property.id}`))
+    : rawTitle;
+  return {
+    ...property,
+    title,
+    address,
+    type: normalizedType,
+    ownerPartyIds: property.ownerPartyIds ?? [],
+  };
+}
+
 export function normalizeDemoState(snapshot: unknown): DemoState {
   if (!snapshot || typeof snapshot !== "object") return demoInitialState;
   const candidate = snapshot as Partial<DemoState>;
@@ -826,7 +864,7 @@ export function normalizeDemoState(snapshot: unknown): DemoState {
     ...candidate,
     contacts: arrayOrDefault(candidate.contacts, demoInitialState.contacts).map(normalizeContact),
     relationships: arrayOrDefault(candidate.relationships, demoInitialState.relationships),
-    properties: arrayOrDefault(candidate.properties, demoInitialState.properties).map((property) => ({ ...property, ownerPartyIds: property.ownerPartyIds ?? [] })),
+    properties: arrayOrDefault(candidate.properties, demoInitialState.properties).map(normalizeProperty),
     listings: arrayOrDefault(candidate.listings, demoInitialState.listings),
     captations: arrayOrDefault(candidate.captations, demoInitialState.captations).map((captation) => ({ ...captation, owner: normalizeOwnerName(captation.owner), origin: captation.origin ?? "Origen desconocido", valuationHistory: captation.valuationHistory ?? [] })),
     demands: arrayOrDefault(candidate.demands, demoInitialState.demands).map((demand) => ({ ...demand, criteria: Array.isArray(demand.criteria) ? demand.criteria : [], origin: demand.origin ?? "Origen desconocido", selectedListingIds: demand.selectedListingIds ?? [] })),

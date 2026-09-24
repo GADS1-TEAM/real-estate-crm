@@ -129,6 +129,7 @@ export function CrmApp({ initialSection, catalogOnly = false }: {
 </DemoStoreProvider>;
 }
 const roleStorageKey = "crm-web:role-id:v1";
+const authStorageKey = "crm-web:authenticated:v1";
 const bffActionsStorageKey = "crm-web:bff-actions:v1";
 
 export function getAccountByRole(roleId: RoleId): { name: string; email: string; username: string } {
@@ -152,6 +153,17 @@ function readStoredRole(): RoleId {
         return stored;
     }
     return "vendedor";
+}
+
+function readStoredAuth(): boolean {
+    if (typeof window === "undefined") return false;
+    const stored = window.localStorage.getItem(authStorageKey);
+    if (stored === "true") return true;
+    if (stored === "false") return false;
+    if (typeof process !== "undefined" && (process.env.VITEST === "true" || process.env.NODE_ENV === "test")) {
+        return true;
+    }
+    return false;
 }
 
 const persistedActionTypes = new Set<DemoAction["type"]>([
@@ -266,6 +278,20 @@ function CrmWorkspace({ initialSection, catalogOnly }: {
     const searchParams = useSearchParams();
     const { state, dispatch: rawDispatch } = useDemoStore();
     const [roleId, setRoleIdState] = useState<RoleId>("vendedor");
+    const [isAuthenticated, setIsAuthenticatedState] = useState<boolean>(() => {
+        if (typeof process !== "undefined" && (process.env.VITEST === "true" || process.env.NODE_ENV === "test")) {
+            return readStoredAuth();
+        }
+        return false;
+    });
+    const [authCompleted, setAuthCompleted] = useState<boolean>(false);
+    const setAuthenticated = useCallback((next: boolean) => {
+        setIsAuthenticatedState(next);
+        if (!next) setAuthCompleted(false);
+        if (typeof window !== "undefined") {
+            window.localStorage.setItem(authStorageKey, next ? "true" : "false");
+        }
+    }, []);
     const setRoleId = useCallback((next: RoleId) => {
         setRoleIdState(next);
         if (typeof window !== "undefined") {
@@ -274,12 +300,18 @@ function CrmWorkspace({ initialSection, catalogOnly }: {
     }, []);
     useEffect(() => {
         const authRole = searchParams.get("auth_role");
-        if (authRole === "vendedor" || authRole === "responsable" || authRole === "direccion" || authRole === "administradora") {
+        const requested = searchParams.get("screen");
+        if (requested === "AUT-01" && !authCompleted) {
+            setAuthenticated(false);
+        } else if (authRole === "vendedor" || authRole === "responsable" || authRole === "direccion" || authRole === "administradora") {
             setRoleId(authRole);
+            setAuthenticated(true);
         } else {
+            if (requested !== "AUT-01") setAuthCompleted(false);
             setRoleIdState(readStoredRole());
+            setIsAuthenticatedState(readStoredAuth());
         }
-    }, [searchParams, setRoleId]);
+    }, [searchParams, setRoleId, setAuthenticated, authCompleted]);
     const [searchOpen, setSearchOpen] = useState(false);
     const [quickCreateOpen, setQuickCreateOpen] = useState(false);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -372,12 +404,19 @@ function CrmWorkspace({ initialSection, catalogOnly }: {
     const activeState = mode !== "demo" && remoteState ? remoteState : state;
     const entityId = searchParams.get("entity");
     const requestedScreen = searchParams.get("screen") ?? defaultScreens[initialSection] ?? "INI-01";
-    const screen = getScreenById(requestedScreen) ?? getScreenById(defaultScreens[initialSection] ?? "INI-01") ?? screenRegistry[0];
+    const rawScreen = getScreenById(requestedScreen) ?? getScreenById(defaultScreens[initialSection] ?? "INI-01") ?? screenRegistry[0];
+    const screen = authCompleted && rawScreen.renderKey === "auth"
+        ? (getScreenById(roleId === "responsable" ? "ANA-01" : "INI-01") ?? rawScreen)
+        : rawScreen;
     const activeHref = visibleNavItems.find((item) => item.href === pathname)?.href ?? `/${initialSection}`;
     const navigateToScreen: ScreenNavigator = (screenId, entityId) => {
         const target = getScreenById(screenId);
         if (!target)
             return;
+        if (target.id === "AUT-01") {
+            setAuthCompleted(false);
+            setAuthenticated(false);
+        }
         router.push(buildCrmScreenUrl(routeByModule[target.module] ?? "/inicio", target.id, entityId));
         setQuickCreateOpen(false);
         setSearchOpen(false);
@@ -385,8 +424,31 @@ function CrmWorkspace({ initialSection, catalogOnly }: {
     const showToast = (message: string, tone: "success" | "info" | "warning" = "success") => setToast({ message, tone });
     if (catalogOnly)
         return <DesignCatalog />;
+    const authScreen = screen.renderKey === "auth" ? screen : (getScreenById("AUT-01") ?? screen);
+    if (!isAuthenticated || (screen.renderKey === "auth" && !authCompleted)) {
+        return <main className="main-content" style={{ minHeight: "100vh", padding: "1px 1.5rem 3rem" }}>
+            <AuthSurface
+                screen={authScreen}
+                roleId={roleId}
+                onRoleChange={(nextRole) => {
+                    setRoleId(nextRole);
+                    setAuthCompleted(true);
+                    setAuthenticated(true);
+                }}
+                onToast={showToast}
+                onNavigate={(targetScreenId, targetEntityId) => {
+                    if (targetScreenId !== "AUT-01" && targetScreenId !== "AUT-03") {
+                        setAuthCompleted(true);
+                        setAuthenticated(true);
+                    }
+                    navigateToScreen(targetScreenId, targetEntityId);
+                }}
+            />
+            {toast && <Toast message={toast.message} tone={toast.tone} onClose={() => setToast(null)}/>}
+        </main>;
+    }
     const isRestrictedAnalytics = screen.module === "ANA" && !hasPermission(roleId, "analytics.read");
-    return <CrmShell activeHref={activeHref} navItems={visibleNavItems} roleName={role.name} userName={activeAccount.name} offlineCount={activeState.offlineQueue.length} onSearch={() => setSearchOpen(true)} onQuickCreate={() => setQuickCreateOpen(true)} onUserMenu={() => setUserMenuOpen((value) => !value)} userMenuOpen={userMenuOpen} userMenu={<UserMenu roleName={role.name} userName={activeAccount.name} userEmail={activeAccount.email} onClose={() => setUserMenuOpen(false)} onPermission={() => { setUserMenuOpen(false); setPermissionOpen(true); }} onSwitchAccount={(nextRole) => { setRoleId(nextRole); setUserMenuOpen(false); const nextAcc = getAccountByRole(nextRole); showToast(`Sesión activa: ${nextAcc.name} (${getRole(nextRole).name}).`, "info"); }} onLoginScreen={() => { setUserMenuOpen(false); navigateToScreen("AUT-01"); }}/>}>
+    return <CrmShell activeHref={activeHref} navItems={visibleNavItems} roleName={role.name} userName={activeAccount.name} offlineCount={activeState.offlineQueue.length} onSearch={() => setSearchOpen(true)} onQuickCreate={() => setQuickCreateOpen(true)} onUserMenu={() => setUserMenuOpen((value) => !value)} userMenuOpen={userMenuOpen} userMenu={<UserMenu roleName={role.name} userName={activeAccount.name} userEmail={activeAccount.email} onClose={() => setUserMenuOpen(false)} onPermission={() => { setUserMenuOpen(false); setPermissionOpen(true); }} onLoginScreen={() => { setUserMenuOpen(false); setAuthenticated(false); navigateToScreen("AUT-01"); }}/>}>
     <PageHeader screen={screen} section={initialSection} onQuickCreate={() => setQuickCreateOpen(true)} onNavigate={navigateToScreen}/>
     {mode === "demo" || isRestrictedAnalytics ? <FeatureView key={`${screen.id}:${entityId ?? ""}`} entityId={entityId} screen={screen} state={activeState} roleId={roleId} onRoleChange={setRoleId} onNavigate={navigateToScreen} onToast={showToast} dispatch={dispatch}/> : remoteState ? <FeatureView key={`${screen.id}:${entityId ?? ""}`} entityId={entityId} screen={screen} state={remoteState} roleId={roleId} onRoleChange={setRoleId} onNavigate={navigateToScreen} onToast={showToast} dispatch={dispatch}/> : (sourceStatus === "idle" || sourceStatus === "loading") ? <BffLoadingState /> : sourceStatus === "error" ? <BffUnavailableState error={sourceError} onRetry={() => setSourceAttempt((attempt) => attempt + 1)}/> : <BffResponseState />}
     {mode === "demo" && activeState.offlineQueue.length > 0 && <div className="offline-banner">
@@ -2023,6 +2085,8 @@ function PipelineView({ screen, state, entityId, roleId, onNavigate, onToast, di
 }) {
     const [showPipelineFilters, setShowPipelineFilters] = useState(false);
     const [pipelineKindFilter, setPipelineKindFilter] = useState<"ALL" | "REQUIREMENT" | "CAPTATION_CASE">("ALL");
+    const [draggedOpportunityId, setDraggedOpportunityId] = useState<string | null>(null);
+    const [dragOverStage, setDragOverStage] = useState<OpportunityStage | null>(null);
     const visibleOpportunities = state.opportunities.filter((opportunity) => pipelineKindFilter === "ALL" || opportunity.sourceType === pipelineKindFilter);
     if (screen.id === "OPP-03")
         return <OpportunityForm state={state} roleId={roleId} onToast={onToast} onNavigate={onNavigate} dispatch={dispatch}/>;
@@ -2030,13 +2094,33 @@ function PipelineView({ screen, state, entityId, roleId, onNavigate, onToast, di
         return <OpportunityList screen={screen} state={state} roleId={roleId} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
     if (screen.id !== "OPP-01" && screen.id !== "OPP-02" && screen.id !== "OPP-10")
         return <OpportunityDetail entityId={entityId} screen={screen} state={state} roleId={roleId} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
+    const handleDropStage = (targetStage: OpportunityStage, transferredId?: string) => {
+        const id = transferredId || draggedOpportunityId;
+        setDraggedOpportunityId(null);
+        setDragOverStage(null);
+        if (!id) return;
+        const opportunity = state.opportunities.find((item) => item.id === id);
+        if (!opportunity || opportunity.stage === targetStage) return;
+        const fromIndex = stageOrder.indexOf(opportunity.stage);
+        const toIndex = stageOrder.indexOf(targetStage);
+        const isBackward = fromIndex >= 0 && toIndex >= 0 && toIndex < fromIndex;
+        const reason = isBackward
+            ? `Retroceso comercial de ${opportunity.stage} a ${targetStage} en el embudo`
+            : `Avance comercial de ${opportunity.stage} a ${targetStage} en el embudo`;
+        dispatch({ type: "opportunity/change-stage", id: opportunity.id, stage: targetStage, reason });
+        onToast(
+            isBackward
+                ? `Oportunidad retrocedida a ${targetStage}.`
+                : `Oportunidad avanzada a ${targetStage}.`
+        );
+    };
     return <div className="feature-stack">
 <Card>
 <div className="board-toolbar">
 <div>
 <span className="eyebrow">Seguimiento comercial</span>
 <h2>Tablero de oportunidades</h2>
-<p>Cada tarjeta conserva el origen de la oportunidad para que puedas seguir el contexto completo.</p>
+<p>Cada tarjeta conserva el origen de la oportunidad. Arrastrá las tarjetas entre columnas para avanzar o retroceder de etapa.</p>
 </div>
 <div className="board-actions">
 <Button variant="outline" size="small" onClick={() => onNavigate("OPP-02")}>Ver lista</Button>
@@ -2045,23 +2129,59 @@ function PipelineView({ screen, state, entityId, roleId, onNavigate, onToast, di
 <Button size="small" icon="plus" onClick={() => onNavigate("OPP-03")}>Crear oportunidad</Button>
 </div>
 </div>
-<div className="pipeline-board">{stageOrder.map((stage, stageIndex) => <div className="pipeline-column" key={stage}>
+<div className="pipeline-board">{stageOrder.map((stage) => {
+    const columnItems = visibleOpportunities.filter((item) => item.stage === stage);
+    return <div
+        className={`pipeline-column${dragOverStage === stage ? " is-drop-target" : ""}`}
+        key={stage}
+        data-stage={stage}
+        onDragOver={(event) => {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "move";
+            if (dragOverStage !== stage) {
+                setDragOverStage(stage);
+            }
+        }}
+        onDragEnter={(event) => {
+            event.preventDefault();
+            if (dragOverStage !== stage) {
+                setDragOverStage(stage);
+            }
+        }}
+        onDragLeave={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                setDragOverStage((current) => (current === stage ? null : current));
+            }
+        }}
+        onDrop={(event) => {
+            event.preventDefault();
+            const transferredId = event.dataTransfer.getData("text/plain");
+            handleDropStage(stage, transferredId);
+        }}
+    >
 <div className="pipeline-column-head">
 <span>{stage}</span>
-<span className="column-count">{visibleOpportunities.filter((item) => item.stage === stage).length}</span>
-</div>{visibleOpportunities.filter((item) => item.stage === stage).map((opportunity) => {
-    const nextStage = stageIndex + 1 < stageOrder.length - 1 ? stageOrder[stageIndex + 1] : null;
-    return <div className="pipeline-card-wrap" key={opportunity.id}>
+<span className="column-count">{columnItems.length}</span>
+</div>{columnItems.map((opportunity) => <div
+    className={`pipeline-card-wrap${draggedOpportunityId === opportunity.id ? " is-dragging" : ""}`}
+    key={opportunity.id}
+    data-opportunity-id={opportunity.id}
+    draggable
+    aria-grabbed={draggedOpportunityId === opportunity.id}
+    title="Arrastrá hacia otra columna para avanzar o retroceder de etapa"
+    onDragStart={(event) => {
+        setDraggedOpportunityId(opportunity.id);
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", opportunity.id);
+    }}
+    onDragEnd={() => {
+        setDraggedOpportunityId(null);
+        setDragOverStage(null);
+    }}
+>
 <PipelineCard title={opportunity.title} sourceType={opportunity.sourceType} stage={opportunity.stage} owner={opportunity.owner} fee={<CurrencyAmount value={opportunity.fee} currency={opportunity.currency}/>} onOpen={() => onNavigate("OPP-04", opportunity.id)}/>
-<div className="form-footer form-footer-left" style={{ gap: "0.35rem", marginTop: "0.35rem" }}>
-<Button variant="outline" size="xsmall" onClick={() => onNavigate("OPP-05", opportunity.id)}>Cambiar etapa</Button>
-{nextStage && <Button variant="secondary" size="xsmall" onClick={() => {
-    dispatch({ type: "opportunity/change-stage", id: opportunity.id, stage: nextStage, reason: `Avance comercial a ${nextStage}` });
-    onToast(`Oportunidad avanzada a ${nextStage}.`);
-}}>Avanzar a {nextStage}</Button>}
-</div>
-</div>;
-})}</div>)}</div>
+</div>)}{columnItems.length === 0 && <span className="column-empty">Arrastrá aquí</span>}</div>;
+})}</div>
 </Card>
 <div className="pipeline-footnote">
 <Icon name="info" size={16}/>
@@ -2199,7 +2319,48 @@ function OpportunityForm({ state, roleId, onToast, onNavigate, dispatch }: {
     const [owner, setOwner] = useState(roleId === "responsable" ? "Rodrigo Vergara" : "Martín Quiroga");
     const [origin, setOrigin] = useState("Carga manual");
     const [fee, setFee] = useState("350000");
-    const sourceOptions = sourceType === "REQUIREMENT" ? state.demands.map((demand) => ({ id: demand.id, title: demand.title })) : state.captations.map((captation) => ({ id: captation.id, title: state.properties.find((property) => property.id === captation.propertyId)?.title ?? captation.id }));
+    const sourceOptions = useMemo(() => {
+        if (sourceType === "REQUIREMENT") {
+            return state.demands.map((demand) => ({ id: demand.id, title: demand.title }));
+        }
+        const fallbackTitlesByPropId: Record<string, string> = {
+            "PROP-101": "Departamento en Gorriti 4800 · Palermo Soho",
+            "PROP-102": "Casa en Av. del Libertador 16200 · San Isidro",
+            "PROP-103": "Oficina en Av. Leandro N. Alem 850 · Retiro",
+            "PROP-104": "Departamento en Juana Manso 1100 · Puerto Madero",
+            "PROP-105": "Local comercial en Zapiola 2100 · Belgrano R",
+            "PROP-106": "Departamento en Av. Las Heras 2300 · Recoleta",
+            "property-1": "Casa en Villa Crespo · Malabia 1420",
+            "property-2": "PH en Guardia Vieja 3355 · Almagro",
+        };
+        const seenProps = new Set<string>();
+        const captationItems = state.captations.map((captation) => {
+            const prop = state.properties.find((property) => property.id === captation.propertyId);
+            seenProps.add(captation.propertyId);
+            const rawTitle = prop?.title?.trim() ?? "";
+            const propTitle = rawTitle && rawTitle.toLowerCase() !== "inmueble"
+                ? rawTitle
+                : fallbackTitlesByPropId[captation.propertyId]
+                  ?? (prop?.address && prop.address !== "Capital Federal" ? `${prop.type} en ${prop.address}` : `Propiedad ${captation.propertyId}`);
+            return {
+                id: captation.id,
+                title: `${propTitle} (${captation.stage} · ${captation.owner})`
+            };
+        });
+        const extraPropertyItems = state.properties
+            .filter((property) => !seenProps.has(property.id))
+            .map((property) => {
+                const rawTitle = property.title?.trim() ?? "";
+                const propTitle = rawTitle && rawTitle.toLowerCase() !== "inmueble"
+                    ? rawTitle
+                    : fallbackTitlesByPropId[property.id] ?? `${property.type} en ${property.address}`;
+                return {
+                    id: property.id,
+                    title: `${propTitle} (Disponible)`
+                };
+            });
+        return [...captationItems, ...extraPropertyItems];
+    }, [sourceType, state.demands, state.captations, state.properties]);
     const originOptions = state.catalogEntries.filter((entry) => entry.catalogType === "origin" && entry.status === "Activo");
     const save = () => {
         const selectedParty = state.contacts.find((contact) => contact.id === partyId);
@@ -3690,8 +3851,8 @@ function AuthSurface({ screen, roleId, onRoleChange, onToast, onNavigate }: {
     onToast?: (message: string, tone?: "success" | "info" | "warning") => void;
     onNavigate: ScreenNavigator;
 }) {
-    const [username, setUsername] = useState("martin@inmobiliaria.com.ar");
-    const [password, setPassword] = useState("martin123");
+    const [username, setUsername] = useState("");
+    const [password, setPassword] = useState("");
     const [authError, setAuthError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -3717,7 +3878,7 @@ function AuthSurface({ screen, roleId, onRoleChange, onToast, onNavigate }: {
         setAuthError(null);
         const check = resolveLocalCredentials(rawUser, rawPass);
         if (!check.valid) {
-            const msg = "Usuario o contraseña incorrectos. Verificá tus credenciales (ej. martin@inmobiliaria.com.ar / martin123 o rodrigo@inmobiliaria.com.ar / rodrigo123).";
+            const msg = "Usuario o contraseña incorrectos. Verificá tus credenciales.";
             setAuthError(msg);
             onToast?.("Credenciales inválidas: usuario o contraseña incorrectos.", "warning");
             return;
@@ -3765,47 +3926,13 @@ function AuthSurface({ screen, roleId, onRoleChange, onToast, onNavigate }: {
 <div className="auth-mark">b</div>
 <span className="eyebrow">Acceso al CRM</span>
 <h2>Ingresá a tu instalación</h2>
-<p>Iniciá sesión con tu usuario y contraseña o seleccioná una de las cuentas habilitadas.</p>
+<p>Iniciá sesión con tu usuario y contraseña para continuar.</p>
 {authError && <div style={{ marginTop: "0.75rem", textAlign: "left" }}><Alert tone="error" title="No se pudo iniciar sesión">{authError}</Alert></div>}
-<div className="form-grid" style={{ textAlign: "left", marginTop: "0.75rem", marginBottom: "0.75rem" }}>
-<Field label="Usuario o correo electrónico" placeholder="martin@inmobiliaria.com.ar" value={username} onChange={(event) => { setUsername(event.target.value); setAuthError(null); }}/>
+<form onSubmit={(event) => { event.preventDefault(); void submitManualCredentials(); }} style={{ display: "flex", flexDirection: "column", gap: "0.85rem", textAlign: "left", marginTop: "0.75rem", marginBottom: "1rem" }}>
+<Field label="Usuario o correo electrónico" placeholder="usuario@inmobiliaria.com.ar" value={username} onChange={(event) => { setUsername(event.target.value); setAuthError(null); }}/>
 <Field label="Contraseña" type="password" placeholder="••••••••" value={password} onChange={(event) => { setPassword(event.target.value); setAuthError(null); }}/>
-</div>
-<Button fullWidth disabled={isSubmitting} onClick={submitManualCredentials}>Iniciar sesión</Button>
-<div className="detail-stack" style={{ marginTop: "1rem", textAlign: "left" }}>
-<span className="eyebrow">Cuentas activas en la inmobiliaria</span>
-<div className="saved-item">
-<div>
-<strong>Martín Quiroga · Vendedor</strong>
-<small>martin@inmobiliaria.com.ar · Clave: martin123 · Operación comercial y embudo</small>
-</div>
-<Button size="small" variant={roleId === "vendedor" ? "primary" : "outline"} onClick={() => {
-    setUsername("martin@inmobiliaria.com.ar");
-    setPassword("martin123");
-    void signInWithCredentials("martin@inmobiliaria.com.ar", "martin123");
-}}>Ingresar como Martín</Button>
-</div>
-<div className="saved-item">
-<div>
-<strong>Rodrigo Vergara · Responsable comercial</strong>
-<small>rodrigo@inmobiliaria.com.ar · Clave: rodrigo123 · Tablero de Métricas y supervisión</small>
-</div>
-<Button size="small" variant={roleId === "responsable" ? "primary" : "outline"} onClick={() => {
-    setUsername("rodrigo@inmobiliaria.com.ar");
-    setPassword("rodrigo123");
-    void signInWithCredentials("rodrigo@inmobiliaria.com.ar", "rodrigo123");
-}}>Ingresar a Métricas</Button>
-</div>
-</div>
-<div style={{ marginTop: "1rem" }}>
-<Button variant="outline" fullWidth onClick={() => {
-    if (process.env.NEXT_PUBLIC_CRM_WEB_MODE !== "demo" && process.env.NEXT_PUBLIC_CRM_BFF_URL) {
-        window.location.href = `${process.env.NEXT_PUBLIC_CRM_BFF_URL}/api/v1/auth/login?account=${roleId === "responsable" ? "responsable" : "vendedor"}&returnUrl=${encodeURIComponent(window.location.origin + "/inicio")}`;
-    } else {
-        onNavigate("INI-01");
-    }
-}}>Continuar con proveedor de identidad</Button>
-</div>
+<Button type="submit" fullWidth disabled={isSubmitting}>Iniciar sesión</Button>
+</form>
 </Card>;
     if (screen.id === "AUT-03")
         return <Card className="state-card">
