@@ -245,6 +245,7 @@ function CrmWorkspace({ initialSection, catalogOnly }: {
         });
         return () => { active = false; };
     }, [dataSource, initialSection, searchParams, sourceAttempt]);
+    const activeState = mode !== "demo" && remoteState ? remoteState : state;
     const entityId = searchParams.get("entity");
     const requestedScreen = searchParams.get("screen") ?? defaultScreens[initialSection] ?? "INI-01";
     const screen = getScreenById(requestedScreen) ?? getScreenById(defaultScreens[initialSection] ?? "INI-01") ?? screenRegistry[0];
@@ -260,19 +261,19 @@ function CrmWorkspace({ initialSection, catalogOnly }: {
     const showToast = (message: string, tone: "success" | "info" | "warning" = "success") => setToast({ message, tone });
     if (catalogOnly)
         return <DesignCatalog />;
-    return <CrmShell activeHref={activeHref} navItems={navItems} roleName={role.name} offlineCount={state.offlineQueue.length} onSearch={() => setSearchOpen(true)} onQuickCreate={() => setQuickCreateOpen(true)} onUserMenu={() => setUserMenuOpen((value) => !value)} userMenuOpen={userMenuOpen} userMenu={<UserMenu roleName={role.name} onClose={() => setUserMenuOpen(false)} onPermission={() => { setUserMenuOpen(false); setPermissionOpen(true); }}/>}>
+    return <CrmShell activeHref={activeHref} navItems={navItems} roleName={role.name} offlineCount={activeState.offlineQueue.length} onSearch={() => setSearchOpen(true)} onQuickCreate={() => setQuickCreateOpen(true)} onUserMenu={() => setUserMenuOpen((value) => !value)} userMenuOpen={userMenuOpen} userMenu={<UserMenu roleName={role.name} onClose={() => setUserMenuOpen(false)} onPermission={() => { setUserMenuOpen(false); setPermissionOpen(true); }}/>}>
     <PageHeader screen={screen} section={initialSection} onQuickCreate={() => setQuickCreateOpen(true)} onNavigate={navigateToScreen}/>
     {mode !== "demo" ? sourceStatus === "loading" ? <BffLoadingState /> : sourceStatus === "error" ? <BffUnavailableState error={sourceError} onRetry={() => setSourceAttempt((attempt) => attempt + 1)}/> : remoteState ? <FeatureView key={`${screen.id}:${entityId ?? ""}`} entityId={entityId} screen={screen} state={remoteState} roleId={roleId} onRoleChange={setRoleId} onNavigate={navigateToScreen} onToast={showToast} dispatch={dispatch}/> : <BffResponseState /> : <FeatureView key={`${screen.id}:${entityId ?? ""}`} entityId={entityId} screen={screen} state={state} roleId={roleId} onRoleChange={setRoleId} onNavigate={navigateToScreen} onToast={showToast} dispatch={dispatch}/>}
-    {mode === "demo" && state.offlineQueue.length > 0 && <div className="offline-banner">
+    {mode === "demo" && activeState.offlineQueue.length > 0 && <div className="offline-banner">
 <Icon name="wifi" size={16}/>
 <span>
-<strong>{state.offlineQueue.length} acción{state.offlineQueue.length > 1 ? "es" : ""} guardada{state.offlineQueue.length > 1 ? "s" : ""} sin conexión.</strong> Se sincronizan cuando vuelva la red.</span>
+<strong>{activeState.offlineQueue.length} acción{activeState.offlineQueue.length > 1 ? "es" : ""} guardada{activeState.offlineQueue.length > 1 ? "s" : ""} sin conexión.</strong> Se sincronizan cuando vuelva la red.</span>
 <Button variant="ghost" size="xsmall" onClick={() => setOfflineOpen(true)}>Ver cola</Button>
 </div>}
     <QuickCreateDrawer open={quickCreateOpen} onClose={() => setQuickCreateOpen(false)} onNavigate={navigateToScreen} roleId={roleId}/>
     <PermissionModal open={permissionOpen} roleId={roleId} onClose={() => setPermissionOpen(false)} onRoleChange={(next) => { setRoleId(next); setPermissionOpen(false); showToast(`Vista cambiada a ${getRole(next).name}.`, "info"); }} onPersonaChange={(persona) => { setRoleId(persona.roleId); setPermissionOpen(false); showToast(`Vista de ${persona.name} cargada para revisión.`, "info"); navigateToScreen(persona.startScreen); }}/>
-    <OfflineQueueDrawer open={offlineOpen} state={state} onClose={() => setOfflineOpen(false)} onFlush={() => { dispatch({ type: "offline/flush" }); setOfflineOpen(false); showToast("Cola sincronizada.", "info"); }}/>
-    {searchOpen && <GlobalSearch state={state} onClose={() => setSearchOpen(false)} onNavigate={navigateToScreen}/>}
+    <OfflineQueueDrawer open={offlineOpen} state={activeState} onClose={() => setOfflineOpen(false)} onFlush={() => { dispatch({ type: "offline/flush" }); setOfflineOpen(false); showToast("Cola sincronizada.", "info"); }}/>
+    {searchOpen && <GlobalSearch state={activeState} onClose={() => setSearchOpen(false)} onNavigate={navigateToScreen}/>}
     {toast && <Toast message={toast.message} tone={toast.tone} onClose={() => setToast(null)}/>}
   </CrmShell>;
 }
@@ -469,12 +470,12 @@ function GlobalSearch({ state, onClose, onNavigate }: {
         const screens = screenRegistry.filter((screen) => !screen.deferred).filter((screen) => matchesQuery(`${screen.id} ${screen.title}`, trimmed)).slice(0, trimmed ? 5 : 4).map((screen) => ({ id: screen.id, title: screen.title, detail: "Acceso directo", module: screen.module, entityId: undefined as string | undefined }));
         if (!trimmed)
             return screens.concat(state.contacts.slice(0, 2).map((contact) => ({ id: contact.kind === "Empresa" ? "PTY-06" : "PTY-05", entityId: contact.id, title: contact.name, detail: `Contacto · ${contact.phone}`, module: "PTY" })));
-        const contacts = state.contacts.filter((contact) => matchesQuery(`${contact.name} ${contact.phone} ${contact.email} ${contact.owner} ${contact.kind}`, trimmed)).slice(0, 4).map((contact) => ({ id: contact.kind === "Empresa" ? "PTY-06" : "PTY-05", entityId: contact.id, title: contact.name, detail: `Contacto · ${contact.email || contact.phone}`, module: "PTY" }));
-        const properties = state.properties.filter((property) => matchesQuery(`${property.title} ${property.address} ${property.type} ${property.status}`, trimmed)).slice(0, 4).map((property) => ({ id: "PRP-06", entityId: property.id, title: property.title, detail: `Inmueble · ${property.address}`, module: "PRP" }));
-        const listings = state.listings.filter((listing) => matchesQuery(`${listing.title} ${listing.status} ${listing.operationType}`, trimmed)).slice(0, 3).map((listing) => ({ id: "LST-04", entityId: listing.id, title: listing.title, detail: "Publicación", module: "LST" }));
-        const captations = state.captations.filter((item) => matchesQuery(`${item.owner} ${state.properties.find((property) => property.id === item.propertyId)?.title ?? ""}`, trimmed)).slice(0, 3).map((item) => ({ id: "CAP-03", entityId: item.id, title: state.properties.find((property) => property.id === item.propertyId)?.title ?? item.id, detail: "Captación", module: "CAP" }));
-        const demands = state.demands.filter((item) => matchesQuery(`${item.title} ${item.status}`, trimmed)).slice(0, 3).map((item) => ({ id: "DEM-04", entityId: item.id, title: item.title, detail: "Búsqueda", module: "DEM" }));
-        const opportunities = state.opportunities.filter((item) => matchesQuery(`${item.title} ${item.owner} ${item.stage} ${item.sourceType}`, trimmed)).slice(0, 3).map((item) => ({ id: "OPP-04", entityId: item.id, title: item.title, detail: "Oportunidad", module: "OPP" }));
+        const contacts = state.contacts.filter((contact) => matchesQuery([contact.name, contact.phone, contact.email, contact.owner, contact.kind].filter(Boolean).join(" "), trimmed)).slice(0, 4).map((contact) => ({ id: contact.kind === "Empresa" ? "PTY-06" : "PTY-05", entityId: contact.id, title: contact.name, detail: `Contacto · ${contact.email || contact.phone || ""}`, module: "PTY" }));
+        const properties = state.properties.filter((property) => matchesQuery([property.title, property.address, property.type, property.status].filter(Boolean).join(" "), trimmed)).slice(0, 4).map((property) => ({ id: "PRP-06", entityId: property.id, title: property.title, detail: `Inmueble · ${property.address}`, module: "PRP" }));
+        const listings = state.listings.filter((listing) => matchesQuery([listing.title, listing.status, listing.operationType].filter(Boolean).join(" "), trimmed)).slice(0, 3).map((listing) => ({ id: "LST-04", entityId: listing.id, title: listing.title, detail: "Publicación", module: "LST" }));
+        const captations = state.captations.filter((item) => matchesQuery([item.owner, state.properties.find((property) => property.id === item.propertyId)?.title].filter(Boolean).join(" "), trimmed)).slice(0, 3).map((item) => ({ id: "CAP-03", entityId: item.id, title: state.properties.find((property) => property.id === item.propertyId)?.title ?? item.id, detail: "Captación", module: "CAP" }));
+        const demands = state.demands.filter((item) => matchesQuery([item.title, item.status].filter(Boolean).join(" "), trimmed)).slice(0, 3).map((item) => ({ id: "DEM-04", entityId: item.id, title: item.title, detail: "Búsqueda", module: "DEM" }));
+        const opportunities = state.opportunities.filter((item) => matchesQuery([item.title, item.owner, item.stage, item.sourceType].filter(Boolean).join(" "), trimmed)).slice(0, 3).map((item) => ({ id: "OPP-04", entityId: item.id, title: item.title, detail: "Oportunidad", module: "OPP" }));
         const reservations = state.reservations.filter((item) => matchesQuery(item.propertyTitle, trimmed)).slice(0, 2).map((item) => ({ id: "COM-09", entityId: item.id, title: item.propertyTitle, detail: "Reserva", module: "COM" }));
         const operations = state.operations.filter((item) => matchesQuery(item.propertyTitle, trimmed)).slice(0, 2).map((item) => ({ id: "COM-12", entityId: item.id, title: item.propertyTitle, detail: "Operación", module: "COM" }));
         return [...contacts, ...properties, ...listings, ...captations, ...demands, ...opportunities, ...reservations, ...operations, ...screens];
