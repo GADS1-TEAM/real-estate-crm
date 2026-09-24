@@ -4,13 +4,26 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { CrmShell, UserMenu, type ShellNavItem } from "@/components/crm-shell";
 import { Alert, Avatar, Button, Card, Chip, Drawer, EmptyState, Field, Icon, Modal, Pagination, SelectField, Skeleton, StatusDot, Tabs, Tag, TextAreaField, Toast, } from "@/components/ui/primitives";
 import { AISuggestion, CriterionEditor, CurrencyAmount, MatchScoreExplanation, PipelineCard, PropertyPlaceholder, UnknownIndicator, type CriterionEvidence } from "@/components/domain/domain-components";
-import { crmCatalogFamilies, DemoStoreProvider, getAnalyticsSnapshot, useDemoStore, type AnalyticsFilters, type AnalyticsMetricValue, type CatalogFamily, type DemoAction, type DemoActivity, type DemoDemand, type DemoListing, normalizeDemoState, type DemoState, type OpportunityStage, } from "@/lib/demo-store";
+import { crmCatalogFamilies, demoReducer, DemoStoreProvider, getAnalyticsSnapshot, useDemoStore, type AnalyticsFilters, type AnalyticsMetricValue, type CatalogFamily, type DemoAction, type DemoActivity, type DemoDemand, type DemoListing, normalizeDemoState, type DemoState, type OpportunityStage, } from "@/lib/demo-store";
 import { createCrmDataSource, type CrmDataSource } from "@/lib/data-source";
 import { crmPersonas, getRole, hasPermission, permissionLabel, permissionReason, type Permission, type RoleId } from "@/lib/permissions";
 import { getScreenById, screenRegistry, type ScreenDefinition } from "@/lib/screen-registry";
 import { buildCrmScreenUrl } from "@/lib/navigation";
 import { applyContactSuggestions, criterionContribution, getCommercialStatusMeaning, parseHistoricalContactText, resolveSelectedRecord, validateActivity, validateOperationClose, validateOpportunityClose, validateOpportunityStageChange, validateReason, type CommercialStatus } from "@/lib/workflow-rules";
 const mode = process.env.NEXT_PUBLIC_CRM_WEB_MODE ?? "bff";
+function normalizeText(text: string | null | undefined): string {
+    return (text ?? "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+}
+function matchesQuery(haystack: string | null | undefined, query: string): boolean {
+    if (!query || !query.trim()) return true;
+    const normHaystack = normalizeText(haystack);
+    const terms = normalizeText(query).split(/\s+/).filter(Boolean);
+    return terms.every((term) => normHaystack.includes(term));
+}
+
 const navItems: ShellNavItem[] = [
     { href: "/inicio", label: "Inicio", icon: "home" },
     { href: "/contactos", label: "Contactos", icon: "users" },
@@ -115,44 +128,44 @@ export function CrmApp({ initialSection, catalogOnly = false }: {
 <CrmWorkspace initialSection={initialSection} catalogOnly={catalogOnly}/>
 </DemoStoreProvider>;
 }
-function saveActionMutation(dataSource: CrmDataSource, action: DemoAction) {
+async function saveActionMutation(dataSource: CrmDataSource, action: DemoAction): Promise<void> {
     try {
         switch (action.type) {
             case "contact/create":
-                dataSource.saveMutation("createContact", action.item);
+                await dataSource.saveMutation("createContact", action.item);
                 break;
             case "contact/update":
-                dataSource.saveMutation("updateContact", { partyId: action.id, ...action.changes });
+                await dataSource.saveMutation("updateContact", { partyId: action.id, ...action.changes });
                 break;
             case "party/relate":
-                dataSource.saveMutation("relateContactToCompany", action);
+                await dataSource.saveMutation("relateContactToCompany", action);
                 break;
             case "property/create":
-                dataSource.saveMutation("createProperty", action.item);
+                await dataSource.saveMutation("createProperty", action.item);
                 break;
             case "property/update":
-                dataSource.saveMutation("updateProperty", { propertyId: action.id, ...action.changes });
+                await dataSource.saveMutation("updateProperty", { propertyId: action.id, ...action.changes });
                 break;
             case "listing/create":
-                dataSource.saveMutation("createListing", action.item);
+                await dataSource.saveMutation("createListing", action.item);
                 break;
             case "listing/update":
-                dataSource.saveMutation("updateListing", { listingId: action.id, ...action.changes });
+                await dataSource.saveMutation("updateListing", { listingId: action.id, ...action.changes });
                 break;
             case "demand/create":
-                dataSource.saveMutation("createRequirement", action.item);
+                await dataSource.saveMutation("createRequirement", action.item);
                 break;
             case "activity/add":
-                dataSource.saveMutation("recordActivity", action.item);
+                await dataSource.saveMutation("recordActivity", action.item);
                 break;
             case "user/invite":
-                dataSource.saveMutation("createUser", action.item);
+                await dataSource.saveMutation("createUser", action.item);
                 break;
             case "user/update":
-                dataSource.saveMutation("updateUser", { userId: action.id, ...action.changes });
+                await dataSource.saveMutation("updateUser", { userId: action.id, ...action.changes });
                 break;
             case "catalog/update-entry":
-                dataSource.saveMutation("updateCatalogEntry", { entryId: action.id, label: action.label, status: action.status });
+                await dataSource.saveMutation("updateCatalogEntry", { entryId: action.id, label: action.label, status: action.status });
                 break;
             default:
                 break;
@@ -184,7 +197,10 @@ function CrmWorkspace({ initialSection, catalogOnly }: {
     const dispatch = useCallback((action: DemoAction) => {
         rawDispatch(action);
         if (mode !== "demo") {
-            saveActionMutation(dataSource, action);
+            setRemoteState((prev) => (prev ? demoReducer(prev, action) : prev));
+            saveActionMutation(dataSource, action).then(() => {
+                setSourceAttempt((attempt) => attempt + 1);
+            });
         }
     }, [rawDispatch, dataSource]);
     const [toast, setToast] = useState<{
@@ -229,6 +245,7 @@ function CrmWorkspace({ initialSection, catalogOnly }: {
         });
         return () => { active = false; };
     }, [dataSource, initialSection, searchParams, sourceAttempt]);
+    const activeState = mode !== "demo" && remoteState ? remoteState : state;
     const entityId = searchParams.get("entity");
     const requestedScreen = searchParams.get("screen") ?? defaultScreens[initialSection] ?? "INI-01";
     const screen = getScreenById(requestedScreen) ?? getScreenById(defaultScreens[initialSection] ?? "INI-01") ?? screenRegistry[0];
@@ -244,19 +261,19 @@ function CrmWorkspace({ initialSection, catalogOnly }: {
     const showToast = (message: string, tone: "success" | "info" | "warning" = "success") => setToast({ message, tone });
     if (catalogOnly)
         return <DesignCatalog />;
-    return <CrmShell activeHref={activeHref} navItems={navItems} roleName={role.name} offlineCount={state.offlineQueue.length} onSearch={() => setSearchOpen(true)} onQuickCreate={() => setQuickCreateOpen(true)} onUserMenu={() => setUserMenuOpen((value) => !value)} userMenuOpen={userMenuOpen} userMenu={<UserMenu roleName={role.name} onClose={() => setUserMenuOpen(false)} onPermission={() => { setUserMenuOpen(false); setPermissionOpen(true); }}/>}>
+    return <CrmShell activeHref={activeHref} navItems={navItems} roleName={role.name} offlineCount={activeState.offlineQueue.length} onSearch={() => setSearchOpen(true)} onQuickCreate={() => setQuickCreateOpen(true)} onUserMenu={() => setUserMenuOpen((value) => !value)} userMenuOpen={userMenuOpen} userMenu={<UserMenu roleName={role.name} onClose={() => setUserMenuOpen(false)} onPermission={() => { setUserMenuOpen(false); setPermissionOpen(true); }}/>}>
     <PageHeader screen={screen} section={initialSection} onQuickCreate={() => setQuickCreateOpen(true)} onNavigate={navigateToScreen}/>
     {mode !== "demo" ? sourceStatus === "loading" ? <BffLoadingState /> : sourceStatus === "error" ? <BffUnavailableState error={sourceError} onRetry={() => setSourceAttempt((attempt) => attempt + 1)}/> : remoteState ? <FeatureView key={`${screen.id}:${entityId ?? ""}`} entityId={entityId} screen={screen} state={remoteState} roleId={roleId} onRoleChange={setRoleId} onNavigate={navigateToScreen} onToast={showToast} dispatch={dispatch}/> : <BffResponseState /> : <FeatureView key={`${screen.id}:${entityId ?? ""}`} entityId={entityId} screen={screen} state={state} roleId={roleId} onRoleChange={setRoleId} onNavigate={navigateToScreen} onToast={showToast} dispatch={dispatch}/>}
-    {mode === "demo" && state.offlineQueue.length > 0 && <div className="offline-banner">
+    {mode === "demo" && activeState.offlineQueue.length > 0 && <div className="offline-banner">
 <Icon name="wifi" size={16}/>
 <span>
-<strong>{state.offlineQueue.length} acción{state.offlineQueue.length > 1 ? "es" : ""} guardada{state.offlineQueue.length > 1 ? "s" : ""} sin conexión.</strong> Se sincronizan cuando vuelva la red.</span>
+<strong>{activeState.offlineQueue.length} acción{activeState.offlineQueue.length > 1 ? "es" : ""} guardada{activeState.offlineQueue.length > 1 ? "s" : ""} sin conexión.</strong> Se sincronizan cuando vuelva la red.</span>
 <Button variant="ghost" size="xsmall" onClick={() => setOfflineOpen(true)}>Ver cola</Button>
 </div>}
     <QuickCreateDrawer open={quickCreateOpen} onClose={() => setQuickCreateOpen(false)} onNavigate={navigateToScreen} roleId={roleId}/>
     <PermissionModal open={permissionOpen} roleId={roleId} onClose={() => setPermissionOpen(false)} onRoleChange={(next) => { setRoleId(next); setPermissionOpen(false); showToast(`Vista cambiada a ${getRole(next).name}.`, "info"); }} onPersonaChange={(persona) => { setRoleId(persona.roleId); setPermissionOpen(false); showToast(`Vista de ${persona.name} cargada para revisión.`, "info"); navigateToScreen(persona.startScreen); }}/>
-    <OfflineQueueDrawer open={offlineOpen} state={state} onClose={() => setOfflineOpen(false)} onFlush={() => { dispatch({ type: "offline/flush" }); setOfflineOpen(false); showToast("Cola sincronizada.", "info"); }}/>
-    {searchOpen && <GlobalSearch state={state} onClose={() => setSearchOpen(false)} onNavigate={navigateToScreen}/>}
+    <OfflineQueueDrawer open={offlineOpen} state={activeState} onClose={() => setOfflineOpen(false)} onFlush={() => { dispatch({ type: "offline/flush" }); setOfflineOpen(false); showToast("Cola sincronizada.", "info"); }}/>
+    {searchOpen && <GlobalSearch state={activeState} onClose={() => setSearchOpen(false)} onNavigate={navigateToScreen}/>}
     {toast && <Toast message={toast.message} tone={toast.tone} onClose={() => setToast(null)}/>}
   </CrmShell>;
 }
@@ -449,18 +466,18 @@ function GlobalSearch({ state, onClose, onNavigate }: {
 }) {
     const [query, setQuery] = useState("");
     const results = useMemo(() => {
-        const normalized = query.trim().toLowerCase();
-        const screens = screenRegistry.filter((screen) => !screen.deferred).filter((screen) => `${screen.id} ${screen.title}`.toLowerCase().includes(normalized || "__recent__")).slice(0, normalized ? 5 : 4).map((screen) => ({ id: screen.id, title: screen.title, detail: "Acceso directo", module: screen.module, entityId: undefined as string | undefined }));
-        if (!normalized)
+        const trimmed = query.trim();
+        const screens = screenRegistry.filter((screen) => !screen.deferred).filter((screen) => matchesQuery(`${screen.id} ${screen.title}`, trimmed)).slice(0, trimmed ? 5 : 4).map((screen) => ({ id: screen.id, title: screen.title, detail: "Acceso directo", module: screen.module, entityId: undefined as string | undefined }));
+        if (!trimmed)
             return screens.concat(state.contacts.slice(0, 2).map((contact) => ({ id: contact.kind === "Empresa" ? "PTY-06" : "PTY-05", entityId: contact.id, title: contact.name, detail: `Contacto · ${contact.phone}`, module: "PTY" })));
-        const contacts = state.contacts.filter((contact) => `${contact.name} ${contact.phone} ${contact.email}`.toLowerCase().includes(normalized)).slice(0, 3).map((contact) => ({ id: contact.kind === "Empresa" ? "PTY-06" : "PTY-05", entityId: contact.id, title: contact.name, detail: `Contacto · ${contact.email}`, module: "PTY" }));
-        const properties = state.properties.filter((property) => `${property.title} ${property.address} ${property.type}`.toLowerCase().includes(normalized)).slice(0, 3).map((property) => ({ id: "PRP-06", entityId: property.id, title: property.title, detail: `Inmueble · ${property.address}`, module: "PRP" }));
-        const listings = state.listings.filter((listing) => listing.title.toLowerCase().includes(normalized)).slice(0, 2).map((listing) => ({ id: "LST-04", entityId: listing.id, title: listing.title, detail: "Publicación", module: "LST" }));
-        const captations = state.captations.filter((item) => `${item.owner} ${state.properties.find((property) => property.id === item.propertyId)?.title ?? ""}`.toLowerCase().includes(normalized)).slice(0, 2).map((item) => ({ id: "CAP-03", entityId: item.id, title: state.properties.find((property) => property.id === item.propertyId)?.title ?? item.id, detail: "Captación", module: "CAP" }));
-        const demands = state.demands.filter((item) => item.title.toLowerCase().includes(normalized)).slice(0, 2).map((item) => ({ id: "DEM-04", entityId: item.id, title: item.title, detail: "Búsqueda", module: "DEM" }));
-        const opportunities = state.opportunities.filter((item) => item.title.toLowerCase().includes(normalized)).slice(0, 2).map((item) => ({ id: "OPP-04", entityId: item.id, title: item.title, detail: "Oportunidad", module: "OPP" }));
-        const reservations = state.reservations.filter((item) => item.propertyTitle.toLowerCase().includes(normalized)).slice(0, 2).map((item) => ({ id: "COM-09", entityId: item.id, title: item.propertyTitle, detail: "Reserva", module: "COM" }));
-        const operations = state.operations.filter((item) => item.propertyTitle.toLowerCase().includes(normalized)).slice(0, 2).map((item) => ({ id: "COM-12", entityId: item.id, title: item.propertyTitle, detail: "Operación", module: "COM" }));
+        const contacts = state.contacts.filter((contact) => matchesQuery([contact.name, contact.phone, contact.email, contact.owner, contact.kind].filter(Boolean).join(" "), trimmed)).slice(0, 4).map((contact) => ({ id: contact.kind === "Empresa" ? "PTY-06" : "PTY-05", entityId: contact.id, title: contact.name, detail: `Contacto · ${contact.email || contact.phone || ""}`, module: "PTY" }));
+        const properties = state.properties.filter((property) => matchesQuery([property.title, property.address, property.type, property.status].filter(Boolean).join(" "), trimmed)).slice(0, 4).map((property) => ({ id: "PRP-06", entityId: property.id, title: property.title, detail: `Inmueble · ${property.address}`, module: "PRP" }));
+        const listings = state.listings.filter((listing) => matchesQuery([listing.title, listing.status, listing.operationType].filter(Boolean).join(" "), trimmed)).slice(0, 3).map((listing) => ({ id: "LST-04", entityId: listing.id, title: listing.title, detail: "Publicación", module: "LST" }));
+        const captations = state.captations.filter((item) => matchesQuery([item.owner, state.properties.find((property) => property.id === item.propertyId)?.title].filter(Boolean).join(" "), trimmed)).slice(0, 3).map((item) => ({ id: "CAP-03", entityId: item.id, title: state.properties.find((property) => property.id === item.propertyId)?.title ?? item.id, detail: "Captación", module: "CAP" }));
+        const demands = state.demands.filter((item) => matchesQuery([item.title, item.status].filter(Boolean).join(" "), trimmed)).slice(0, 3).map((item) => ({ id: "DEM-04", entityId: item.id, title: item.title, detail: "Búsqueda", module: "DEM" }));
+        const opportunities = state.opportunities.filter((item) => matchesQuery([item.title, item.owner, item.stage, item.sourceType].filter(Boolean).join(" "), trimmed)).slice(0, 3).map((item) => ({ id: "OPP-04", entityId: item.id, title: item.title, detail: "Oportunidad", module: "OPP" }));
+        const reservations = state.reservations.filter((item) => matchesQuery(item.propertyTitle, trimmed)).slice(0, 2).map((item) => ({ id: "COM-09", entityId: item.id, title: item.propertyTitle, detail: "Reserva", module: "COM" }));
+        const operations = state.operations.filter((item) => matchesQuery(item.propertyTitle, trimmed)).slice(0, 2).map((item) => ({ id: "COM-12", entityId: item.id, title: item.propertyTitle, detail: "Operación", module: "COM" }));
         return [...contacts, ...properties, ...listings, ...captations, ...demands, ...opportunities, ...reservations, ...operations, ...screens];
     }, [query, state]);
     return <div className="search-layer">
@@ -468,7 +485,7 @@ function GlobalSearch({ state, onClose, onNavigate }: {
 <div className="search-panel" role="dialog" aria-label="Búsqueda global">
 <div className="search-input-wrap">
 <Icon name="search" size={20}/>
-<input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar contactos, inmuebles, publicaciones..."/>
+<input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && results.length > 0) { event.preventDefault(); onNavigate(results[0].id, results[0].entityId); onClose(); } else if (event.key === "Escape") { onClose(); } }} placeholder="Buscar contactos, inmuebles, publicaciones..."/>
 <kbd>ESC</kbd>
 <button aria-label="Cerrar" onClick={onClose}>
 <Icon name="close" size={18}/>
@@ -478,7 +495,7 @@ function GlobalSearch({ state, onClose, onNavigate }: {
 <span>{query ? "Resultados de registros y pantallas" : "Accesos recientes"}</span>
 <span>También podés usar Ctrl K</span>
 </div>
-<div className="search-results">{results.length ? results.map((result, index) => <button type="button" className="search-result" key={`${result.id}-${result.title}-${index}`} onClick={() => onNavigate(result.id, result.entityId)}>
+<div className="search-results">{results.length ? results.map((result, index) => <button type="button" className="search-result" key={`${result.id}-${result.title}-${index}`} onClick={() => { onNavigate(result.id, result.entityId); onClose(); }}>
 <span className="search-result-icon">
 <Icon name={iconForModule(result.module)} size={17}/>
 </span>
@@ -535,7 +552,7 @@ function FeatureView({ screen, state, entityId, roleId, onRoleChange, onNavigate
     if (screen.renderKey === "global")
         return <GlobalStateSurface screen={screen} onToast={onToast} onNavigate={onNavigate}/>;
     switch (screen.renderKey) {
-        case "inicio": return <HomeView state={state} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
+        case "inicio": return <HomeView screen={screen} state={state} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
         case "party": return <PartyView entityId={entityId} screen={screen} state={state} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
         case "property": return <PropertyView entityId={entityId} screen={screen} state={state} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
         case "listing": return <ListingView entityId={entityId} screen={screen} state={state} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
@@ -548,21 +565,78 @@ function FeatureView({ screen, state, entityId, roleId, onRoleChange, onNavigate
         case "analytics": return <AnalyticsView screen={screen} state={state} onNavigate={onNavigate}/>;
         case "assistant": return <AssistantView screen={screen} state={state} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
         case "admin": return <AdminView screen={screen} state={state} roleId={roleId} onRoleChange={onRoleChange} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
-        default: return <HomeView state={state} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
+        default: return <HomeView screen={screen} state={state} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
     }
 }
-function HomeView({ state, onNavigate, onToast, dispatch }: {
+function HomeView({ screen, state, onNavigate, onToast, dispatch }: {
+    screen?: ScreenDefinition;
     state: DemoState;
     onNavigate: ScreenNavigator;
     onToast: (message: string, tone?: "success" | "info" | "warning") => void;
     dispatch: React.Dispatch<DemoAction>;
 }) {
-    const attention = state.opportunities.filter((item) => item.daysInStage >= 4).slice(0, 3);
+    const allAttention = state.opportunities.filter((item) => item.daysInStage >= 4).sort((a, b) => b.daysInStage - a.daysInStage);
+    const attention = allAttention.slice(0, 3);
     const grossFees = state.opportunities.reduce((total, opportunity) => total + opportunity.fee, 0);
     const activeContacts = state.contacts.filter((contact) => contactCommercialStatus(contact) !== "INACTIVE" && contactCommercialStatus(contact) !== "DO_NOT_CONTACT").length;
     const activeDemands = state.demands.filter((demand) => demand.status === "Activa").length;
     const visits = state.activities.filter((activity) => activity.type === "Visita").length;
-    const listingsWithoutMandate = state.listings.filter((listing) => listing.status === "Activa" && listing.mandate !== "Firmado").length;
+    const listingsWithoutMandateList = state.listings.filter((listing) => listing.status === "Activa" && listing.mandate !== "Firmado");
+    const listingsWithoutMandate = listingsWithoutMandateList.length;
+    const incompleteDemandsList = state.demands.filter((demand) => demand.status === "Activa" && (demand.criteria || []).some((criterion) => criterion.value === "UNKNOWN"));
+    if (screen?.id === "INI-02") {
+        const displayOpportunities = allAttention.length > 0 ? allAttention : state.opportunities;
+        return <div className="feature-stack">
+        <div className="hero-actions" style={{ justifyContent: "space-between", alignItems: "center" }}>
+            <Button variant="secondary" onClick={() => onNavigate("INI-01")}>← Volver al inicio</Button>
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+                <Button variant="outline" onClick={() => onNavigate("OPP-01")}>Abrir tablero de oportunidades</Button>
+                <Button icon="plus" onClick={() => onNavigate("ACT-01")}>Registrar actividad</Button>
+            </div>
+        </div>
+        <Alert tone="warning" title={`${allAttention.length} oportunidades requieren atención`}>La señal se deriva de la antigüedad de la etapa (4 o más días sin cambio). Seleccioná una oportunidad para ver su detalle, avanzar etapa o registrar actividad.</Alert>
+        <Card>
+            <SectionHeading eyebrow="Oportunidades con seguimiento pendiente" title={`Oportunidades para revisar (${displayOpportunities.length})`} action={<Button variant="ghost" size="small" onClick={() => onNavigate("OPP-02")}>Ver listado completo <Icon name="arrow" size={14}/></Button>}/>
+            {displayOpportunities.length === 0 ? <EmptyState title="Sin oportunidades pendientes" description="No hay oportunidades activas que requieran atención en este momento."/> : <div className="attention-list">{displayOpportunities.map((opportunity) => <div className="attention-row" key={opportunity.id} style={{ cursor: "pointer" }} onClick={() => onNavigate("OPP-04", opportunity.id)}>
+                <span className="attention-icon">
+                    <Icon name={opportunity.daysInStage >= 8 ? "clock" : "alert"} size={17}/>
+                </span>
+                <span style={{ flex: 1 }}>
+                    <strong>{opportunity.title}</strong>
+                    <small>{opportunity.stage} · {opportunity.daysInStage} días sin cambio · Responsable: {opportunity.owner} · Origen: {opportunity.sourceType}</small>
+                </span>
+                <div style={{ display: "flex", gap: "0.5rem" }} onClick={(e) => e.stopPropagation()}>
+                    <Button variant="outline" size="small" onClick={() => onNavigate("OPP-05", opportunity.id)}>Cambiar etapa</Button>
+                    <Button variant="secondary" size="small" onClick={() => onNavigate("OPP-04", opportunity.id)}>Abrir detalle <Icon name="arrow" size={14}/></Button>
+                </div>
+            </div>)}</div>}
+        </Card>
+        <div className="content-grid content-grid-home">
+            <Card>
+                <SectionHeading eyebrow="Publicaciones" title={`Publicaciones activas sin mandato (${listingsWithoutMandateList.length})`} action={<Button variant="ghost" size="small" onClick={() => onNavigate("LST-01")}>Ver publicaciones <Icon name="arrow" size={14}/></Button>}/>
+                {listingsWithoutMandateList.length === 0 ? <p className="muted">Todas las publicaciones activas cuentan con mandato firmado.</p> : <div className="attention-list">{listingsWithoutMandateList.map((listing) => <button className="attention-row" key={listing.id} onClick={() => onNavigate("LST-04", listing.id)}>
+                    <span className="attention-icon"><Icon name="alert" size={17}/></span>
+                    <span>
+                        <strong>{listing.title}</strong>
+                        <small>Estado: {listing.status} · Mandato: {listing.mandate}</small>
+                    </span>
+                    <Icon name="arrow" size={15}/>
+                </button>)}</div>}
+            </Card>
+            <Card>
+                <SectionHeading eyebrow="Demandas" title={`Búsquedas con datos por completar (${incompleteDemandsList.length})`} action={<Button variant="ghost" size="small" onClick={() => onNavigate("DEM-01")}>Ver búsquedas <Icon name="arrow" size={14}/></Button>}/>
+                {incompleteDemandsList.length === 0 ? <p className="muted">Todas las búsquedas activas tienen sus criterios completos.</p> : <div className="attention-list">{incompleteDemandsList.map((demand) => <button className="attention-row" key={demand.id} onClick={() => onNavigate("DEM-03", demand.id)}>
+                    <span className="attention-icon"><Icon name="target" size={17}/></span>
+                    <span>
+                        <strong>{demand.title}</strong>
+                        <small>Origen: {demand.origin} · Criterios con valores desconocidos</small>
+                    </span>
+                    <Icon name="arrow" size={15}/>
+                </button>)}</div>}
+            </Card>
+        </div>
+        </div>;
+    }
     return <div className="feature-stack">
     <Alert tone="warning" title={`${attention.length} oportunidades requieren atención`}>La señal se deriva de la antigüedad de la etapa. No crea una tarea ni un recordatorio.</Alert>
     <div className="hero-grid">
@@ -682,7 +756,8 @@ function TableToolbar({ searchPlaceholder, count, onAdd, addLabel = "Nuevo", fil
     return <div className="table-toolbar">
 <div className="inline-search">
 <Icon name="search" size={16}/>
-<input aria-label={searchPlaceholder} placeholder={searchPlaceholder} value={value} onChange={(event) => onSearch?.(event.target.value)}/>
+<input aria-label={searchPlaceholder} placeholder={searchPlaceholder} value={value} onChange={(event) => onSearch?.(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") onSearch?.(""); }}/>
+{value && <button type="button" aria-label="Limpiar búsqueda" onClick={() => onSearch?.("")} style={{ background: "none", border: "none", cursor: "pointer", padding: "0 6px", display: "flex", alignItems: "center", color: "var(--muted)" }}><Icon name="close" size={14}/></button>}
 </div>
 {onFilter && <Button variant="outline" size="small" icon="filter" onClick={onFilter}>{filterLabel}</Button>}
 <span className="toolbar-count">{count} registros</span>{onAdd && <Button size="small" icon="plus" onClick={onAdd}>{addLabel}</Button>}</div>;
@@ -696,7 +771,7 @@ function PartyView({ screen, state, entityId, onNavigate, onToast, dispatch }: {
     dispatch: React.Dispatch<DemoAction>;
 }) {
     const [query, setQuery] = useState("");
-    const contacts = state.contacts.filter((contact) => `${contact.name} ${contact.phone} ${contact.email} ${contact.owner}`.toLowerCase().includes(query.toLowerCase()));
+    const contacts = state.contacts.filter((contact) => matchesQuery(`${contact.name} ${contact.phone} ${contact.email} ${contact.owner} ${contact.kind} ${contactCommercialStatus(contact)} ${contact.origin}`, query));
     const pagination = useLocalPagination(contacts, query, 25);
     const detail = screen.id !== "PTY-01" && screen.id !== "PTY-02" && screen.id !== "PTY-03" && screen.id !== "PTY-04";
     if (screen.id === "PTY-02" || screen.id === "PTY-03" || screen.id === "PTY-04")
@@ -948,7 +1023,7 @@ function PropertyView({ screen, state, entityId, onNavigate, onToast, dispatch }
     dispatch: React.Dispatch<DemoAction>;
 }) {
     const [query, setQuery] = useState("");
-    const properties = state.properties.filter((property) => `${property.title} ${property.address} ${property.type}`.toLowerCase().includes(query.toLowerCase()));
+    const properties = state.properties.filter((property) => matchesQuery(`${property.title} ${property.address} ${property.type} ${property.status} ${property.bedrooms}`, query));
     const pagination = useLocalPagination(properties, query);
     if (["PRP-03", "PRP-04", "PRP-05"].includes(screen.id))
         return <PropertyForm screen={screen} state={state} entityId={entityId} onToast={onToast} onNavigate={onNavigate} dispatch={dispatch}/>;
@@ -1167,7 +1242,7 @@ function ListingView({ screen, state, entityId, onNavigate, onToast, dispatch }:
     dispatch: React.Dispatch<DemoAction>;
 }) {
     const [query, setQuery] = useState("");
-    const listings = state.listings.filter((listing) => { const property = state.properties.find((item) => item.id === listing.propertyId); return `${listing.title} ${property?.address ?? ""}`.toLowerCase().includes(query.toLowerCase()); });
+    const listings = state.listings.filter((listing) => { const property = state.properties.find((item) => item.id === listing.propertyId); return matchesQuery(`${listing.title} ${listing.status} ${listing.mandate} ${listing.operationType} ${property?.address ?? ""} ${property?.title ?? ""}`, query); });
     const pagination = useLocalPagination(listings, query);
     if (screen.id === "LST-02" || screen.id === "LST-03")
         return <ListingForm entityId={entityId} screen={screen} state={state} onToast={onToast} onNavigate={onNavigate} dispatch={dispatch}/>;
@@ -1350,7 +1425,7 @@ function CaptationView({ screen, state, entityId, onNavigate, onToast, dispatch 
     dispatch: React.Dispatch<DemoAction>;
 }) {
     const [query, setQuery] = useState("");
-    const captations = state.captations.filter((captation) => { const property = state.properties.find((item) => item.id === captation.propertyId); return `${property?.title ?? ""} ${captation.owner}`.toLowerCase().includes(query.toLowerCase()); });
+    const captations = state.captations.filter((captation) => { const property = state.properties.find((item) => item.id === captation.propertyId); return matchesQuery(`${property?.title ?? ""} ${property?.address ?? ""} ${captation.owner} ${captation.stage} ${captation.origin}`, query); });
     const pagination = useLocalPagination(captations, query);
     if (screen.id === "CAP-02")
         return <CaptationForm state={state} onToast={onToast} onNavigate={onNavigate} dispatch={dispatch}/>;
@@ -1536,7 +1611,7 @@ function DemandView({ screen, state, entityId, onNavigate, onToast, dispatch }: 
     dispatch: React.Dispatch<DemoAction>;
 }) {
     const [query, setQuery] = useState("");
-    const demands = state.demands.filter((demandItem) => { const contact = state.contacts.find((item) => item.id === demandItem.contactId); return `${demandItem.title} ${contact?.name ?? ""} ${(demandItem.criteria || []).map((criterion) => `${criterion.label} ${criterion.value}`).join(" ")}`.toLowerCase().includes(query.toLowerCase()); });
+    const demands = state.demands.filter((demandItem) => { const contact = state.contacts.find((item) => item.id === demandItem.contactId); return matchesQuery(`${demandItem.title} ${contact?.name ?? ""} ${demandItem.status} ${demandItem.origin} ${(demandItem.criteria || []).map((criterion) => `${criterion.label} ${criterion.value}`).join(" ")}`, query); });
     const pagination = useLocalPagination(demands, query);
     if (["DEM-02"].includes(screen.id))
         return <DemandForm state={state} onToast={onToast} onNavigate={onNavigate} dispatch={dispatch}/>;
@@ -1844,7 +1919,7 @@ function OpportunityList({ screen, state, onNavigate, onToast, dispatch }: {
     dispatch: React.Dispatch<DemoAction>;
 }) {
     const [query, setQuery] = useState("");
-    const opportunities = state.opportunities.filter((opportunity) => `${opportunity.title} ${opportunity.sourceId} ${opportunity.owner} ${opportunity.sourceType}`.toLowerCase().includes(query.toLowerCase()));
+    const opportunities = state.opportunities.filter((opportunity) => matchesQuery(`${opportunity.title} ${opportunity.sourceId} ${opportunity.owner} ${opportunity.sourceType} ${opportunity.stage} ${opportunity.origin}`, query));
     const pagination = useLocalPagination(opportunities, query);
     return <div className="feature-stack">
 <Card>

@@ -103,4 +103,16 @@ describe("CRM selection and navigation", () => {
     fireEvent.click(agenda!);
     expect(route.push).not.toHaveBeenCalled();
   });
+
+  it("renders INI-02 'Requiere atención' screen and allows returning to INI-01", () => {
+    open("inicio", "INI-01");
+    fireEvent.click(screen.getByRole("button", { name: "Ver requiere atención" }));
+    expect(route.push).toHaveBeenLastCalledWith("/inicio?screen=INI-02");
+
+    open("inicio", "INI-02");
+    expect(screen.getByRole("heading", { name: /Oportunidades para revisar/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "← Volver al inicio" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "← Volver al inicio" }));
+    expect(route.push).toHaveBeenLastCalledWith("/inicio?screen=INI-01");
+  });
 });
