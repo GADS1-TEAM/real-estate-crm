@@ -264,7 +264,7 @@ export const crmCatalogFamilies: CatalogFamilyDefinition[] = [
 export interface DemoCatalogEntry {
   id: string;
   label: string;
-  status: "Activo" | "Cierre comercial";
+  status: "Activo" | "Inactivo" | "Cierre comercial";
   catalogType?: CatalogFamily;
   code?: string;
   order?: number;
@@ -800,7 +800,8 @@ function normalizeCatalogEntries(rawEntries: unknown): DemoState["catalogEntries
       rawType === "property-type" ? "property-type" :
       catalogTypeFromLegacyId(id);
     const label = String(raw.label ?? raw.name ?? raw.code ?? id);
-    const status: "Activo" | "Inactivo" =
+    const status: DemoCatalogEntry["status"] =
+      raw.status === "Cierre comercial" ? "Cierre comercial" :
       raw.status === "Inactivo" || raw.isActive === false ? "Inactivo" : "Activo";
     return {
       id,

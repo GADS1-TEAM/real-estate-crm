@@ -2085,7 +2085,7 @@ function OpportunityForm({ state, roleId, onToast, onNavigate, dispatch }: {
 </div>
 </Card>;
 }
-function OpportunityDetail({ screen, state, entityId, roleId: _roleId, onNavigate, onToast, dispatch }: {
+function OpportunityDetail({ screen, state, entityId, onNavigate, onToast, dispatch }: {
     screen: ScreenDefinition;
     state: DemoState;
     entityId?: string | null;
@@ -2110,7 +2110,7 @@ function OpportunityDetail({ screen, state, entityId, roleId: _roleId, onNavigat
         const currentIndex = stageOptions.indexOf(opportunity.stage);
         const nextStage = currentIndex >= 0 && currentIndex + 1 < stageOptions.length ? stageOptions[currentIndex + 1] : stageOptions[0];
         setStageDraft(nextStage !== opportunity.stage ? nextStage : opportunity.stage);
-    }, [opportunity?.id, opportunity?.stage]);
+    }, [opportunity, stageOptions]);
     if (!opportunity) return <UnavailableRecord />;
     const sourceTitle = opportunity.sourceType === "REQUIREMENT" ? state.demands.find((demand) => demand.id === opportunity.sourceId)?.title : state.captations.find((captation) => captation.id === opportunity.sourceId)?.propertyId ? state.properties.find((property) => property.id === state.captations.find((captation) => captation.id === opportunity.sourceId)?.propertyId)?.title : undefined;
     const lossReasons = state.catalogEntries.filter((entry) => entry.catalogType === "loss-reason" && entry.status === "Activo");
@@ -3255,7 +3255,7 @@ function CatalogList({ screen, state, onToast, onNavigate, dispatch }: {
     const [draft, setDraft] = useState("");
     const family = crmCatalogFamilies.find((item) => item.id === catalogFamilyForScreen(screen.id)) ?? crmCatalogFamilies[0];
     const entries = state.catalogEntries.filter((entry) => entry.catalogType === family.id);
-    const save = (id: string, status: "Activo" | "Cierre comercial") => { if (!draft.trim()) {
+    const save = (id: string, status: DemoState["catalogEntries"][number]["status"]) => { if (!draft.trim()) {
         onToast("El nombre del catálogo no puede quedar vacío.", "warning");
         return;
     } dispatch({ type: "catalog/update-entry", id, label: draft.trim(), status }); setEditing(null); onToast("Entrada guardada para revisión local."); };
