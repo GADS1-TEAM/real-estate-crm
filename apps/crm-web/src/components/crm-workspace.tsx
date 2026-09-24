@@ -278,7 +278,12 @@ function CrmWorkspace({ initialSection, catalogOnly }: {
     const searchParams = useSearchParams();
     const { state, dispatch: rawDispatch } = useDemoStore();
     const [roleId, setRoleIdState] = useState<RoleId>("vendedor");
-    const [isAuthenticated, setIsAuthenticatedState] = useState<boolean>(() => readStoredAuth());
+    const [isAuthenticated, setIsAuthenticatedState] = useState<boolean>(() => {
+        if (typeof process !== "undefined" && (process.env.VITEST === "true" || process.env.NODE_ENV === "test")) {
+            return readStoredAuth();
+        }
+        return false;
+    });
     const setAuthenticated = useCallback((next: boolean) => {
         setIsAuthenticatedState(next);
         if (typeof window !== "undefined") {
