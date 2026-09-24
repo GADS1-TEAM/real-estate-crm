@@ -19,10 +19,10 @@
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": true,
       "serviceAccountsEnabled": false,
-      "redirectUris": ["http://localhost:3000/*"],
-      "webOrigins": ["http://localhost:3000"],
+      "redirectUris": ["http://localhost:3000/*", "http://localhost:5137/*"],
+      "webOrigins": ["http://localhost:3000", "http://localhost:5137", "*"],
       "attributes": {
-        "pkce.code.challenge.method": "S256"
+        "pkce.code.challenge.method": ""
       },
       "protocolMappers": [
         {
@@ -75,6 +75,32 @@
       "email": "dev.responsable@crm-dev.local",
       "credentials": [
         { "type": "password", "value": "dev.responsable", "temporary": false }
+      ],
+      "realmRoles": ["Responsable Comercial"]
+    },
+    {
+      "id": "a0000000-0000-4000-8000-000000000004",
+      "username": "martin.quiroga",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Martín",
+      "lastName": "Quiroga",
+      "email": "martin@inmobiliaria.com.ar",
+      "credentials": [
+        { "type": "password", "value": "martin123", "temporary": false }
+      ],
+      "realmRoles": ["Vendedor"]
+    },
+    {
+      "id": "a0000000-0000-4000-8000-000000000005",
+      "username": "rodrigo.vergara",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Rodrigo",
+      "lastName": "Vergara",
+      "email": "rodrigo@inmobiliaria.com.ar",
+      "credentials": [
+        { "type": "password", "value": "rodrigo123", "temporary": false }
       ],
       "realmRoles": ["Responsable Comercial"]
     }

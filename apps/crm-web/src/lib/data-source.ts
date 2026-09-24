@@ -7,7 +7,7 @@ export interface CrmDataSource {
 export class BffCrmDataSource implements CrmDataSource {
   readonly kind = "bff" as const;
 
-  constructor(private readonly baseUrl = process.env.NEXT_PUBLIC_CRM_BFF_URL ?? "") {}
+  constructor(private readonly baseUrl = process.env.NEXT_PUBLIC_CRM_BFF_URL ?? "http://localhost:5137") {}
 
   async getScreenData(screenId: string): Promise<unknown> {
     if (!this.baseUrl) throw new Error("CRM_BFF_NOT_CONFIGURED");

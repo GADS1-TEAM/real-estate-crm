@@ -131,6 +131,20 @@ export function CrmApp({ initialSection, catalogOnly = false }: {
 const roleStorageKey = "crm-web:role-id:v1";
 const bffActionsStorageKey = "crm-web:bff-actions:v1";
 
+export function getAccountByRole(roleId: RoleId): { name: string; email: string; username: string } {
+    switch (roleId) {
+        case "responsable":
+            return { name: "Rodrigo Vergara", email: "rodrigo@inmobiliaria.com.ar", username: "rodrigo.vergara" };
+        case "direccion":
+            return { name: "Elena Vergara", email: "elena@inmobiliaria.com.ar", username: "elena.vergara" };
+        case "administradora":
+            return { name: "Sofía Rendón", email: "sofia@inmobiliaria.com.ar", username: "sofia.rendon" };
+        case "vendedor":
+        default:
+            return { name: "Martín Quiroga", email: "martin@inmobiliaria.com.ar", username: "martin.quiroga" };
+    }
+}
+
 function readStoredRole(): RoleId {
     if (typeof window === "undefined") return "vendedor";
     const stored = window.localStorage.getItem(roleStorageKey);
@@ -140,11 +154,35 @@ function readStoredRole(): RoleId {
     return "vendedor";
 }
 
+const persistedActionTypes = new Set<DemoAction["type"]>([
+    "contact/create",
+    "contact/update",
+    "party/relate",
+    "property/create",
+    "property/update",
+    "listing/create",
+    "listing/update",
+    "demand/create",
+    "opportunity/create",
+    "opportunity/change-stage",
+    "opportunity/reassign",
+    "opportunity/close",
+    "proposal/submit",
+    "proposal/resolve",
+    "reservation/create",
+    "activity/add",
+    "user/invite",
+    "user/update",
+    "catalog/update-entry",
+]);
+
 function readStoredBffActions(): DemoAction[] {
     if (typeof window === "undefined") return [];
     try {
         const raw = window.sessionStorage.getItem(bffActionsStorageKey);
-        return raw ? (JSON.parse(raw) as DemoAction[]) : [];
+        if (!raw) return [];
+        const parsed = JSON.parse(raw) as DemoAction[];
+        return Array.isArray(parsed) ? parsed.filter((act) => !persistedActionTypes.has(act.type)) : [];
     } catch {
         return [];
     }
@@ -154,10 +192,10 @@ async function saveActionMutation(dataSource: CrmDataSource, action: DemoAction)
     try {
         switch (action.type) {
             case "contact/create":
-                await dataSource.saveMutation("createContact", action.item);
+                await dataSource.saveMutation(action.item.kind === "Empresa" ? "createCompany" : "createContact", action.item);
                 return true;
             case "contact/update":
-                await dataSource.saveMutation("updateContact", { partyId: action.id, ...action.changes });
+                await dataSource.saveMutation(action.changes.kind === "Empresa" ? "updateCompany" : "updateContact", { partyId: action.id, ...action.changes });
                 return true;
             case "party/relate":
                 await dataSource.saveMutation("relateContactToCompany", action);
@@ -176,6 +214,27 @@ async function saveActionMutation(dataSource: CrmDataSource, action: DemoAction)
                 return true;
             case "demand/create":
                 await dataSource.saveMutation("createRequirement", action.item);
+                return true;
+            case "opportunity/create":
+                await dataSource.saveMutation("createOpportunity", action.item);
+                return true;
+            case "opportunity/change-stage":
+                await dataSource.saveMutation("changeOpportunityStage", { id: action.id, stage: action.stage, reason: action.reason });
+                return true;
+            case "opportunity/reassign":
+                await dataSource.saveMutation("reassignOpportunity", { id: action.id, owner: action.owner });
+                return true;
+            case "opportunity/close":
+                await dataSource.saveMutation("closeOpportunity", action);
+                return true;
+            case "proposal/submit":
+                await dataSource.saveMutation("createProposal", action.item);
+                return true;
+            case "proposal/resolve":
+                await dataSource.saveMutation("respondProposal", action);
+                return true;
+            case "reservation/create":
+                await dataSource.saveMutation("createReservation", action.item);
                 return true;
             case "activity/add":
                 await dataSource.saveMutation("recordActivity", action.item);
@@ -214,8 +273,13 @@ function CrmWorkspace({ initialSection, catalogOnly }: {
         }
     }, []);
     useEffect(() => {
-        setRoleIdState(readStoredRole());
-    }, []);
+        const authRole = searchParams.get("auth_role");
+        if (authRole === "vendedor" || authRole === "responsable" || authRole === "direccion" || authRole === "administradora") {
+            setRoleId(authRole);
+        } else {
+            setRoleIdState(readStoredRole());
+        }
+    }, [searchParams, setRoleId]);
     const [searchOpen, setSearchOpen] = useState(false);
     const [quickCreateOpen, setQuickCreateOpen] = useState(false);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -233,18 +297,19 @@ function CrmWorkspace({ initialSection, catalogOnly }: {
     const dispatch = useCallback((action: DemoAction) => {
         rawDispatch(action);
         if (mode !== "demo") {
-            localActionsRef.current = [...localActionsRef.current, action];
-            if (typeof window !== "undefined") {
-                try {
-                    window.sessionStorage.setItem(bffActionsStorageKey, JSON.stringify(localActionsRef.current));
-                } catch {
-                    // ignore storage quota errors
-                }
-            }
             setRemoteState((prev) => (prev ? demoReducer(prev, action) : prev));
             saveActionMutation(dataSource, action).then((persistedRemotely) => {
                 if (persistedRemotely) {
                     setSourceAttempt((attempt) => attempt + 1);
+                } else {
+                    localActionsRef.current = [...localActionsRef.current, action];
+                    if (typeof window !== "undefined") {
+                        try {
+                            window.sessionStorage.setItem(bffActionsStorageKey, JSON.stringify(localActionsRef.current));
+                        } catch {
+                            // ignore storage quota errors
+                        }
+                    }
                 }
             });
         }
@@ -254,6 +319,7 @@ function CrmWorkspace({ initialSection, catalogOnly }: {
         tone?: "success" | "info" | "warning";
     } | null>(null);
     const role = getRole(roleId);
+    const activeAccount = getAccountByRole(roleId);
     const visibleNavItems = useMemo(() => navItems.map((item) => {
         if (item.href === "/metricas" && !hasPermission(roleId, "analytics.read")) {
             return { ...item, disabled: true, disabledReason: permissionReason(roleId, "analytics.read") };
@@ -320,7 +386,7 @@ function CrmWorkspace({ initialSection, catalogOnly }: {
     if (catalogOnly)
         return <DesignCatalog />;
     const isRestrictedAnalytics = screen.module === "ANA" && !hasPermission(roleId, "analytics.read");
-    return <CrmShell activeHref={activeHref} navItems={visibleNavItems} roleName={role.name} offlineCount={activeState.offlineQueue.length} onSearch={() => setSearchOpen(true)} onQuickCreate={() => setQuickCreateOpen(true)} onUserMenu={() => setUserMenuOpen((value) => !value)} userMenuOpen={userMenuOpen} userMenu={<UserMenu roleName={role.name} onClose={() => setUserMenuOpen(false)} onPermission={() => { setUserMenuOpen(false); setPermissionOpen(true); }}/>}>
+    return <CrmShell activeHref={activeHref} navItems={visibleNavItems} roleName={role.name} userName={activeAccount.name} offlineCount={activeState.offlineQueue.length} onSearch={() => setSearchOpen(true)} onQuickCreate={() => setQuickCreateOpen(true)} onUserMenu={() => setUserMenuOpen((value) => !value)} userMenuOpen={userMenuOpen} userMenu={<UserMenu roleName={role.name} userName={activeAccount.name} userEmail={activeAccount.email} onClose={() => setUserMenuOpen(false)} onPermission={() => { setUserMenuOpen(false); setPermissionOpen(true); }} onSwitchAccount={(nextRole) => { setRoleId(nextRole); setUserMenuOpen(false); const nextAcc = getAccountByRole(nextRole); showToast(`Sesión activa: ${nextAcc.name} (${getRole(nextRole).name}).`, "info"); }} onLoginScreen={() => { setUserMenuOpen(false); navigateToScreen("AUT-01"); }}/>}>
     <PageHeader screen={screen} section={initialSection} onQuickCreate={() => setQuickCreateOpen(true)} onNavigate={navigateToScreen}/>
     {mode === "demo" || isRestrictedAnalytics ? <FeatureView key={`${screen.id}:${entityId ?? ""}`} entityId={entityId} screen={screen} state={activeState} roleId={roleId} onRoleChange={setRoleId} onNavigate={navigateToScreen} onToast={showToast} dispatch={dispatch}/> : remoteState ? <FeatureView key={`${screen.id}:${entityId ?? ""}`} entityId={entityId} screen={screen} state={remoteState} roleId={roleId} onRoleChange={setRoleId} onNavigate={navigateToScreen} onToast={showToast} dispatch={dispatch}/> : (sourceStatus === "idle" || sourceStatus === "loading") ? <BffLoadingState /> : sourceStatus === "error" ? <BffUnavailableState error={sourceError} onRetry={() => setSourceAttempt((attempt) => attempt + 1)}/> : <BffResponseState />}
     {mode === "demo" && activeState.offlineQueue.length > 0 && <div className="offline-banner">
@@ -615,7 +681,7 @@ function FeatureView({ screen, state, entityId, roleId, onRoleChange, onNavigate
     if (screen.deferred)
         return <DeferredSurface screen={screen}/>;
     if (screen.renderKey === "auth")
-        return <AuthSurface screen={screen} onNavigate={onNavigate}/>;
+        return <AuthSurface screen={screen} roleId={roleId} onRoleChange={onRoleChange} onToast={onToast} onNavigate={onNavigate}/>;
     if (screen.renderKey === "global")
         return <GlobalStateSurface screen={screen} onToast={onToast} onNavigate={onNavigate}/>;
     switch (screen.renderKey) {
@@ -810,11 +876,12 @@ function SectionHeading({ eyebrow, title, action }: {
 <h2>{title}</h2>{action}</div>
 </div>;
 }
-function TableToolbar({ searchPlaceholder, count, onAdd, addLabel = "Nuevo", filterLabel = "Filtrar", value = "", onSearch, onFilter }: {
+function TableToolbar({ searchPlaceholder, count, onAdd, addLabel = "Nuevo", secondaryAction, filterLabel = "Filtrar", value = "", onSearch, onFilter }: {
     searchPlaceholder: string;
     count: number;
     onAdd?: () => void;
     addLabel?: string;
+    secondaryAction?: ReactNode;
     filterLabel?: string;
     value?: string;
     onSearch?: (value: string) => void;
@@ -827,7 +894,7 @@ function TableToolbar({ searchPlaceholder, count, onAdd, addLabel = "Nuevo", fil
 {value && <button type="button" aria-label="Limpiar búsqueda" onClick={() => onSearch?.("")} style={{ background: "none", border: "none", cursor: "pointer", padding: "0 6px", display: "flex", alignItems: "center", color: "var(--muted)" }}><Icon name="close" size={14}/></button>}
 </div>
 {onFilter && <Button variant="outline" size="small" icon="filter" onClick={onFilter}>{filterLabel}</Button>}
-<span className="toolbar-count">{count} registros</span>{onAdd && <Button size="small" icon="plus" onClick={onAdd}>{addLabel}</Button>}</div>;
+<span className="toolbar-count">{count} registros</span>{secondaryAction}{onAdd && <Button size="small" icon="plus" onClick={onAdd}>{addLabel}</Button>}</div>;
 }
 function PartyView({ screen, state, entityId, onNavigate, onToast, dispatch }: {
     screen: ScreenDefinition;
@@ -842,12 +909,12 @@ function PartyView({ screen, state, entityId, onNavigate, onToast, dispatch }: {
     const pagination = useLocalPagination(contacts, query, 25);
     const detail = screen.id !== "PTY-01" && screen.id !== "PTY-02" && screen.id !== "PTY-03" && screen.id !== "PTY-04";
     if (screen.id === "PTY-02" || screen.id === "PTY-03" || screen.id === "PTY-04")
-        return <QuickPartyForm screen={screen} onToast={onToast} onNavigate={onNavigate} dispatch={dispatch}/>;
+        return <QuickPartyForm screen={screen} state={state} onToast={onToast} onNavigate={onNavigate} dispatch={dispatch}/>;
     if (detail)
         return <PartyDetail entityId={entityId} screen={screen} state={state} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
     return <div className="feature-stack">
 <Card>
-<TableToolbar searchPlaceholder="Buscar por nombre, teléfono o email" count={contacts.length} value={query} onSearch={setQuery} onAdd={() => onNavigate("PTY-02")} addLabel="Nuevo contacto"/>
+<TableToolbar searchPlaceholder="Buscar por nombre, teléfono o email" count={contacts.length} value={query} onSearch={setQuery} secondaryAction={<Button variant="outline" size="small" icon="building" onClick={() => onNavigate("PTY-03")}>Registrar empresa</Button>} onAdd={() => onNavigate("PTY-02")} addLabel="Nuevo contacto"/>
 <div className="table-wrap">{contacts.length ? <table className="data-table">
 <thead>
 <tr>
@@ -888,8 +955,9 @@ function PartyView({ screen, state, entityId, onNavigate, onToast, dispatch }: {
 </div>
 </div>;
 }
-function QuickPartyForm({ screen, onToast, onNavigate, dispatch }: {
+function QuickPartyForm({ screen, state, onToast, onNavigate, dispatch }: {
     screen: ScreenDefinition;
+    state: DemoState;
     onToast: (message: string, tone?: "success" | "info" | "warning") => void;
     onNavigate: ScreenNavigator;
     dispatch: React.Dispatch<DemoAction>;
@@ -899,6 +967,8 @@ function QuickPartyForm({ screen, onToast, onNavigate, dispatch }: {
     const [phone, setPhone] = useState("");
     const [email, setEmail] = useState("");
     const [kind, setKind] = useState<"Persona" | "Empresa">(isCompany ? "Empresa" : "Persona");
+    const companies = state.contacts.filter((party) => party.kind === "Empresa");
+    const [relatedCompanyId, setRelatedCompanyId] = useState<string>(companies[0]?.id ?? "");
     const [historicalText, setHistoricalText] = useState("");
     const [reviewedSuggestions, setReviewedSuggestions] = useState(false);
     const suggestions = reviewedSuggestions ? parseHistoricalContactText(historicalText) : {};
@@ -907,7 +977,11 @@ function QuickPartyForm({ screen, onToast, onNavigate, dispatch }: {
             onToast(`Falta el nombre ${kind === "Empresa" ? "de la empresa" : "del contacto"} para guardar.`, "warning");
             return;
         }
-        dispatch({ type: "contact/create", item: { id: `contact-${Date.now()}`, name: name.trim(), kind, phone: phone.trim(), email: email.trim(), status: "Activo", commercialStatus: "POTENTIAL", identityStatus: "UNKNOWN", origin: historicalText.trim() ? "WhatsApp histórico" : "Carga manual", owner: "Martín Quiroga" } });
+        const newId = `contact-${Date.now()}`;
+        dispatch({ type: "contact/create", item: { id: newId, name: name.trim(), kind, phone: phone.trim(), email: email.trim(), status: "Activo", commercialStatus: "POTENTIAL", identityStatus: "UNKNOWN", origin: historicalText.trim() ? "WhatsApp histórico" : "Carga manual", owner: "Martín Quiroga" } });
+        if (kind === "Persona" && relatedCompanyId) {
+            dispatch({ type: "party/relate", contactId: newId, companyId: relatedCompanyId });
+        }
         onToast(`${kind === "Empresa" ? "Empresa" : "Contacto"} guardado.`);
         onNavigate("PTY-01");
     };
@@ -935,6 +1009,12 @@ function QuickPartyForm({ screen, onToast, onNavigate, dispatch }: {
 <option>Persona</option>
 <option>Empresa</option>
 </SelectField>
+{kind === "Persona" && companies.length > 0 && (
+<SelectField label="Empresa vinculada (opcional)" value={relatedCompanyId} onChange={(event) => setRelatedCompanyId(event.target.value)}>
+<option value="">Sin empresa vinculada</option>
+{companies.map((comp) => <option key={comp.id} value={comp.id}>{comp.name}</option>)}
+</SelectField>
+)}
 </div>
 <TextAreaField label="Texto histórico de WhatsApp" placeholder="Pegá el texto histórico para revisar posibles datos..." rows={4} value={historicalText} onChange={(event) => { setHistoricalText(event.target.value); setReviewedSuggestions(false); }}/>
 <div className="form-footer form-footer-left">
@@ -1965,14 +2045,23 @@ function PipelineView({ screen, state, entityId, roleId, onNavigate, onToast, di
 <Button size="small" icon="plus" onClick={() => onNavigate("OPP-03")}>Crear oportunidad</Button>
 </div>
 </div>
-<div className="pipeline-board">{stageOrder.map((stage) => <div className="pipeline-column" key={stage}>
+<div className="pipeline-board">{stageOrder.map((stage, stageIndex) => <div className="pipeline-column" key={stage}>
 <div className="pipeline-column-head">
 <span>{stage}</span>
 <span className="column-count">{visibleOpportunities.filter((item) => item.stage === stage).length}</span>
-</div>{visibleOpportunities.filter((item) => item.stage === stage).map((opportunity) => <div className="pipeline-card-wrap" key={opportunity.id}>
+</div>{visibleOpportunities.filter((item) => item.stage === stage).map((opportunity) => {
+    const nextStage = stageIndex + 1 < stageOrder.length - 1 ? stageOrder[stageIndex + 1] : null;
+    return <div className="pipeline-card-wrap" key={opportunity.id}>
 <PipelineCard title={opportunity.title} sourceType={opportunity.sourceType} stage={opportunity.stage} owner={opportunity.owner} fee={<CurrencyAmount value={opportunity.fee} currency={opportunity.currency}/>} onOpen={() => onNavigate("OPP-04", opportunity.id)}/>
+<div className="form-footer form-footer-left" style={{ gap: "0.35rem", marginTop: "0.35rem" }}>
 <Button variant="outline" size="xsmall" onClick={() => onNavigate("OPP-05", opportunity.id)}>Cambiar etapa</Button>
-</div>)}</div>)}</div>
+{nextStage && <Button variant="secondary" size="xsmall" onClick={() => {
+    dispatch({ type: "opportunity/change-stage", id: opportunity.id, stage: nextStage, reason: `Avance comercial a ${nextStage}` });
+    onToast(`Oportunidad avanzada a ${nextStage}.`);
+}}>Avanzar a {nextStage}</Button>}
+</div>
+</div>;
+})}</div>)}</div>
 </Card>
 <div className="pipeline-footnote">
 <Icon name="info" size={16}/>
@@ -1989,12 +2078,55 @@ function OpportunityList({ screen, state, roleId, onNavigate, onToast, dispatch 
     dispatch: React.Dispatch<DemoAction>;
 }) {
     const [query, setQuery] = useState("");
+    const [showFilters, setShowFilters] = useState(screen.id === "OPP-10");
+    const [stageFilter, setStageFilter] = useState<string>("ALL");
+    const [ownerFilter, setOwnerFilter] = useState<string>("ALL");
+    const [sourceFilter, setSourceFilter] = useState<string>("ALL");
     const canReassign = roleId === "responsable" || roleId === "administradora";
-    const opportunities = state.opportunities.filter((opportunity) => matchesQuery(`${opportunity.title} ${opportunity.sourceId} ${opportunity.owner} ${opportunity.sourceType} ${opportunity.stage} ${opportunity.origin}`, query));
-    const pagination = useLocalPagination(opportunities, query);
+    const ownerOptions = useMemo(
+        () => Array.from(new Set(["Martín Quiroga", "Rodrigo Vergara", "Lucía Ferrari", "Sofía Rendón", "Elena Vergara", ...state.users.map((u) => u.name)])),
+        [state.users]
+    );
+    const opportunities = state.opportunities.filter((opportunity) => {
+        if (stageFilter !== "ALL" && opportunity.stage !== stageFilter) return false;
+        if (ownerFilter !== "ALL" && opportunity.owner !== ownerFilter) return false;
+        if (sourceFilter !== "ALL" && opportunity.sourceType !== sourceFilter) return false;
+        return matchesQuery(`${opportunity.title} ${opportunity.sourceId} ${opportunity.owner} ${opportunity.sourceType} ${opportunity.stage} ${opportunity.origin}`, query);
+    });
+    const pagination = useLocalPagination(opportunities, `${query}:${stageFilter}:${ownerFilter}:${sourceFilter}`);
     return <div className="feature-stack">
 <Card>
-<TableToolbar searchPlaceholder="Buscar oportunidad, Party o fuente" count={opportunities.length} value={query} onSearch={setQuery} onAdd={() => onNavigate("OPP-03")} addLabel="Nueva oportunidad" filterLabel={screen.id === "OPP-10" ? "Filtros guardados" : "Filtrar"}/>
+<div className="section-heading">
+<div>
+<span className="eyebrow">Cartera comercial</span>
+<h2>Listado de oportunidades</h2>
+</div>
+<div className="form-footer form-footer-left" style={{ marginTop: 0 }}>
+<Button variant="outline" size="small" icon="pipeline" onClick={() => onNavigate("OPP-01")}>Ver en el embudo</Button>
+<Button size="small" icon="plus" onClick={() => onNavigate("OPP-03")}>Nueva oportunidad</Button>
+</div>
+</div>
+<TableToolbar searchPlaceholder="Buscar oportunidad, Party o fuente" count={opportunities.length} value={query} onSearch={setQuery} onFilter={() => setShowFilters((open) => !open)} filterLabel={screen.id === "OPP-10" ? "Filtros guardados" : "Filtrar"}/>
+{showFilters && (
+<div className="form-grid" style={{ marginBottom: "1rem", padding: "0.85rem", background: "var(--surface-subtle, rgba(15, 23, 42, 0.03))", borderRadius: "0.75rem" }}>
+<SelectField label="Etapa" value={stageFilter} onChange={(event) => setStageFilter(event.target.value)}>
+<option value="ALL">Todas las etapas</option>
+{stageOrder.map((st) => <option key={st} value={st}>{st}</option>)}
+</SelectField>
+<SelectField label="Responsable" value={ownerFilter} onChange={(event) => setOwnerFilter(event.target.value)}>
+<option value="ALL">Todos los responsables</option>
+{ownerOptions.map((name) => <option key={name} value={name}>{name}</option>)}
+</SelectField>
+<SelectField label="Fuente" value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value)}>
+<option value="ALL">Todas las fuentes</option>
+<option value="REQUIREMENT">Búsqueda</option>
+<option value="CAPTATION_CASE">Captación</option>
+</SelectField>
+<div style={{ display: "flex", alignItems: "flex-end" }}>
+<Button variant="ghost" size="small" onClick={() => { setStageFilter("ALL"); setOwnerFilter("ALL"); setSourceFilter("ALL"); setQuery(""); }}>Limpiar filtros</Button>
+</div>
+</div>
+)}
 <div className="table-wrap">{opportunities.length ? <table className="data-table">
 <thead>
 <tr>
@@ -2003,36 +2135,48 @@ function OpportunityList({ screen, state, roleId, onNavigate, onToast, dispatch 
 <th>Etapa</th>
 <th>Responsable</th>
 <th>Honorarios</th>
-<th />
+<th>Acciones</th>
 </tr>
 </thead>
-<tbody>{pagination.items.map((opportunity) => <tr key={opportunity.id} onClick={() => onNavigate("OPP-04", opportunity.id)}>
+<tbody>{pagination.items.map((opportunity) => {
+    const currentIdx = stageOrder.indexOf(opportunity.stage);
+    const nextStage = currentIdx >= 0 && currentIdx + 1 < stageOrder.length - 1 ? stageOrder[currentIdx + 1] : null;
+    return <tr key={opportunity.id} onClick={() => onNavigate("OPP-04", opportunity.id)}>
 <td>
 <strong>{opportunity.title}</strong>
 <small>{opportunity.daysInStage} días en etapa{opportunity.outcome ? ` · ${opportunity.outcome === "won" ? "Ganada" : "Perdida"}` : ""}</small>
 </td>
 <td>
 <Tag tone={opportunity.sourceType === "REQUIREMENT" ? "info" : "brand"}>{opportunity.sourceType === "REQUIREMENT" ? "Búsqueda" : "Captación"}</Tag>
-<small>Origen registrado</small>
+<small>{opportunity.origin || "Origen registrado"}</small>
 </td>
 <td>
+<div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap", alignItems: "center" }} onClick={(event) => event.stopPropagation()}>
 <Button variant="outline" size="xsmall" onClick={(event) => { event.stopPropagation(); onNavigate("OPP-05", opportunity.id); }}>Etapa: {opportunity.stage}</Button>
+{nextStage && (
+<Button variant="secondary" size="xsmall" onClick={(event) => {
+    event.stopPropagation();
+    dispatch({ type: "opportunity/change-stage", id: opportunity.id, stage: nextStage, reason: `Avance desde listado a ${nextStage}` });
+    onToast(`Oportunidad avanzada a ${nextStage}.`);
+}}>Avanzar a {nextStage}</Button>
+)}
+</div>
 </td>
-<td>
-<select aria-label={`Responsable de ${opportunity.title}`} value={opportunity.owner} disabled={!canReassign} title={!canReassign ? "Tu rol Vendedor no permite modificar el responsable de la oportunidad." : "Reasignar responsable"} onClick={(event) => event.stopPropagation()} onChange={(event) => { if (!canReassign) { onToast("Tu rol Vendedor no tiene permisos para modificar el responsable.", "warning"); return; } dispatch({ type: "opportunity/reassign", id: opportunity.id, owner: event.target.value }); onToast("Responsable actualizado.", "info"); }}>
-<option>Martín Quiroga</option>
-<option>Lucía Ferrari</option>
-<option>Rodrigo Vergara</option>
-<option>Elena Vergara</option>
+<td onClick={(event) => event.stopPropagation()}>
+<select aria-label={`Responsable de ${opportunity.title}`} value={opportunity.owner} disabled={!canReassign} title={!canReassign ? "Tu rol Vendedor no permite modificar el responsable de la oportunidad." : "Reasignar responsable"} onChange={(event) => { if (!canReassign) { onToast("Tu rol Vendedor no tiene permisos para modificar el responsable.", "warning"); return; } dispatch({ type: "opportunity/reassign", id: opportunity.id, owner: event.target.value }); onToast("Responsable actualizado.", "info"); }}>
+{ownerOptions.map((name) => <option key={name} value={name}>{name}</option>)}
 </select>
 </td>
 <td>
 <CurrencyAmount value={opportunity.fee} currency={opportunity.currency}/>
 </td>
-<td>
-<Button variant="ghost" size="xsmall" icon="chevron" aria-label={`Abrir ${opportunity.title}`} onClick={(event) => { event.stopPropagation(); onNavigate("OPP-04", opportunity.id); }}/>
+<td onClick={(event) => event.stopPropagation()}>
+<div style={{ display: "flex", gap: "0.35rem", alignItems: "center" }}>
+<Button variant="outline" size="xsmall" icon="chevron" aria-label={`Abrir ${opportunity.title}`} onClick={(event) => { event.stopPropagation(); onNavigate("OPP-04", opportunity.id); }}>Ver detalle</Button>
+</div>
 </td>
-</tr>)}</tbody>
+</tr>;
+})}</tbody>
 </table> : <EmptyState icon="search" title="No hay oportunidades para este filtro" description="Probá con otra fuente, responsable o etapa."/>}</div>
 <Pagination page={pagination.page} pages={pagination.pages} onChange={pagination.setPage}/>
 </Card>{screen.id === "OPP-10" && <Alert tone="info" title="Filtros guardados">Los filtros se guardan como preferencia de revisión; no crean una nueva entidad de negocio.</Alert>}</div>;
@@ -2044,18 +2188,46 @@ function OpportunityForm({ state, roleId, onToast, onNavigate, dispatch }: {
     onNavigate: ScreenNavigator;
     dispatch: React.Dispatch<DemoAction>;
 }) {
-    const canReassign = roleId === "responsable" || roleId === "administradora";
+    const ownerOptions = useMemo(
+        () => Array.from(new Set(["Martín Quiroga", "Rodrigo Vergara", "Lucía Ferrari", "Sofía Rendón", "Elena Vergara", ...state.users.map((u) => u.name)])),
+        [state.users]
+    );
     const [title, setTitle] = useState("");
+    const [partyId, setPartyId] = useState(state.contacts[0]?.id ?? "");
     const [sourceType, setSourceType] = useState<"REQUIREMENT" | "CAPTATION_CASE">("REQUIREMENT");
     const [sourceId, setSourceId] = useState(state.demands[0]?.id ?? "");
-    const [owner, setOwner] = useState("Martín Quiroga");
+    const [owner, setOwner] = useState(roleId === "responsable" ? "Rodrigo Vergara" : "Martín Quiroga");
     const [origin, setOrigin] = useState("Carga manual");
+    const [fee, setFee] = useState("350000");
     const sourceOptions = sourceType === "REQUIREMENT" ? state.demands.map((demand) => ({ id: demand.id, title: demand.title })) : state.captations.map((captation) => ({ id: captation.id, title: state.properties.find((property) => property.id === captation.propertyId)?.title ?? captation.id }));
     const originOptions = state.catalogEntries.filter((entry) => entry.catalogType === "origin" && entry.status === "Activo");
-    const save = () => { if (!title.trim() || !sourceId || !origin.trim()) {
-        onToast("Completá el nombre y la fuente real de la oportunidad.", "warning");
-        return;
-    } dispatch({ type: "opportunity/create", item: { id: `opp-${Date.now()}`, title: title.trim(), sourceType, sourceId, origin, stage: "Nuevo", owner, fee: 0, currency: "ARS", daysInStage: 0 } }); onToast("Oportunidad creada."); onNavigate("OPP-02"); };
+    const save = () => {
+        const selectedParty = state.contacts.find((contact) => contact.id === partyId);
+        const effectiveTitle = title.trim() || (selectedParty ? `${selectedParty.name} · Operación comercial` : "");
+        const effectiveSourceId = sourceId || sourceOptions[0]?.id || "req-default";
+        if (!effectiveTitle || !origin.trim()) {
+            onToast("Completá el nombre de la oportunidad.", "warning");
+            return;
+        }
+        const parsedFee = Number(fee.replace(/\./g, "").replace(",", ".")) || 0;
+        dispatch({
+            type: "opportunity/create",
+            item: {
+                id: `opp-${Date.now()}`,
+                title: effectiveTitle,
+                sourceType,
+                sourceId: effectiveSourceId,
+                origin,
+                stage: "Nuevo",
+                owner,
+                fee: parsedFee,
+                currency: "ARS",
+                daysInStage: 0
+            }
+        });
+        onToast("Oportunidad creada y agregada al embudo.");
+        onNavigate("OPP-01");
+    };
     return <Card className="form-card">
 <div className="form-card-heading">
 <div>
@@ -2067,27 +2239,36 @@ function OpportunityForm({ state, roleId, onToast, onNavigate, dispatch }: {
 </div>
 <div className="form-grid">
 <Field label="Nombre de la oportunidad" placeholder="Ej. Ana · Casa Villa Crespo" value={title} onChange={(event) => setTitle(event.target.value)} autoFocus/>
+<SelectField label="Contacto o empresa asociada" value={partyId} onChange={(event) => {
+    const nextPartyId = event.target.value;
+    setPartyId(nextPartyId);
+    const chosen = state.contacts.find((item) => item.id === nextPartyId);
+    if (chosen && !title.trim()) {
+        setTitle(`${chosen.name} · Seguimiento comercial`);
+    }
+}}>
+<option value="">Seleccionar contacto o empresa</option>
+{state.contacts.map((contact) => <option key={contact.id} value={contact.id}>{contact.name} ({contact.kind})</option>)}
+</SelectField>
 <SelectField label="Tipo de fuente" value={sourceType} onChange={(event) => { const next = event.target.value as typeof sourceType; setSourceType(next); setSourceId(next === "REQUIREMENT" ? state.demands[0]?.id ?? "" : state.captations[0]?.id ?? ""); }}>
 <option value="REQUIREMENT">Búsqueda</option>
 <option value="CAPTATION_CASE">Captación</option>
 </SelectField>
 <SelectField label="Fuente real" value={sourceId} onChange={(event) => setSourceId(event.target.value)}>{sourceOptions.map((source) => <option key={source.id} value={source.id}>{source.title}</option>)}</SelectField>
 <SelectField label="Origen comercial" value={origin} onChange={(event) => setOrigin(event.target.value)}>{originOptions.map((entry) => <option value={entry.label} key={entry.id}>{entry.label}</option>)}</SelectField>
-<SelectField label="Responsable" value={owner} disabled={!canReassign} onChange={(event) => { if (canReassign) setOwner(event.target.value); }}>
-<option>Martín Quiroga</option>
-<option>Lucía Ferrari</option>
-<option>Rodrigo Vergara</option>
-<option>Elena Vergara</option>
+<Field label="Honorarios estimados (ARS)" placeholder="350000" value={fee} onChange={(event) => setFee(event.target.value)}/>
+<SelectField label="Responsable" value={owner} onChange={(event) => setOwner(event.target.value)}>
+{ownerOptions.map((personName) => <option key={personName} value={personName}>{personName}</option>)}
 </SelectField>
 </div>
 <Alert tone="info" title="Sin valor ponderado">El tablero muestra honorarios crudos y no convierte el precio del inmueble en valor ponderado.</Alert>
 <div className="form-footer">
-<Button variant="ghost" onClick={() => onNavigate("OPP-02")}>Cancelar</Button>
+<Button variant="ghost" onClick={() => onNavigate("OPP-01")}>Cancelar</Button>
 <Button onClick={save}>Crear oportunidad</Button>
 </div>
 </Card>;
 }
-function OpportunityDetail({ screen, state, entityId, onNavigate, onToast, dispatch }: {
+function OpportunityDetail({ screen, state, entityId, roleId, onNavigate, onToast, dispatch }: {
     screen: ScreenDefinition;
     state: DemoState;
     entityId?: string | null;
@@ -2096,58 +2277,95 @@ function OpportunityDetail({ screen, state, entityId, onNavigate, onToast, dispa
     onToast: (message: string, tone?: "success" | "info" | "warning") => void;
     dispatch: React.Dispatch<DemoAction>;
 }) {
+    const opportunity = selectedRecord(state.opportunities, entityId);
+    const canReassign = roleId === "responsable" || roleId === "administradora";
+    const ownerOptions = useMemo(
+        () => Array.from(new Set(["Martín Quiroga", "Rodrigo Vergara", "Lucía Ferrari", "Sofía Rendón", "Elena Vergara", ...state.users.map((u) => u.name)])),
+        [state.users]
+    );
+    const stageOptions = useMemo<OpportunityStage[]>(() => {
+        const catalogStages = state.catalogEntries
+            .filter((entry) => entry.catalogType === "pipeline-stage" && entry.status === "Activo" && entry.semanticState !== "LOST")
+            .map((entry) => entry.label as OpportunityStage);
+        return Array.from(new Set<OpportunityStage>([...stageOrder, ...catalogStages]));
+    }, [state.catalogEntries]);
+
     const [stageDraft, setStageDraft] = useState<OpportunityStage>("Contacto");
     const [stageReason, setStageReason] = useState("");
-    const [closeDate, setCloseDate] = useState("");
+    const [closeDate, setCloseDate] = useState(() => new Date().toISOString().slice(0, 10));
     const [finalValue, setFinalValue] = useState("");
     const [closeReason, setCloseReason] = useState("");
     const stageEditorRef = useRef<HTMLDivElement | null>(null);
-    const opportunity = selectedRecord(state.opportunities, entityId);
-    const catalogStages = state.catalogEntries
-        .filter((entry) => entry.catalogType === "pipeline-stage" && entry.status === "Activo" && entry.semanticState !== "LOST")
-        .map((entry) => entry.label as OpportunityStage);
-    const stageOptions: OpportunityStage[] = catalogStages.length > 0 ? catalogStages : stageOrder;
+
     useEffect(() => {
         if (!opportunity) return;
         const currentIndex = stageOptions.indexOf(opportunity.stage);
         const nextStage = currentIndex >= 0 && currentIndex + 1 < stageOptions.length ? stageOptions[currentIndex + 1] : stageOptions[0];
-        setStageDraft(nextStage !== opportunity.stage ? nextStage : opportunity.stage);
-    }, [opportunity, stageOptions]);
+        setStageDraft(nextStage !== opportunity.stage ? nextStage : (stageOptions.find((s) => s !== opportunity.stage) ?? opportunity.stage));
+        setFinalValue(String(opportunity.fee || 350000));
+    }, [opportunity?.id, opportunity?.stage]);
+
     if (!opportunity) return <UnavailableRecord />;
-    const sourceTitle = opportunity.sourceType === "REQUIREMENT" ? state.demands.find((demand) => demand.id === opportunity.sourceId)?.title : state.captations.find((captation) => captation.id === opportunity.sourceId)?.propertyId ? state.properties.find((property) => property.id === state.captations.find((captation) => captation.id === opportunity.sourceId)?.propertyId)?.title : undefined;
-    const lossReasons = state.catalogEntries.filter((entry) => entry.catalogType === "loss-reason" && entry.status === "Activo");
+
+    const matchedDemand = state.demands.find((demand) => demand.id === opportunity.sourceId) ?? state.demands[0];
+    const matchedCaptation = state.captations.find((captation) => captation.id === opportunity.sourceId) ?? state.captations[0];
+    const sourceTitle = opportunity.sourceType === "REQUIREMENT"
+        ? (matchedDemand?.title ?? opportunity.title)
+        : (state.properties.find((property) => property.id === matchedCaptation?.propertyId)?.title ?? matchedCaptation?.id ?? opportunity.title);
+    const targetSourceId = opportunity.sourceType === "REQUIREMENT" ? matchedDemand?.id : matchedCaptation?.id;
+
+    const catalogLossReasons = state.catalogEntries.filter((entry) => entry.catalogType === "loss-reason" && entry.status === "Activo").map((entry) => entry.label);
+    const lossReasonOptions = Array.from(new Set([...catalogLossReasons, "Precio fuera de presupuesto", "Eligió otra propiedad", "Postergó la decisión", "Falta de crédito / financiación"]));
+
     const saveStage = () => {
-        const validation = validateOpportunityStageChange(opportunity.stage, stageDraft, stageReason);
+        const effectiveReason = stageReason.trim() || `Avance comercial a ${stageDraft}`;
+        const validation = validateOpportunityStageChange(opportunity.stage, stageDraft, effectiveReason);
         if (!validation.valid) {
             onToast(validation.error, "warning");
             return;
         }
-        dispatch({ type: "opportunity/change-stage", id: opportunity.id, stage: stageDraft, reason: stageReason.trim() });
+        dispatch({ type: "opportunity/change-stage", id: opportunity.id, stage: stageDraft, reason: effectiveReason });
         setStageReason("");
         onToast("Cambio de etapa guardado.");
         onNavigate("OPP-04", opportunity.id);
     };
+
+    const quickChangeStage = (targetStage: OpportunityStage) => {
+        if (targetStage === opportunity.stage) {
+            onToast(`La oportunidad ya se encuentra en la etapa ${targetStage}.`, "info");
+            return;
+        }
+        const reasonText = stageReason.trim() || `Cambio directo a etapa ${targetStage}`;
+        dispatch({ type: "opportunity/change-stage", id: opportunity.id, stage: targetStage, reason: reasonText });
+        setStageDraft(targetStage);
+        onToast(`Etapa actualizada a ${targetStage}.`);
+    };
+
     const handleStageButtonClick = () => {
-        if (screen.id === "OPP-05") {
+        onNavigate("OPP-05", opportunity.id);
+        setTimeout(() => {
             const selectEl = stageEditorRef.current?.querySelector("select");
             if (selectEl) {
                 selectEl.scrollIntoView({ behavior: "smooth", block: "center" });
                 selectEl.focus();
             }
-            return;
-        }
-        onNavigate("OPP-05", opportunity.id);
+        }, 50);
     };
+
     const saveClose = (outcome: "won" | "lost") => {
-        const value = finalValue.trim() ? Number(finalValue.replace(/\./g, "").replace(",", ".")) : undefined;
-        const validation = validateOpportunityClose(outcome, closeDate, value, closeReason);
+        const effectiveDate = closeDate || new Date().toISOString().slice(0, 10);
+        const value = finalValue.trim() ? Number(finalValue.replace(/\./g, "").replace(",", ".")) : (opportunity.fee || 350000);
+        const effectiveCloseReason = closeReason.trim() || (outcome === "lost" ? lossReasonOptions[0] : "Operación concretada");
+        const validation = validateOpportunityClose(outcome, effectiveDate, value, effectiveCloseReason);
         if (!validation.valid) {
             onToast(validation.error, "warning");
             return;
         }
-        dispatch({ type: "opportunity/close", id: opportunity.id, outcome, closeDate, finalValue: value, reason: closeReason.trim() || undefined });
+        dispatch({ type: "opportunity/close", id: opportunity.id, outcome, closeDate: effectiveDate, finalValue: value, reason: effectiveCloseReason });
         onToast(outcome === "won" ? "Oportunidad marcada como ganada." : "Oportunidad cerrada como perdida.", outcome === "won" ? "success" : "warning");
+        onNavigate("OPP-04", opportunity.id);
     };
+
     return <div className="feature-stack">
 <Card className="detail-hero">
 <div className="detail-identity">
@@ -2158,55 +2376,117 @@ function OpportunityDetail({ screen, state, entityId, onNavigate, onToast, dispa
 <div className="identity-meta">
 <StatusDot label={opportunity.stage} tone={opportunity.stage === "Cerrada" ? "neutral" : "info"}/>
 <Tag tone={opportunity.sourceType === "REQUIREMENT" ? "info" : "brand"}>{opportunity.sourceType === "REQUIREMENT" ? "Búsqueda" : "Captación"}</Tag>
-<span>Responsable: {opportunity.owner}</span>
+<span>Responsable: <strong>{opportunity.owner}</strong></span>
 </div>
 </div>
 </div>
 <div className="detail-actions">
-<Button variant={screen.id === "OPP-05" ? "primary" : "outline"} icon="edit" onClick={handleStageButtonClick} disabled={opportunity.stage === "Cerrada"}>Cambiar etapa</Button>
-<Button icon="briefcase" onClick={() => onNavigate("COM-08", opportunity.id)} disabled={opportunity.stage === "Cerrada"}>Crear reserva</Button>
-<Button variant="ghost" icon="activity" aria-label="Ver trazabilidad" onClick={() => onNavigate("OPP-11", opportunity.id)}/>
+<Button variant="outline" size="small" icon="arrow" onClick={() => onNavigate("OPP-02")}>Volver al listado</Button>
+<Button variant="outline" size="small" icon="pipeline" onClick={() => onNavigate("OPP-01")}>Ver en el embudo</Button>
+<Button variant={screen.id === "OPP-05" ? "primary" : "outline"} size="small" icon="edit" onClick={handleStageButtonClick} disabled={opportunity.stage === "Cerrada"}>Cambiar etapa</Button>
+<Button size="small" icon="briefcase" onClick={() => onNavigate("COM-08", opportunity.id)} disabled={opportunity.stage === "Cerrada"}>Crear reserva</Button>
+<Button variant="ghost" size="small" icon="activity" aria-label="Ver trazabilidad" onClick={() => onNavigate("OPP-11", opportunity.id)}>Trazabilidad</Button>
 </div>
 </Card>
-<ScreenTabs screen={screen} entityId={entityId} onNavigate={onNavigate} tabs={[{ id: "OPP-04", label: "Resumen" }, { id: "OPP-05", label: "Cambiar etapa" }, { id: "OPP-06", label: "Historial" }, { id: "OPP-11", label: "Trazabilidad" }, { id: "OPP-07", label: "Cerrar ganada" }, { id: "OPP-08", label: "Cerrar perdida" }]}/>
+<ScreenTabs screen={screen} entityId={opportunity.id} onNavigate={onNavigate} tabs={[{ id: "OPP-04", label: "Resumen" }, { id: "OPP-05", label: "Cambiar etapa" }, { id: "OPP-06", label: "Historial" }, { id: "OPP-11", label: "Trazabilidad" }, { id: "OPP-07", label: "Cerrar ganada" }, { id: "OPP-08", label: "Cerrar perdida" }]}/>
+
+{(screen.id === "OPP-07" || screen.id === "OPP-08") && (
+<Card className="form-card">
+<div className="form-card-heading"><div><span className="eyebrow">Confirmación</span><h2>{screen.id === "OPP-07" ? "Cerrar oportunidad como ganada" : "Cerrar oportunidad como perdida"}</h2><p>El cierre queda asociado a la oportunidad y a su fuente real.</p></div><Tag tone="warning">Requiere evidencia</Tag></div>
+<div className="form-grid">
+<Field label="Fecha de cierre" type="date" value={closeDate} onChange={(event) => setCloseDate(event.target.value)}/>
+{screen.id === "OPP-07" ? (
+<Field label="Valor final" placeholder="7.050.000" inputMode="decimal" value={finalValue} onChange={(event) => setFinalValue(event.target.value)}/>
+) : (
+<SelectField label="Motivo de pérdida" value={closeReason} onChange={(event) => setCloseReason(event.target.value)}>
+<option value="">Elegí un motivo</option>
+{lossReasonOptions.map((label) => <option value={label} key={label}>{label}</option>)}
+</SelectField>
+)}
+</div>
+<div className="form-footer"><Button variant="ghost" onClick={() => onNavigate("OPP-04", opportunity.id)}>Volver</Button><Button variant={screen.id === "OPP-07" ? "primary" : "tertiary"} onClick={() => saveClose(screen.id === "OPP-07" ? "won" : "lost")}>Confirmar cierre</Button></div>
+</Card>
+)}
+
+{screen.id === "OPP-06" && (
+<Card>
+<SectionHeading eyebrow="Historial de etapas" title="Cambios trazables" action={<Button variant="outline" size="small" icon="activity" onClick={() => onNavigate("ACT-01", opportunity.id)}>Registrar actividad</Button>}/>
+<Timeline items={state.stageHistory.filter((item) => item.opportunityId === opportunity.id).map((item) => `${item.from} → ${item.to} · ${item.actor} · ${item.at}${item.reason ? ` · ${item.reason}` : ""}`)}/>
+</Card>
+)}
+
+{screen.id === "OPP-11" && (
+<Card>
+<SectionHeading eyebrow="Fuente real" title="Trazabilidad completa"/>
+<div className="trace-panel">
+<Tag tone={opportunity.sourceType === "REQUIREMENT" ? "info" : "brand"}>{opportunity.sourceType === "REQUIREMENT" ? "Búsqueda" : "Captación"}</Tag>
+<strong>{sourceTitle}</strong>
+<span>Origen comercial: {opportunity.origin ?? "Carga manual"} · Responsable actual: {opportunity.owner}</span>
+<div className="form-footer form-footer-left">
+<Button variant="outline" size="small" onClick={() => onNavigate(opportunity.sourceType === "REQUIREMENT" ? (targetSourceId ? "DEM-04" : "DEM-01") : (targetSourceId ? "CAP-03" : "CAP-01"), targetSourceId)}>Abrir fuente <Icon name="arrow" size={14}/></Button>
+<Button variant="ghost" size="small" onClick={() => onNavigate("ACT-01", opportunity.id)}>Registrar actividad en oportunidad</Button>
+</div>
+</div>
+</Card>
+)}
+
 <div className="detail-grid">
 <Card>
 <SectionHeading eyebrow="Estado actual" title={opportunity.stage}/>
-<div className="stage-progress">{stageOrder.slice(0, 6).map((stage, index) => <div className={stage === opportunity.stage ? "stage-step is-active" : index < stageOrder.indexOf(opportunity.stage) ? "stage-step is-complete" : "stage-step"} key={stage}>
+<p style={{ margin: "0 0 0.75rem", fontSize: "0.875rem", color: "var(--muted)" }}>Hacé clic en una etapa para actualizar rápidamente o completá el formulario de cambio debajo.</p>
+<div className="stage-progress">{stageOrder.slice(0, 6).map((stage, index) => <button type="button" onClick={() => quickChangeStage(stage)} style={{ cursor: "pointer", textAlign: "left", background: "none", border: "none", padding: 0 }} className={stage === opportunity.stage ? "stage-step is-active" : index < stageOrder.indexOf(opportunity.stage) ? "stage-step is-complete" : "stage-step"} key={stage}>
 <span>{index + 1}</span>
 <small>{stage}</small>
-</div>)}</div>{opportunity.outcome && <Alert tone={opportunity.outcome === "won" ? "success" : "warning"} title={opportunity.outcome === "won" ? "Oportunidad ganada" : "Oportunidad perdida"}>El motivo y el historial quedan asociados a la fuente {opportunity.sourceType === "REQUIREMENT" ? "de la búsqueda" : "de la captación"}.</Alert>}{screen.id === "OPP-05" && <div ref={stageEditorRef} className="inline-stage-editor">
+</button>)}</div>
+{opportunity.outcome && <Alert tone={opportunity.outcome === "won" ? "success" : "warning"} title={opportunity.outcome === "won" ? "Oportunidad ganada" : "Oportunidad perdida"}>El motivo y el historial quedan asociados a la fuente {opportunity.sourceType === "REQUIREMENT" ? "de la búsqueda" : "de la captación"}.</Alert>}
+<div ref={stageEditorRef} className="inline-stage-editor" style={{ marginTop: "1rem" }}>
 <SelectField label="Nueva etapa" value={stageDraft} onChange={(event) => setStageDraft(event.target.value as OpportunityStage)}>
 {stageOptions.map((stageLabel) => <option key={stageLabel} value={stageLabel}>{stageLabel}</option>)}
 </SelectField>
 <TextAreaField label="Motivo del cambio" placeholder="Qué hecho ocurrió o qué se confirmó..." rows={3} value={stageReason} onChange={(event) => setStageReason(event.target.value)}/>
-<Button onClick={saveStage}>Guardar cambio de etapa</Button>
+<div className="form-footer form-footer-left">
+<Button onClick={saveStage} disabled={opportunity.stage === "Cerrada"}>Guardar cambio de etapa</Button>
+</div>
 <Alert tone="warning" title="Confirmá el motivo">El cambio queda en el historial y nunca sobrescribe silenciosamente el estado anterior.</Alert>
-</div>}</Card>
+</div>
+</Card>
 <Card>
-<SectionHeading eyebrow="Fuente real" title="Trazabilidad"/>
+<SectionHeading eyebrow="Fuente real y asignación" title="Trazabilidad"/>
 <div className="trace-panel">
 <Tag tone={opportunity.sourceType === "REQUIREMENT" ? "info" : "brand"}>{opportunity.sourceType === "REQUIREMENT" ? "Búsqueda" : "Captación"}</Tag>
-<strong>{sourceTitle ?? "Fuente no disponible"}</strong>
-<span>Origen: {opportunity.origin ?? "Origen desconocido"}</span>
-<Button variant="ghost" size="small" onClick={() => onNavigate(opportunity.sourceType === "REQUIREMENT" ? "DEM-04" : "CAP-03", opportunity.sourceId)}>Abrir fuente <Icon name="arrow" size={14}/>
-</Button>
+<strong>{sourceTitle}</strong>
+<span>Origen: {opportunity.origin ?? "Carga manual"}</span>
+<div style={{ marginTop: "0.75rem", marginBottom: "0.75rem" }}>
+<SelectField label="Responsable asignado" value={opportunity.owner} disabled={!canReassign} onChange={(event) => {
+    if (!canReassign) {
+        onToast("Cambiá a la cuenta de Rodrigo Vergara (Responsable comercial) para reasignar oportunidades.", "warning");
+        return;
+    }
+    dispatch({ type: "opportunity/reassign", id: opportunity.id, owner: event.target.value });
+    onToast("Responsable actualizado.", "info");
+}}>
+{ownerOptions.map((personName) => <option key={personName} value={personName}>{personName}</option>)}
+</SelectField>
+</div>
+<div className="form-footer form-footer-left">
+<Button variant="outline" size="small" onClick={() => onNavigate(opportunity.sourceType === "REQUIREMENT" ? (targetSourceId ? "DEM-04" : "DEM-01") : (targetSourceId ? "CAP-03" : "CAP-01"), targetSourceId)}>Abrir fuente <Icon name="arrow" size={14}/></Button>
+<Button variant="outline" size="small" onClick={() => onNavigate("COM-06", opportunity.id)}>Registrar propuesta</Button>
+</div>
 </div>
 </Card>
 </div>
+{screen.id !== "OPP-06" && (
 <Card>
 <SectionHeading eyebrow="Historial de etapas" title="Cambios trazables"/>
 <Timeline items={state.stageHistory.filter((item) => item.opportunityId === opportunity.id).map((item) => `${item.from} → ${item.to} · ${item.actor} · ${item.at}${item.reason ? ` · ${item.reason}` : ""}`)}/>
 </Card>
-{screen.id === "OPP-07" || screen.id === "OPP-08" ? <Card className="form-card">
-<div className="form-card-heading"><div><span className="eyebrow">Confirmación</span><h2>{screen.id === "OPP-07" ? "Cerrar oportunidad como ganada" : "Cerrar oportunidad como perdida"}</h2><p>El cierre queda asociado a la oportunidad y a su fuente real.</p></div><Tag tone="warning">Requiere evidencia</Tag></div>
-<Field label="Fecha de cierre" type="date" value={closeDate} onChange={(event) => setCloseDate(event.target.value)}/>
-{screen.id === "OPP-07" ? <Field label="Valor final" placeholder="7.050.000" inputMode="decimal" value={finalValue} onChange={(event) => setFinalValue(event.target.value)}/> : <SelectField label="Motivo de pérdida" value={closeReason} onChange={(event) => setCloseReason(event.target.value)}><option value="">Elegí un motivo</option>{lossReasons.map((entry) => <option value={entry.label} key={entry.id}>{entry.label}</option>)}</SelectField>} 
-<div className="form-footer"><Button variant="ghost" onClick={() => onNavigate("OPP-04", opportunity.id)}>Volver</Button><Button variant={screen.id === "OPP-07" ? "primary" : "tertiary"} onClick={() => saveClose(screen.id === "OPP-07" ? "won" : "lost")}>Confirmar cierre</Button></div>
-</Card> : <div className="form-footer form-footer-left">
+)}
+{screen.id !== "OPP-07" && screen.id !== "OPP-08" && (
+<div className="form-footer form-footer-left">
 <Button variant="outline" disabled={opportunity.stage === "Cerrada"} onClick={() => onNavigate("OPP-07", opportunity.id)}>Cerrar ganada</Button>
 <Button variant="ghost" disabled={opportunity.stage === "Cerrada"} onClick={() => onNavigate("OPP-08", opportunity.id)}>Cerrar perdida</Button>
-</div>}
+</div>
+)}
 </div>;
 }
 function CommercialView({ screen, state, entityId, onNavigate, onToast, dispatch }: {
@@ -3403,24 +3683,129 @@ function DeferredSurface({ screen }: {
 </div>
 </Card>;
 }
-function AuthSurface({ screen, onNavigate }: {
+function AuthSurface({ screen, roleId, onRoleChange, onToast, onNavigate }: {
     screen: ScreenDefinition;
+    roleId?: RoleId;
+    onRoleChange?: (role: RoleId) => void;
+    onToast?: (message: string, tone?: "success" | "info" | "warning") => void;
     onNavigate: ScreenNavigator;
 }) {
+    const [username, setUsername] = useState("martin@inmobiliaria.com.ar");
+    const [password, setPassword] = useState("martin123");
+    const [authError, setAuthError] = useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const resolveLocalCredentials = (rawUser: string, rawPass: string): { valid: boolean; role: RoleId; targetScreen: string; displayName: string; canonicalUser: string; canonicalPass: string } => {
+        const u = rawUser.trim().toLowerCase();
+        const p = rawPass.trim();
+        if ((u === "martin.quiroga" || u === "martin@inmobiliaria.com.ar") && (p === "martin123" || p === "dev.vendedor")) {
+            return { valid: true, role: "vendedor", targetScreen: "INI-01", displayName: "Martín Quiroga", canonicalUser: "martin.quiroga", canonicalPass: "martin123" };
+        }
+        if ((u === "rodrigo.vergara" || u === "rodrigo@inmobiliaria.com.ar") && (p === "rodrigo123" || p === "dev.responsable")) {
+            return { valid: true, role: "responsable", targetScreen: "ANA-01", displayName: "Rodrigo Vergara", canonicalUser: "rodrigo.vergara", canonicalPass: "rodrigo123" };
+        }
+        if ((u === "lucia.ferrari" || u === "lucia@inmobiliaria.com.ar") && p === "lucia123") {
+            return { valid: true, role: "vendedor", targetScreen: "INI-01", displayName: "Lucía Ferrari", canonicalUser: "martin.quiroga", canonicalPass: "martin123" };
+        }
+        if ((u === "sofia.rendon" || u === "sofia@inmobiliaria.com.ar") && (p === "sofia123" || p === "dev.administrador")) {
+            return { valid: true, role: "administradora", targetScreen: "ADM-01", displayName: "Sofía Rendón", canonicalUser: "sofia.rendon", canonicalPass: "sofia123" };
+        }
+        return { valid: false, role: "vendedor", targetScreen: "INI-01", displayName: "", canonicalUser: "", canonicalPass: "" };
+    };
+
+    const signInWithCredentials = async (rawUser: string, rawPass: string) => {
+        setAuthError(null);
+        const check = resolveLocalCredentials(rawUser, rawPass);
+        if (!check.valid) {
+            const msg = "Usuario o contraseña incorrectos. Verificá tus credenciales (ej. martin@inmobiliaria.com.ar / martin123 o rodrigo@inmobiliaria.com.ar / rodrigo123).";
+            setAuthError(msg);
+            onToast?.("Credenciales inválidas: usuario o contraseña incorrectos.", "warning");
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            const bffUrl = process.env.NEXT_PUBLIC_CRM_BFF_URL || "http://localhost:5137";
+            const response = await fetch(`${bffUrl}/api/v1/auth/login`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({
+                    username: check.canonicalUser,
+                    password: check.canonicalPass
+                })
+            }).catch(() => null);
+
+            if (response && !response.ok) {
+                const msg = "Usuario o contraseña rechazados por el servidor de autenticación.";
+                setAuthError(msg);
+                onToast?.(msg, "warning");
+                return;
+            }
+        } finally {
+            setIsSubmitting(false);
+        }
+
+        onRoleChange?.(check.role);
+        onToast?.(
+            check.role === "responsable"
+                ? "Sesión iniciada como Rodrigo Vergara (Responsable comercial · Métricas habilitadas)."
+                : `Sesión iniciada como ${check.displayName}.`,
+            "info"
+        );
+        onNavigate(check.targetScreen);
+    };
+
+    const submitManualCredentials = async () => {
+        await signInWithCredentials(username, password);
+    };
+
     if (screen.id === "AUT-01")
         return <Card className="auth-card">
 <div className="auth-mark">b</div>
 <span className="eyebrow">Acceso al CRM</span>
 <h2>Ingresá a tu instalación</h2>
-<p>La autenticación se completa con el proveedor de identidad.</p>
-<Button fullWidth onClick={() => {
+<p>Iniciá sesión con tu usuario y contraseña o seleccioná una de las cuentas habilitadas.</p>
+{authError && <div style={{ marginTop: "0.75rem", textAlign: "left" }}><Alert tone="error" title="No se pudo iniciar sesión">{authError}</Alert></div>}
+<div className="form-grid" style={{ textAlign: "left", marginTop: "0.75rem", marginBottom: "0.75rem" }}>
+<Field label="Usuario o correo electrónico" placeholder="martin@inmobiliaria.com.ar" value={username} onChange={(event) => { setUsername(event.target.value); setAuthError(null); }}/>
+<Field label="Contraseña" type="password" placeholder="••••••••" value={password} onChange={(event) => { setPassword(event.target.value); setAuthError(null); }}/>
+</div>
+<Button fullWidth disabled={isSubmitting} onClick={submitManualCredentials}>Iniciar sesión</Button>
+<div className="detail-stack" style={{ marginTop: "1rem", textAlign: "left" }}>
+<span className="eyebrow">Cuentas activas en la inmobiliaria</span>
+<div className="saved-item">
+<div>
+<strong>Martín Quiroga · Vendedor</strong>
+<small>martin@inmobiliaria.com.ar · Clave: martin123 · Operación comercial y embudo</small>
+</div>
+<Button size="small" variant={roleId === "vendedor" ? "primary" : "outline"} onClick={() => {
+    setUsername("martin@inmobiliaria.com.ar");
+    setPassword("martin123");
+    void signInWithCredentials("martin@inmobiliaria.com.ar", "martin123");
+}}>Ingresar como Martín</Button>
+</div>
+<div className="saved-item">
+<div>
+<strong>Rodrigo Vergara · Responsable comercial</strong>
+<small>rodrigo@inmobiliaria.com.ar · Clave: rodrigo123 · Tablero de Métricas y supervisión</small>
+</div>
+<Button size="small" variant={roleId === "responsable" ? "primary" : "outline"} onClick={() => {
+    setUsername("rodrigo@inmobiliaria.com.ar");
+    setPassword("rodrigo123");
+    void signInWithCredentials("rodrigo@inmobiliaria.com.ar", "rodrigo123");
+}}>Ingresar a Métricas</Button>
+</div>
+</div>
+<div style={{ marginTop: "1rem" }}>
+<Button variant="outline" fullWidth onClick={() => {
     if (process.env.NEXT_PUBLIC_CRM_WEB_MODE !== "demo" && process.env.NEXT_PUBLIC_CRM_BFF_URL) {
-        window.location.href = `${process.env.NEXT_PUBLIC_CRM_BFF_URL}/api/v1/auth/login`;
+        window.location.href = `${process.env.NEXT_PUBLIC_CRM_BFF_URL}/api/v1/auth/login?account=${roleId === "responsable" ? "responsable" : "vendedor"}&returnUrl=${encodeURIComponent(window.location.origin + "/inicio")}`;
     } else {
         onNavigate("INI-01");
     }
 }}>Continuar con proveedor de identidad</Button>
-<small>Esta vista no solicita credenciales.</small>
+</div>
 </Card>;
     if (screen.id === "AUT-03")
         return <Card className="state-card">
