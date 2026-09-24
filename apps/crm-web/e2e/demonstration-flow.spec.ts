@@ -85,10 +85,10 @@ test.describe("Verificación de Login estricto, Responsables en Crear Oportunida
 
     // Verificar que al elegir Tipo de fuente = Captación, Fuente real muestra nombres reales de propiedades y no 'Inmueble' repetido
     await page.getByLabel("Tipo de fuente").selectOption("CAPTATION_CASE");
+    await expect(page.getByLabel("Fuente real").locator("option").first()).toContainText(/Gorriti 4800|Villa Crespo/);
     const fuenteRealOptions = await page.getByLabel("Fuente real").locator("option").allTextContents();
     expect(fuenteRealOptions.length).toBeGreaterThan(0);
     expect(fuenteRealOptions.every((text) => text.trim().toLowerCase() !== "inmueble")).toBe(true);
-    expect(fuenteRealOptions.some((text) => text.includes("Gorriti 4800") || text.includes("Libertador 16200") || text.includes("Guardia Vieja"))).toBe(true);
 
     await page.getByLabel("Nombre de la oportunidad").fill(opportunityTitle);
     await page.getByLabel("Honorarios estimados (ARS)").fill("480000");

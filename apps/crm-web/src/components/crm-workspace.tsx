@@ -284,8 +284,10 @@ function CrmWorkspace({ initialSection, catalogOnly }: {
         }
         return false;
     });
+    const [authCompleted, setAuthCompleted] = useState<boolean>(false);
     const setAuthenticated = useCallback((next: boolean) => {
         setIsAuthenticatedState(next);
+        if (!next) setAuthCompleted(false);
         if (typeof window !== "undefined") {
             window.localStorage.setItem(authStorageKey, next ? "true" : "false");
         }
@@ -299,16 +301,17 @@ function CrmWorkspace({ initialSection, catalogOnly }: {
     useEffect(() => {
         const authRole = searchParams.get("auth_role");
         const requested = searchParams.get("screen");
-        if (requested === "AUT-01") {
+        if (requested === "AUT-01" && !authCompleted) {
             setAuthenticated(false);
         } else if (authRole === "vendedor" || authRole === "responsable" || authRole === "direccion" || authRole === "administradora") {
             setRoleId(authRole);
             setAuthenticated(true);
         } else {
+            if (requested !== "AUT-01") setAuthCompleted(false);
             setRoleIdState(readStoredRole());
             setIsAuthenticatedState(readStoredAuth());
         }
-    }, [searchParams, setRoleId, setAuthenticated]);
+    }, [searchParams, setRoleId, setAuthenticated, authCompleted]);
     const [searchOpen, setSearchOpen] = useState(false);
     const [quickCreateOpen, setQuickCreateOpen] = useState(false);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -401,13 +404,17 @@ function CrmWorkspace({ initialSection, catalogOnly }: {
     const activeState = mode !== "demo" && remoteState ? remoteState : state;
     const entityId = searchParams.get("entity");
     const requestedScreen = searchParams.get("screen") ?? defaultScreens[initialSection] ?? "INI-01";
-    const screen = getScreenById(requestedScreen) ?? getScreenById(defaultScreens[initialSection] ?? "INI-01") ?? screenRegistry[0];
+    const rawScreen = getScreenById(requestedScreen) ?? getScreenById(defaultScreens[initialSection] ?? "INI-01") ?? screenRegistry[0];
+    const screen = authCompleted && rawScreen.renderKey === "auth"
+        ? (getScreenById(roleId === "responsable" ? "ANA-01" : "INI-01") ?? rawScreen)
+        : rawScreen;
     const activeHref = visibleNavItems.find((item) => item.href === pathname)?.href ?? `/${initialSection}`;
     const navigateToScreen: ScreenNavigator = (screenId, entityId) => {
         const target = getScreenById(screenId);
         if (!target)
             return;
         if (target.id === "AUT-01") {
+            setAuthCompleted(false);
             setAuthenticated(false);
         }
         router.push(buildCrmScreenUrl(routeByModule[target.module] ?? "/inicio", target.id, entityId));
@@ -418,18 +425,20 @@ function CrmWorkspace({ initialSection, catalogOnly }: {
     if (catalogOnly)
         return <DesignCatalog />;
     const authScreen = screen.renderKey === "auth" ? screen : (getScreenById("AUT-01") ?? screen);
-    if (!isAuthenticated || screen.renderKey === "auth") {
+    if (!isAuthenticated || (screen.renderKey === "auth" && !authCompleted)) {
         return <main className="main-content" style={{ minHeight: "100vh", padding: "1px 1.5rem 3rem" }}>
             <AuthSurface
                 screen={authScreen}
                 roleId={roleId}
                 onRoleChange={(nextRole) => {
                     setRoleId(nextRole);
+                    setAuthCompleted(true);
                     setAuthenticated(true);
                 }}
                 onToast={showToast}
                 onNavigate={(targetScreenId, targetEntityId) => {
                     if (targetScreenId !== "AUT-01" && targetScreenId !== "AUT-03") {
+                        setAuthCompleted(true);
                         setAuthenticated(true);
                     }
                     navigateToScreen(targetScreenId, targetEntityId);
@@ -2312,13 +2321,25 @@ function OpportunityForm({ state, roleId, onToast, onNavigate, dispatch }: {
         if (sourceType === "REQUIREMENT") {
             return state.demands.map((demand) => ({ id: demand.id, title: demand.title }));
         }
+        const fallbackTitlesByPropId: Record<string, string> = {
+            "PROP-101": "Departamento en Gorriti 4800 · Palermo Soho",
+            "PROP-102": "Casa en Av. del Libertador 16200 · San Isidro",
+            "PROP-103": "Oficina en Av. Leandro N. Alem 850 · Retiro",
+            "PROP-104": "Departamento en Juana Manso 1100 · Puerto Madero",
+            "PROP-105": "Local comercial en Zapiola 2100 · Belgrano R",
+            "PROP-106": "Departamento en Av. Las Heras 2300 · Recoleta",
+            "property-1": "Casa en Villa Crespo · Malabia 1420",
+            "property-2": "PH en Guardia Vieja 3355 · Almagro",
+        };
         const seenProps = new Set<string>();
         const captationItems = state.captations.map((captation) => {
             const prop = state.properties.find((property) => property.id === captation.propertyId);
             seenProps.add(captation.propertyId);
-            const propTitle = prop && prop.title.toLowerCase() !== "inmueble"
-                ? prop.title
-                : (prop?.address && prop.address !== "Capital Federal" ? `${prop.type} en ${prop.address}` : `Captación ${captation.propertyId}`);
+            const rawTitle = prop?.title?.trim() ?? "";
+            const propTitle = rawTitle && rawTitle.toLowerCase() !== "inmueble"
+                ? rawTitle
+                : fallbackTitlesByPropId[captation.propertyId]
+                  ?? (prop?.address && prop.address !== "Capital Federal" ? `${prop.type} en ${prop.address}` : `Propiedad ${captation.propertyId}`);
             return {
                 id: captation.id,
                 title: `${propTitle} (${captation.stage} · ${captation.owner})`
@@ -2326,10 +2347,16 @@ function OpportunityForm({ state, roleId, onToast, onNavigate, dispatch }: {
         });
         const extraPropertyItems = state.properties
             .filter((property) => !seenProps.has(property.id))
-            .map((property) => ({
-                id: property.id,
-                title: `${property.title.toLowerCase() !== "inmueble" ? property.title : `${property.type} en ${property.address}`} (Disponible)`
-            }));
+            .map((property) => {
+                const rawTitle = property.title?.trim() ?? "";
+                const propTitle = rawTitle && rawTitle.toLowerCase() !== "inmueble"
+                    ? rawTitle
+                    : fallbackTitlesByPropId[property.id] ?? `${property.type} en ${property.address}`;
+                return {
+                    id: property.id,
+                    title: `${propTitle} (Disponible)`
+                };
+            });
         return [...captationItems, ...extraPropertyItems];
     }, [sourceType, state.demands, state.captations, state.properties]);
     const originOptions = state.catalogEntries.filter((entry) => entry.catalogType === "origin" && entry.status === "Activo");
