@@ -11,6 +11,19 @@ import { getScreenById, screenRegistry, type ScreenDefinition } from "@/lib/scre
 import { buildCrmScreenUrl } from "@/lib/navigation";
 import { applyContactSuggestions, criterionContribution, getCommercialStatusMeaning, parseHistoricalContactText, resolveSelectedRecord, validateActivity, validateOperationClose, validateOpportunityClose, validateOpportunityStageChange, validateReason, type CommercialStatus } from "@/lib/workflow-rules";
 const mode = process.env.NEXT_PUBLIC_CRM_WEB_MODE ?? "bff";
+function normalizeText(text: string | null | undefined): string {
+    return (text ?? "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+}
+function matchesQuery(haystack: string | null | undefined, query: string): boolean {
+    if (!query || !query.trim()) return true;
+    const normHaystack = normalizeText(haystack);
+    const terms = normalizeText(query).split(/\s+/).filter(Boolean);
+    return terms.every((term) => normHaystack.includes(term));
+}
+
 const navItems: ShellNavItem[] = [
     { href: "/inicio", label: "Inicio", icon: "home" },
     { href: "/contactos", label: "Contactos", icon: "users" },
@@ -452,18 +465,18 @@ function GlobalSearch({ state, onClose, onNavigate }: {
 }) {
     const [query, setQuery] = useState("");
     const results = useMemo(() => {
-        const normalized = query.trim().toLowerCase();
-        const screens = screenRegistry.filter((screen) => !screen.deferred).filter((screen) => `${screen.id} ${screen.title}`.toLowerCase().includes(normalized || "__recent__")).slice(0, normalized ? 5 : 4).map((screen) => ({ id: screen.id, title: screen.title, detail: "Acceso directo", module: screen.module, entityId: undefined as string | undefined }));
-        if (!normalized)
+        const trimmed = query.trim();
+        const screens = screenRegistry.filter((screen) => !screen.deferred).filter((screen) => matchesQuery(`${screen.id} ${screen.title}`, trimmed)).slice(0, trimmed ? 5 : 4).map((screen) => ({ id: screen.id, title: screen.title, detail: "Acceso directo", module: screen.module, entityId: undefined as string | undefined }));
+        if (!trimmed)
             return screens.concat(state.contacts.slice(0, 2).map((contact) => ({ id: contact.kind === "Empresa" ? "PTY-06" : "PTY-05", entityId: contact.id, title: contact.name, detail: `Contacto · ${contact.phone}`, module: "PTY" })));
-        const contacts = state.contacts.filter((contact) => `${contact.name} ${contact.phone} ${contact.email}`.toLowerCase().includes(normalized)).slice(0, 3).map((contact) => ({ id: contact.kind === "Empresa" ? "PTY-06" : "PTY-05", entityId: contact.id, title: contact.name, detail: `Contacto · ${contact.email}`, module: "PTY" }));
-        const properties = state.properties.filter((property) => `${property.title} ${property.address} ${property.type}`.toLowerCase().includes(normalized)).slice(0, 3).map((property) => ({ id: "PRP-06", entityId: property.id, title: property.title, detail: `Inmueble · ${property.address}`, module: "PRP" }));
-        const listings = state.listings.filter((listing) => listing.title.toLowerCase().includes(normalized)).slice(0, 2).map((listing) => ({ id: "LST-04", entityId: listing.id, title: listing.title, detail: "Publicación", module: "LST" }));
-        const captations = state.captations.filter((item) => `${item.owner} ${state.properties.find((property) => property.id === item.propertyId)?.title ?? ""}`.toLowerCase().includes(normalized)).slice(0, 2).map((item) => ({ id: "CAP-03", entityId: item.id, title: state.properties.find((property) => property.id === item.propertyId)?.title ?? item.id, detail: "Captación", module: "CAP" }));
-        const demands = state.demands.filter((item) => item.title.toLowerCase().includes(normalized)).slice(0, 2).map((item) => ({ id: "DEM-04", entityId: item.id, title: item.title, detail: "Búsqueda", module: "DEM" }));
-        const opportunities = state.opportunities.filter((item) => item.title.toLowerCase().includes(normalized)).slice(0, 2).map((item) => ({ id: "OPP-04", entityId: item.id, title: item.title, detail: "Oportunidad", module: "OPP" }));
-        const reservations = state.reservations.filter((item) => item.propertyTitle.toLowerCase().includes(normalized)).slice(0, 2).map((item) => ({ id: "COM-09", entityId: item.id, title: item.propertyTitle, detail: "Reserva", module: "COM" }));
-        const operations = state.operations.filter((item) => item.propertyTitle.toLowerCase().includes(normalized)).slice(0, 2).map((item) => ({ id: "COM-12", entityId: item.id, title: item.propertyTitle, detail: "Operación", module: "COM" }));
+        const contacts = state.contacts.filter((contact) => matchesQuery(`${contact.name} ${contact.phone} ${contact.email} ${contact.owner} ${contact.kind}`, trimmed)).slice(0, 4).map((contact) => ({ id: contact.kind === "Empresa" ? "PTY-06" : "PTY-05", entityId: contact.id, title: contact.name, detail: `Contacto · ${contact.email || contact.phone}`, module: "PTY" }));
+        const properties = state.properties.filter((property) => matchesQuery(`${property.title} ${property.address} ${property.type} ${property.status}`, trimmed)).slice(0, 4).map((property) => ({ id: "PRP-06", entityId: property.id, title: property.title, detail: `Inmueble · ${property.address}`, module: "PRP" }));
+        const listings = state.listings.filter((listing) => matchesQuery(`${listing.title} ${listing.status} ${listing.operationType}`, trimmed)).slice(0, 3).map((listing) => ({ id: "LST-04", entityId: listing.id, title: listing.title, detail: "Publicación", module: "LST" }));
+        const captations = state.captations.filter((item) => matchesQuery(`${item.owner} ${state.properties.find((property) => property.id === item.propertyId)?.title ?? ""}`, trimmed)).slice(0, 3).map((item) => ({ id: "CAP-03", entityId: item.id, title: state.properties.find((property) => property.id === item.propertyId)?.title ?? item.id, detail: "Captación", module: "CAP" }));
+        const demands = state.demands.filter((item) => matchesQuery(`${item.title} ${item.status}`, trimmed)).slice(0, 3).map((item) => ({ id: "DEM-04", entityId: item.id, title: item.title, detail: "Búsqueda", module: "DEM" }));
+        const opportunities = state.opportunities.filter((item) => matchesQuery(`${item.title} ${item.owner} ${item.stage} ${item.sourceType}`, trimmed)).slice(0, 3).map((item) => ({ id: "OPP-04", entityId: item.id, title: item.title, detail: "Oportunidad", module: "OPP" }));
+        const reservations = state.reservations.filter((item) => matchesQuery(item.propertyTitle, trimmed)).slice(0, 2).map((item) => ({ id: "COM-09", entityId: item.id, title: item.propertyTitle, detail: "Reserva", module: "COM" }));
+        const operations = state.operations.filter((item) => matchesQuery(item.propertyTitle, trimmed)).slice(0, 2).map((item) => ({ id: "COM-12", entityId: item.id, title: item.propertyTitle, detail: "Operación", module: "COM" }));
         return [...contacts, ...properties, ...listings, ...captations, ...demands, ...opportunities, ...reservations, ...operations, ...screens];
     }, [query, state]);
     return <div className="search-layer">
@@ -471,7 +484,7 @@ function GlobalSearch({ state, onClose, onNavigate }: {
 <div className="search-panel" role="dialog" aria-label="Búsqueda global">
 <div className="search-input-wrap">
 <Icon name="search" size={20}/>
-<input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar contactos, inmuebles, publicaciones..."/>
+<input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && results.length > 0) { event.preventDefault(); onNavigate(results[0].id, results[0].entityId); onClose(); } else if (event.key === "Escape") { onClose(); } }} placeholder="Buscar contactos, inmuebles, publicaciones..."/>
 <kbd>ESC</kbd>
 <button aria-label="Cerrar" onClick={onClose}>
 <Icon name="close" size={18}/>
@@ -481,7 +494,7 @@ function GlobalSearch({ state, onClose, onNavigate }: {
 <span>{query ? "Resultados de registros y pantallas" : "Accesos recientes"}</span>
 <span>También podés usar Ctrl K</span>
 </div>
-<div className="search-results">{results.length ? results.map((result, index) => <button type="button" className="search-result" key={`${result.id}-${result.title}-${index}`} onClick={() => onNavigate(result.id, result.entityId)}>
+<div className="search-results">{results.length ? results.map((result, index) => <button type="button" className="search-result" key={`${result.id}-${result.title}-${index}`} onClick={() => { onNavigate(result.id, result.entityId); onClose(); }}>
 <span className="search-result-icon">
 <Icon name={iconForModule(result.module)} size={17}/>
 </span>
@@ -742,7 +755,8 @@ function TableToolbar({ searchPlaceholder, count, onAdd, addLabel = "Nuevo", fil
     return <div className="table-toolbar">
 <div className="inline-search">
 <Icon name="search" size={16}/>
-<input aria-label={searchPlaceholder} placeholder={searchPlaceholder} value={value} onChange={(event) => onSearch?.(event.target.value)}/>
+<input aria-label={searchPlaceholder} placeholder={searchPlaceholder} value={value} onChange={(event) => onSearch?.(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") onSearch?.(""); }}/>
+{value && <button type="button" aria-label="Limpiar búsqueda" onClick={() => onSearch?.("")} style={{ background: "none", border: "none", cursor: "pointer", padding: "0 6px", display: "flex", alignItems: "center", color: "var(--muted)" }}><Icon name="close" size={14}/></button>}
 </div>
 {onFilter && <Button variant="outline" size="small" icon="filter" onClick={onFilter}>{filterLabel}</Button>}
 <span className="toolbar-count">{count} registros</span>{onAdd && <Button size="small" icon="plus" onClick={onAdd}>{addLabel}</Button>}</div>;
@@ -756,7 +770,7 @@ function PartyView({ screen, state, entityId, onNavigate, onToast, dispatch }: {
     dispatch: React.Dispatch<DemoAction>;
 }) {
     const [query, setQuery] = useState("");
-    const contacts = state.contacts.filter((contact) => `${contact.name} ${contact.phone} ${contact.email} ${contact.owner}`.toLowerCase().includes(query.toLowerCase()));
+    const contacts = state.contacts.filter((contact) => matchesQuery(`${contact.name} ${contact.phone} ${contact.email} ${contact.owner} ${contact.kind} ${contactCommercialStatus(contact)} ${contact.origin}`, query));
     const pagination = useLocalPagination(contacts, query, 25);
     const detail = screen.id !== "PTY-01" && screen.id !== "PTY-02" && screen.id !== "PTY-03" && screen.id !== "PTY-04";
     if (screen.id === "PTY-02" || screen.id === "PTY-03" || screen.id === "PTY-04")
@@ -1008,7 +1022,7 @@ function PropertyView({ screen, state, entityId, onNavigate, onToast, dispatch }
     dispatch: React.Dispatch<DemoAction>;
 }) {
     const [query, setQuery] = useState("");
-    const properties = state.properties.filter((property) => `${property.title} ${property.address} ${property.type}`.toLowerCase().includes(query.toLowerCase()));
+    const properties = state.properties.filter((property) => matchesQuery(`${property.title} ${property.address} ${property.type} ${property.status} ${property.bedrooms}`, query));
     const pagination = useLocalPagination(properties, query);
     if (["PRP-03", "PRP-04", "PRP-05"].includes(screen.id))
         return <PropertyForm screen={screen} state={state} entityId={entityId} onToast={onToast} onNavigate={onNavigate} dispatch={dispatch}/>;
@@ -1227,7 +1241,7 @@ function ListingView({ screen, state, entityId, onNavigate, onToast, dispatch }:
     dispatch: React.Dispatch<DemoAction>;
 }) {
     const [query, setQuery] = useState("");
-    const listings = state.listings.filter((listing) => { const property = state.properties.find((item) => item.id === listing.propertyId); return `${listing.title} ${property?.address ?? ""}`.toLowerCase().includes(query.toLowerCase()); });
+    const listings = state.listings.filter((listing) => { const property = state.properties.find((item) => item.id === listing.propertyId); return matchesQuery(`${listing.title} ${listing.status} ${listing.mandate} ${listing.operationType} ${property?.address ?? ""} ${property?.title ?? ""}`, query); });
     const pagination = useLocalPagination(listings, query);
     if (screen.id === "LST-02" || screen.id === "LST-03")
         return <ListingForm entityId={entityId} screen={screen} state={state} onToast={onToast} onNavigate={onNavigate} dispatch={dispatch}/>;
@@ -1410,7 +1424,7 @@ function CaptationView({ screen, state, entityId, onNavigate, onToast, dispatch 
     dispatch: React.Dispatch<DemoAction>;
 }) {
     const [query, setQuery] = useState("");
-    const captations = state.captations.filter((captation) => { const property = state.properties.find((item) => item.id === captation.propertyId); return `${property?.title ?? ""} ${captation.owner}`.toLowerCase().includes(query.toLowerCase()); });
+    const captations = state.captations.filter((captation) => { const property = state.properties.find((item) => item.id === captation.propertyId); return matchesQuery(`${property?.title ?? ""} ${property?.address ?? ""} ${captation.owner} ${captation.stage} ${captation.origin}`, query); });
     const pagination = useLocalPagination(captations, query);
     if (screen.id === "CAP-02")
         return <CaptationForm state={state} onToast={onToast} onNavigate={onNavigate} dispatch={dispatch}/>;
@@ -1596,7 +1610,7 @@ function DemandView({ screen, state, entityId, onNavigate, onToast, dispatch }: 
     dispatch: React.Dispatch<DemoAction>;
 }) {
     const [query, setQuery] = useState("");
-    const demands = state.demands.filter((demandItem) => { const contact = state.contacts.find((item) => item.id === demandItem.contactId); return `${demandItem.title} ${contact?.name ?? ""} ${(demandItem.criteria || []).map((criterion) => `${criterion.label} ${criterion.value}`).join(" ")}`.toLowerCase().includes(query.toLowerCase()); });
+    const demands = state.demands.filter((demandItem) => { const contact = state.contacts.find((item) => item.id === demandItem.contactId); return matchesQuery(`${demandItem.title} ${contact?.name ?? ""} ${demandItem.status} ${demandItem.origin} ${(demandItem.criteria || []).map((criterion) => `${criterion.label} ${criterion.value}`).join(" ")}`, query); });
     const pagination = useLocalPagination(demands, query);
     if (["DEM-02"].includes(screen.id))
         return <DemandForm state={state} onToast={onToast} onNavigate={onNavigate} dispatch={dispatch}/>;
@@ -1904,7 +1918,7 @@ function OpportunityList({ screen, state, onNavigate, onToast, dispatch }: {
     dispatch: React.Dispatch<DemoAction>;
 }) {
     const [query, setQuery] = useState("");
-    const opportunities = state.opportunities.filter((opportunity) => `${opportunity.title} ${opportunity.sourceId} ${opportunity.owner} ${opportunity.sourceType}`.toLowerCase().includes(query.toLowerCase()));
+    const opportunities = state.opportunities.filter((opportunity) => matchesQuery(`${opportunity.title} ${opportunity.sourceId} ${opportunity.owner} ${opportunity.sourceType} ${opportunity.stage} ${opportunity.origin}`, query));
     const pagination = useLocalPagination(opportunities, query);
     return <div className="feature-stack">
 <Card>

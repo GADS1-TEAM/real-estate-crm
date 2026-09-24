@@ -67,3 +67,37 @@ test("deferred surfaces stay visible but disabled in the design catalog", async 
   await expect(page.getByText("F2", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Centro de novedades")).toBeVisible();
 });
+
+test("navega a Requiere atención (INI-02) y permite retornar a Inicio", async ({ page }) => {
+  test.skip(test.info().project.name !== "chromium", "El flujo principal se valida en desktop.");
+  await page.goto("/inicio");
+  await page.getByRole("button", { name: "Ver requiere atención" }).click();
+  await expect(page).toHaveURL(/\/inicio\?screen=INI-02/);
+  await expect(page.getByRole("heading", { name: /Oportunidades para revisar/ })).toBeVisible();
+  await page.getByRole("button", { name: "← Volver al inicio" }).click();
+  await expect(page).toHaveURL(/\/inicio\?screen=INI-01/);
+});
+
+test("búsqueda global y búsqueda en tabla con insensibilidad a tildes", async ({ page }) => {
+  test.skip(test.info().project.name !== "chromium", "Validación en desktop.");
+  await page.goto("/contactos");
+  await page.getByRole("button", { name: /Buscar en toda la instalación/ }).click();
+  const dialog = page.getByRole("dialog", { name: "Búsqueda global" });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("textbox").fill("norte");
+  await expect(dialog.getByText("Estudio Norte SA")).toBeVisible();
+  await dialog.getByRole("textbox").press("Enter");
+  await expect(dialog).not.toBeVisible();
+  await expect(page).toHaveURL(/\/contactos\?screen=PTY-06/);
+
+  await page.goto("/contactos");
+  const searchInput = page.getByPlaceholder("Buscar por nombre, teléfono o email");
+  await searchInput.fill("carla");
+  await expect(page.getByText("Carla Benítez")).toBeVisible();
+  await expect(page.getByText("Estudio Norte SA")).not.toBeVisible();
+  await page.getByRole("button", { name: "Limpiar búsqueda" }).click();
+  await expect(page.getByText("Estudio Norte SA")).toBeVisible();
+});
+
+
+
