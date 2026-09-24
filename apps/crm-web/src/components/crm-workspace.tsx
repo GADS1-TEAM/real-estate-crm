@@ -538,7 +538,7 @@ function FeatureView({ screen, state, entityId, roleId, onRoleChange, onNavigate
     if (screen.renderKey === "global")
         return <GlobalStateSurface screen={screen} onToast={onToast} onNavigate={onNavigate}/>;
     switch (screen.renderKey) {
-        case "inicio": return <HomeView state={state} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
+        case "inicio": return <HomeView screen={screen} state={state} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
         case "party": return <PartyView entityId={entityId} screen={screen} state={state} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
         case "property": return <PropertyView entityId={entityId} screen={screen} state={state} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
         case "listing": return <ListingView entityId={entityId} screen={screen} state={state} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
@@ -555,7 +555,7 @@ function FeatureView({ screen, state, entityId, roleId, onRoleChange, onNavigate
     }
 }
 function HomeView({ screen, state, onNavigate, onToast, dispatch }: {
-    screen: ScreenDefinition;
+    screen?: ScreenDefinition;
     state: DemoState;
     onNavigate: ScreenNavigator;
     onToast: (message: string, tone?: "success" | "info" | "warning") => void;
@@ -570,7 +570,7 @@ function HomeView({ screen, state, onNavigate, onToast, dispatch }: {
     const listingsWithoutMandateList = state.listings.filter((listing) => listing.status === "Activa" && listing.mandate !== "Firmado");
     const listingsWithoutMandate = listingsWithoutMandateList.length;
     const incompleteDemandsList = state.demands.filter((demand) => demand.status === "Activa" && (demand.criteria || []).some((criterion) => criterion.value === "UNKNOWN"));
-    if (screen.id === "INI-02") {
+    if (screen?.id === "INI-02") {
         const displayOpportunities = allAttention.length > 0 ? allAttention : state.opportunities;
         return <div className="feature-stack">
         <div className="hero-actions" style={{ justifyContent: "space-between", alignItems: "center" }}>
