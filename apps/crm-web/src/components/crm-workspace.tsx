@@ -1,6 +1,6 @@
 "use client";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CrmShell, UserMenu, type ShellNavItem } from "@/components/crm-shell";
 import { Alert, Avatar, Button, Card, Chip, Drawer, EmptyState, Field, Icon, Modal, Pagination, SelectField, Skeleton, StatusDot, Tabs, Tag, TextAreaField, Toast, } from "@/components/ui/primitives";
 import { AISuggestion, CriterionEditor, CurrencyAmount, MatchScoreExplanation, PipelineCard, PropertyPlaceholder, UnknownIndicator, type CriterionEvidence } from "@/components/domain/domain-components";
@@ -128,50 +128,73 @@ export function CrmApp({ initialSection, catalogOnly = false }: {
 <CrmWorkspace initialSection={initialSection} catalogOnly={catalogOnly}/>
 </DemoStoreProvider>;
 }
-async function saveActionMutation(dataSource: CrmDataSource, action: DemoAction): Promise<void> {
+const roleStorageKey = "crm-web:role-id:v1";
+const bffActionsStorageKey = "crm-web:bff-actions:v1";
+
+function readStoredRole(): RoleId {
+    if (typeof window === "undefined") return "vendedor";
+    const stored = window.localStorage.getItem(roleStorageKey);
+    if (stored === "vendedor" || stored === "responsable" || stored === "direccion" || stored === "administradora") {
+        return stored;
+    }
+    return "vendedor";
+}
+
+function readStoredBffActions(): DemoAction[] {
+    if (typeof window === "undefined") return [];
+    try {
+        const raw = window.sessionStorage.getItem(bffActionsStorageKey);
+        return raw ? (JSON.parse(raw) as DemoAction[]) : [];
+    } catch {
+        return [];
+    }
+}
+
+async function saveActionMutation(dataSource: CrmDataSource, action: DemoAction): Promise<boolean> {
     try {
         switch (action.type) {
             case "contact/create":
                 await dataSource.saveMutation("createContact", action.item);
-                break;
+                return true;
             case "contact/update":
                 await dataSource.saveMutation("updateContact", { partyId: action.id, ...action.changes });
-                break;
+                return true;
             case "party/relate":
                 await dataSource.saveMutation("relateContactToCompany", action);
-                break;
+                return true;
             case "property/create":
                 await dataSource.saveMutation("createProperty", action.item);
-                break;
+                return true;
             case "property/update":
                 await dataSource.saveMutation("updateProperty", { propertyId: action.id, ...action.changes });
-                break;
+                return true;
             case "listing/create":
                 await dataSource.saveMutation("createListing", action.item);
-                break;
+                return true;
             case "listing/update":
                 await dataSource.saveMutation("updateListing", { listingId: action.id, ...action.changes });
-                break;
+                return true;
             case "demand/create":
                 await dataSource.saveMutation("createRequirement", action.item);
-                break;
+                return true;
             case "activity/add":
                 await dataSource.saveMutation("recordActivity", action.item);
-                break;
+                return true;
             case "user/invite":
                 await dataSource.saveMutation("createUser", action.item);
-                break;
+                return true;
             case "user/update":
                 await dataSource.saveMutation("updateUser", { userId: action.id, ...action.changes });
-                break;
+                return true;
             case "catalog/update-entry":
                 await dataSource.saveMutation("updateCatalogEntry", { entryId: action.id, label: action.label, status: action.status });
-                break;
+                return true;
             default:
-                break;
+                return false;
         }
     } catch (e) {
         console.error("Error sending mutation to BFF:", e);
+        return false;
     }
 }
 
@@ -183,23 +206,46 @@ function CrmWorkspace({ initialSection, catalogOnly }: {
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const { state, dispatch: rawDispatch } = useDemoStore();
-    const [roleId, setRoleId] = useState<RoleId>("vendedor");
+    const [roleId, setRoleIdState] = useState<RoleId>("vendedor");
+    const setRoleId = useCallback((next: RoleId) => {
+        setRoleIdState(next);
+        if (typeof window !== "undefined") {
+            window.localStorage.setItem(roleStorageKey, next);
+        }
+    }, []);
+    useEffect(() => {
+        setRoleIdState(readStoredRole());
+    }, []);
     const [searchOpen, setSearchOpen] = useState(false);
     const [quickCreateOpen, setQuickCreateOpen] = useState(false);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
     const [permissionOpen, setPermissionOpen] = useState(false);
     const [offlineOpen, setOfflineOpen] = useState(false);
-    const [sourceStatus, setSourceStatus] = useState<"idle" | "loading" | "ready" | "error">(mode === "demo" ? "ready" : "idle");
+    const [sourceStatus, setSourceStatus] = useState<"idle" | "loading" | "ready" | "error">(mode === "demo" ? "ready" : "loading");
     const [sourceError, setSourceError] = useState<string | null>(null);
     const [sourceAttempt, setSourceAttempt] = useState(0);
     const [remoteState, setRemoteState] = useState<DemoState | null>(null);
+    const localActionsRef = useRef<DemoAction[]>([]);
+    useEffect(() => {
+        localActionsRef.current = readStoredBffActions();
+    }, []);
     const dataSource = useMemo(() => createCrmDataSource(mode), []);
     const dispatch = useCallback((action: DemoAction) => {
         rawDispatch(action);
         if (mode !== "demo") {
+            localActionsRef.current = [...localActionsRef.current, action];
+            if (typeof window !== "undefined") {
+                try {
+                    window.sessionStorage.setItem(bffActionsStorageKey, JSON.stringify(localActionsRef.current));
+                } catch {
+                    // ignore storage quota errors
+                }
+            }
             setRemoteState((prev) => (prev ? demoReducer(prev, action) : prev));
-            saveActionMutation(dataSource, action).then(() => {
-                setSourceAttempt((attempt) => attempt + 1);
+            saveActionMutation(dataSource, action).then((persistedRemotely) => {
+                if (persistedRemotely) {
+                    setSourceAttempt((attempt) => attempt + 1);
+                }
             });
         }
     }, [rawDispatch, dataSource]);
@@ -208,6 +254,12 @@ function CrmWorkspace({ initialSection, catalogOnly }: {
         tone?: "success" | "info" | "warning";
     } | null>(null);
     const role = getRole(roleId);
+    const visibleNavItems = useMemo(() => navItems.map((item) => {
+        if (item.href === "/metricas" && !hasPermission(roleId, "analytics.read")) {
+            return { ...item, disabled: true, disabledReason: permissionReason(roleId, "analytics.read") };
+        }
+        return item;
+    }), [roleId]);
     useEffect(() => {
         const handler = (event: KeyboardEvent) => {
             if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
@@ -234,8 +286,14 @@ function CrmWorkspace({ initialSection, catalogOnly }: {
             if (!active)
                 return;
             const candidate = getStateCandidate(payload);
-            if (isDemoStateSnapshot(candidate))
-                setRemoteState(normalizeDemoState(candidate));
+            if (isDemoStateSnapshot(candidate)) {
+                let nextState = normalizeDemoState(candidate);
+                const replayed = localActionsRef.current.length ? localActionsRef.current : readStoredBffActions();
+                for (const act of replayed) {
+                    nextState = demoReducer(nextState, act);
+                }
+                setRemoteState(nextState);
+            }
             setSourceStatus("ready");
         }).catch((error: unknown) => {
             if (!active)
@@ -249,7 +307,7 @@ function CrmWorkspace({ initialSection, catalogOnly }: {
     const entityId = searchParams.get("entity");
     const requestedScreen = searchParams.get("screen") ?? defaultScreens[initialSection] ?? "INI-01";
     const screen = getScreenById(requestedScreen) ?? getScreenById(defaultScreens[initialSection] ?? "INI-01") ?? screenRegistry[0];
-    const activeHref = navItems.find((item) => item.href === pathname)?.href ?? `/${initialSection}`;
+    const activeHref = visibleNavItems.find((item) => item.href === pathname)?.href ?? `/${initialSection}`;
     const navigateToScreen: ScreenNavigator = (screenId, entityId) => {
         const target = getScreenById(screenId);
         if (!target)
@@ -261,9 +319,10 @@ function CrmWorkspace({ initialSection, catalogOnly }: {
     const showToast = (message: string, tone: "success" | "info" | "warning" = "success") => setToast({ message, tone });
     if (catalogOnly)
         return <DesignCatalog />;
-    return <CrmShell activeHref={activeHref} navItems={navItems} roleName={role.name} offlineCount={activeState.offlineQueue.length} onSearch={() => setSearchOpen(true)} onQuickCreate={() => setQuickCreateOpen(true)} onUserMenu={() => setUserMenuOpen((value) => !value)} userMenuOpen={userMenuOpen} userMenu={<UserMenu roleName={role.name} onClose={() => setUserMenuOpen(false)} onPermission={() => { setUserMenuOpen(false); setPermissionOpen(true); }}/>}>
+    const isRestrictedAnalytics = screen.module === "ANA" && !hasPermission(roleId, "analytics.read");
+    return <CrmShell activeHref={activeHref} navItems={visibleNavItems} roleName={role.name} offlineCount={activeState.offlineQueue.length} onSearch={() => setSearchOpen(true)} onQuickCreate={() => setQuickCreateOpen(true)} onUserMenu={() => setUserMenuOpen((value) => !value)} userMenuOpen={userMenuOpen} userMenu={<UserMenu roleName={role.name} onClose={() => setUserMenuOpen(false)} onPermission={() => { setUserMenuOpen(false); setPermissionOpen(true); }}/>}>
     <PageHeader screen={screen} section={initialSection} onQuickCreate={() => setQuickCreateOpen(true)} onNavigate={navigateToScreen}/>
-    {mode !== "demo" ? sourceStatus === "loading" ? <BffLoadingState /> : sourceStatus === "error" ? <BffUnavailableState error={sourceError} onRetry={() => setSourceAttempt((attempt) => attempt + 1)}/> : remoteState ? <FeatureView key={`${screen.id}:${entityId ?? ""}`} entityId={entityId} screen={screen} state={remoteState} roleId={roleId} onRoleChange={setRoleId} onNavigate={navigateToScreen} onToast={showToast} dispatch={dispatch}/> : <BffResponseState /> : <FeatureView key={`${screen.id}:${entityId ?? ""}`} entityId={entityId} screen={screen} state={state} roleId={roleId} onRoleChange={setRoleId} onNavigate={navigateToScreen} onToast={showToast} dispatch={dispatch}/>}
+    {mode === "demo" || isRestrictedAnalytics ? <FeatureView key={`${screen.id}:${entityId ?? ""}`} entityId={entityId} screen={screen} state={activeState} roleId={roleId} onRoleChange={setRoleId} onNavigate={navigateToScreen} onToast={showToast} dispatch={dispatch}/> : remoteState ? <FeatureView key={`${screen.id}:${entityId ?? ""}`} entityId={entityId} screen={screen} state={remoteState} roleId={roleId} onRoleChange={setRoleId} onNavigate={navigateToScreen} onToast={showToast} dispatch={dispatch}/> : (sourceStatus === "idle" || sourceStatus === "loading") ? <BffLoadingState /> : sourceStatus === "error" ? <BffUnavailableState error={sourceError} onRetry={() => setSourceAttempt((attempt) => attempt + 1)}/> : <BffResponseState />}
     {mode === "demo" && activeState.offlineQueue.length > 0 && <div className="offline-banner">
 <Icon name="wifi" size={16}/>
 <span>
@@ -273,7 +332,7 @@ function CrmWorkspace({ initialSection, catalogOnly }: {
     <QuickCreateDrawer open={quickCreateOpen} onClose={() => setQuickCreateOpen(false)} onNavigate={navigateToScreen} roleId={roleId}/>
     <PermissionModal open={permissionOpen} roleId={roleId} onClose={() => setPermissionOpen(false)} onRoleChange={(next) => { setRoleId(next); setPermissionOpen(false); showToast(`Vista cambiada a ${getRole(next).name}.`, "info"); }} onPersonaChange={(persona) => { setRoleId(persona.roleId); setPermissionOpen(false); showToast(`Vista de ${persona.name} cargada para revisión.`, "info"); navigateToScreen(persona.startScreen); }}/>
     <OfflineQueueDrawer open={offlineOpen} state={activeState} onClose={() => setOfflineOpen(false)} onFlush={() => { dispatch({ type: "offline/flush" }); setOfflineOpen(false); showToast("Cola sincronizada.", "info"); }}/>
-    {searchOpen && <GlobalSearch state={activeState} onClose={() => setSearchOpen(false)} onNavigate={navigateToScreen}/>}
+    {searchOpen && <GlobalSearch state={activeState} roleId={roleId} onClose={() => setSearchOpen(false)} onNavigate={navigateToScreen}/>}
     {toast && <Toast message={toast.message} tone={toast.tone} onClose={() => setToast(null)}/>}
   </CrmShell>;
 }
@@ -461,15 +520,21 @@ function OfflineQueueDrawer({ open, state, onClose, onFlush }: {
 </div>)}</div>
 </Drawer>;
 }
-function GlobalSearch({ state, onClose, onNavigate }: {
+function GlobalSearch({ state, roleId, onClose, onNavigate }: {
     state: DemoState;
+    roleId: RoleId;
     onClose: () => void;
     onNavigate: ScreenNavigator;
 }) {
     const [query, setQuery] = useState("");
     const results = useMemo(() => {
         const trimmed = query.trim();
-        const screens = screenRegistry.filter((screen) => !screen.deferred).filter((screen) => matchesQuery(`${screen.id} ${screen.title}`, trimmed)).slice(0, trimmed ? 5 : 4).map((screen) => ({ id: screen.id, title: screen.title, detail: "Acceso directo", module: screen.module, entityId: undefined as string | undefined }));
+        const screens = screenRegistry
+            .filter((screen) => !screen.deferred)
+            .filter((screen) => !(screen.module === "ANA" && !hasPermission(roleId, "analytics.read")))
+            .filter((screen) => matchesQuery(`${screen.id} ${screen.title}`, trimmed))
+            .slice(0, trimmed ? 5 : 4)
+            .map((screen) => ({ id: screen.id, title: screen.title, detail: "Acceso directo", module: screen.module, entityId: undefined as string | undefined }));
         if (!trimmed)
             return screens.concat(state.contacts.slice(0, 2).map((contact) => ({ id: contact.kind === "Empresa" ? "PTY-06" : "PTY-05", entityId: contact.id, title: contact.name, detail: `Contacto · ${contact.phone}`, module: "PTY" })));
         const contacts = state.contacts.filter((contact) => matchesQuery([contact.name, contact.phone, contact.email, contact.owner, contact.kind].filter(Boolean).join(" "), trimmed)).slice(0, 4).map((contact) => ({ id: contact.kind === "Empresa" ? "PTY-06" : "PTY-05", entityId: contact.id, title: contact.name, detail: `Contacto · ${contact.email || contact.phone || ""}`, module: "PTY" }));
@@ -481,7 +546,7 @@ function GlobalSearch({ state, onClose, onNavigate }: {
         const reservations = state.reservations.filter((item) => matchesQuery(item.propertyTitle, trimmed)).slice(0, 2).map((item) => ({ id: "COM-09", entityId: item.id, title: item.propertyTitle, detail: "Reserva", module: "COM" }));
         const operations = state.operations.filter((item) => matchesQuery(item.propertyTitle, trimmed)).slice(0, 2).map((item) => ({ id: "COM-12", entityId: item.id, title: item.propertyTitle, detail: "Operación", module: "COM" }));
         return [...contacts, ...properties, ...listings, ...captations, ...demands, ...opportunities, ...reservations, ...operations, ...screens];
-    }, [query, state]);
+    }, [query, state, roleId]);
     return <div className="search-layer">
 <button className="overlay-backdrop" aria-label="Cerrar búsqueda" onClick={onClose}/>
 <div className="search-panel" role="dialog" aria-label="Búsqueda global">
@@ -554,25 +619,26 @@ function FeatureView({ screen, state, entityId, roleId, onRoleChange, onNavigate
     if (screen.renderKey === "global")
         return <GlobalStateSurface screen={screen} onToast={onToast} onNavigate={onNavigate}/>;
     switch (screen.renderKey) {
-        case "inicio": return <HomeView screen={screen} state={state} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
+        case "inicio": return <HomeView screen={screen} state={state} roleId={roleId} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
         case "party": return <PartyView entityId={entityId} screen={screen} state={state} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
         case "property": return <PropertyView entityId={entityId} screen={screen} state={state} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
         case "listing": return <ListingView entityId={entityId} screen={screen} state={state} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
         case "captation": return <CaptationView entityId={entityId} screen={screen} state={state} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
         case "demand": return screen.id === "DEM-05" ? <PartyView entityId={entityId} screen={screen} state={state} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/> : <DemandView entityId={entityId} screen={screen} state={state} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
         case "matching": return <MatchingView entityId={entityId} screen={screen} state={state} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
-        case "pipeline": return <PipelineView entityId={entityId} screen={screen} state={state} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
+        case "pipeline": return <PipelineView entityId={entityId} screen={screen} state={state} roleId={roleId} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
         case "commercial": return <CommercialView entityId={entityId} screen={screen} state={state} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
         case "activity": return <ActivityView entityId={entityId} screen={screen} state={state} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
-        case "analytics": return <AnalyticsView screen={screen} state={state} onNavigate={onNavigate}/>;
+        case "analytics": return <AnalyticsView screen={screen} state={state} roleId={roleId} onRoleChange={onRoleChange} onNavigate={onNavigate}/>;
         case "assistant": return <AssistantView screen={screen} state={state} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
         case "admin": return <AdminView screen={screen} state={state} roleId={roleId} onRoleChange={onRoleChange} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
-        default: return <HomeView screen={screen} state={state} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
+        default: return <HomeView screen={screen} state={state} roleId={roleId} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
     }
 }
-function HomeView({ screen, state, onNavigate, onToast, dispatch }: {
+function HomeView({ screen, state, roleId, onNavigate, onToast, dispatch }: {
     screen?: ScreenDefinition;
     state: DemoState;
+    roleId: RoleId;
     onNavigate: ScreenNavigator;
     onToast: (message: string, tone?: "success" | "info" | "warning") => void;
     dispatch: React.Dispatch<DemoAction>;
@@ -663,8 +729,7 @@ function HomeView({ screen, state, onNavigate, onToast, dispatch }: {
 <div className="hero-side-foot">
 <span>
 <Icon name="chart" size={15}/> {state.opportunities.length} oportunidades</span>
-<button onClick={() => onNavigate("ANA-01")}>Ver métricas <Icon name="arrow" size={14}/>
-</button>
+{hasPermission(roleId, "analytics.read") ? <button onClick={() => onNavigate("ANA-01")}>Ver métricas <Icon name="arrow" size={14}/></button> : <span className="muted" title={permissionReason(roleId, "analytics.read")}>Métricas según rol</span>}
 </div>
 </Card>
 </div>
@@ -1867,10 +1932,11 @@ function MatchingView({ screen, state, entityId, onNavigate, onToast, dispatch }
 </Card>
 </div>;
 }
-function PipelineView({ screen, state, entityId, onNavigate, onToast, dispatch }: {
+function PipelineView({ screen, state, entityId, roleId, onNavigate, onToast, dispatch }: {
     screen: ScreenDefinition;
     state: DemoState;
     entityId?: string | null;
+    roleId: RoleId;
     onNavigate: ScreenNavigator;
     onToast: (message: string, tone?: "success" | "info" | "warning") => void;
     dispatch: React.Dispatch<DemoAction>;
@@ -1879,11 +1945,11 @@ function PipelineView({ screen, state, entityId, onNavigate, onToast, dispatch }
     const [pipelineKindFilter, setPipelineKindFilter] = useState<"ALL" | "REQUIREMENT" | "CAPTATION_CASE">("ALL");
     const visibleOpportunities = state.opportunities.filter((opportunity) => pipelineKindFilter === "ALL" || opportunity.sourceType === pipelineKindFilter);
     if (screen.id === "OPP-03")
-        return <OpportunityForm state={state} onToast={onToast} onNavigate={onNavigate} dispatch={dispatch}/>;
+        return <OpportunityForm state={state} roleId={roleId} onToast={onToast} onNavigate={onNavigate} dispatch={dispatch}/>;
     if (screen.id === "OPP-02" || screen.id === "OPP-10")
-        return <OpportunityList screen={screen} state={state} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
+        return <OpportunityList screen={screen} state={state} roleId={roleId} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
     if (screen.id !== "OPP-01" && screen.id !== "OPP-02" && screen.id !== "OPP-10")
-        return <OpportunityDetail entityId={entityId} screen={screen} state={state} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
+        return <OpportunityDetail entityId={entityId} screen={screen} state={state} roleId={roleId} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
     return <div className="feature-stack">
 <Card>
 <div className="board-toolbar">
@@ -1893,6 +1959,7 @@ function PipelineView({ screen, state, entityId, onNavigate, onToast, dispatch }
 <p>Cada tarjeta conserva el origen de la oportunidad para que puedas seguir el contexto completo.</p>
 </div>
 <div className="board-actions">
+<Button variant="outline" size="small" onClick={() => onNavigate("OPP-02")}>Ver lista</Button>
 <Button variant="outline" size="small" icon="filter" aria-expanded={showPipelineFilters} onClick={() => setShowPipelineFilters((open) => !open)}>Filtros</Button>
 {showPipelineFilters && <SelectField label="Tipo de pipeline" value={pipelineKindFilter} onChange={(event) => setPipelineKindFilter(event.target.value as typeof pipelineKindFilter)}><option value="ALL">Todos</option><option value="REQUIREMENT">Demanda</option><option value="CAPTATION_CASE">Captación</option></SelectField>}
 <Button size="small" icon="plus" onClick={() => onNavigate("OPP-03")}>Crear oportunidad</Button>
@@ -1913,14 +1980,16 @@ function PipelineView({ screen, state, entityId, onNavigate, onToast, dispatch }
 </div>
 </div>;
 }
-function OpportunityList({ screen, state, onNavigate, onToast, dispatch }: {
+function OpportunityList({ screen, state, roleId, onNavigate, onToast, dispatch }: {
     screen: ScreenDefinition;
     state: DemoState;
+    roleId: RoleId;
     onNavigate: ScreenNavigator;
     onToast: (message: string, tone?: "success" | "info" | "warning") => void;
     dispatch: React.Dispatch<DemoAction>;
 }) {
     const [query, setQuery] = useState("");
+    const canReassign = roleId === "responsable" || roleId === "administradora";
     const opportunities = state.opportunities.filter((opportunity) => matchesQuery(`${opportunity.title} ${opportunity.sourceId} ${opportunity.owner} ${opportunity.sourceType} ${opportunity.stage} ${opportunity.origin}`, query));
     const pagination = useLocalPagination(opportunities, query);
     return <div className="feature-stack">
@@ -1950,7 +2019,7 @@ function OpportunityList({ screen, state, onNavigate, onToast, dispatch }: {
 <Button variant="outline" size="xsmall" onClick={(event) => { event.stopPropagation(); onNavigate("OPP-05", opportunity.id); }}>Etapa: {opportunity.stage}</Button>
 </td>
 <td>
-<select aria-label={`Responsable de ${opportunity.title}`} value={opportunity.owner} onClick={(event) => event.stopPropagation()} onChange={(event) => { dispatch({ type: "opportunity/reassign", id: opportunity.id, owner: event.target.value }); onToast("Responsable actualizado.", "info"); }}>
+<select aria-label={`Responsable de ${opportunity.title}`} value={opportunity.owner} disabled={!canReassign} title={!canReassign ? "Tu rol Vendedor no permite modificar el responsable de la oportunidad." : "Reasignar responsable"} onClick={(event) => event.stopPropagation()} onChange={(event) => { if (!canReassign) { onToast("Tu rol Vendedor no tiene permisos para modificar el responsable.", "warning"); return; } dispatch({ type: "opportunity/reassign", id: opportunity.id, owner: event.target.value }); onToast("Responsable actualizado.", "info"); }}>
 <option>Martín Quiroga</option>
 <option>Lucía Ferrari</option>
 <option>Rodrigo Vergara</option>
@@ -1968,12 +2037,14 @@ function OpportunityList({ screen, state, onNavigate, onToast, dispatch }: {
 <Pagination page={pagination.page} pages={pagination.pages} onChange={pagination.setPage}/>
 </Card>{screen.id === "OPP-10" && <Alert tone="info" title="Filtros guardados">Los filtros se guardan como preferencia de revisión; no crean una nueva entidad de negocio.</Alert>}</div>;
 }
-function OpportunityForm({ state, onToast, onNavigate, dispatch }: {
+function OpportunityForm({ state, roleId, onToast, onNavigate, dispatch }: {
     state: DemoState;
+    roleId: RoleId;
     onToast: (message: string, tone?: "success" | "info" | "warning") => void;
     onNavigate: ScreenNavigator;
     dispatch: React.Dispatch<DemoAction>;
 }) {
+    const canReassign = roleId === "responsable" || roleId === "administradora";
     const [title, setTitle] = useState("");
     const [sourceType, setSourceType] = useState<"REQUIREMENT" | "CAPTATION_CASE">("REQUIREMENT");
     const [sourceId, setSourceId] = useState(state.demands[0]?.id ?? "");
@@ -2002,7 +2073,7 @@ function OpportunityForm({ state, onToast, onNavigate, dispatch }: {
 </SelectField>
 <SelectField label="Fuente real" value={sourceId} onChange={(event) => setSourceId(event.target.value)}>{sourceOptions.map((source) => <option key={source.id} value={source.id}>{source.title}</option>)}</SelectField>
 <SelectField label="Origen comercial" value={origin} onChange={(event) => setOrigin(event.target.value)}>{originOptions.map((entry) => <option value={entry.label} key={entry.id}>{entry.label}</option>)}</SelectField>
-<SelectField label="Responsable" value={owner} onChange={(event) => setOwner(event.target.value)}>
+<SelectField label="Responsable" value={owner} disabled={!canReassign} onChange={(event) => { if (canReassign) setOwner(event.target.value); }}>
 <option>Martín Quiroga</option>
 <option>Lucía Ferrari</option>
 <option>Rodrigo Vergara</option>
@@ -2020,17 +2091,28 @@ function OpportunityDetail({ screen, state, entityId, onNavigate, onToast, dispa
     screen: ScreenDefinition;
     state: DemoState;
     entityId?: string | null;
+    roleId?: RoleId;
     onNavigate: ScreenNavigator;
     onToast: (message: string, tone?: "success" | "info" | "warning") => void;
     dispatch: React.Dispatch<DemoAction>;
 }) {
-    const [stageDraft, setStageDraft] = useState<OpportunityStage>("Nuevo");
+    const [stageDraft, setStageDraft] = useState<OpportunityStage>("Contacto");
     const [stageReason, setStageReason] = useState("");
     const [closeDate, setCloseDate] = useState("");
     const [finalValue, setFinalValue] = useState("");
     const [closeReason, setCloseReason] = useState("");
+    const stageEditorRef = useRef<HTMLDivElement | null>(null);
     const opportunity = selectedRecord(state.opportunities, entityId);
-    useEffect(() => { if (opportunity) setStageDraft(opportunity.stage); }, [opportunity]);
+    const catalogStages = state.catalogEntries
+        .filter((entry) => entry.catalogType === "pipeline-stage" && entry.status === "Activo" && entry.semanticState !== "LOST")
+        .map((entry) => entry.label as OpportunityStage);
+    const stageOptions: OpportunityStage[] = catalogStages.length > 0 ? catalogStages : stageOrder;
+    useEffect(() => {
+        if (!opportunity) return;
+        const currentIndex = stageOptions.indexOf(opportunity.stage);
+        const nextStage = currentIndex >= 0 && currentIndex + 1 < stageOptions.length ? stageOptions[currentIndex + 1] : stageOptions[0];
+        setStageDraft(nextStage !== opportunity.stage ? nextStage : opportunity.stage);
+    }, [opportunity, stageOptions]);
     if (!opportunity) return <UnavailableRecord />;
     const sourceTitle = opportunity.sourceType === "REQUIREMENT" ? state.demands.find((demand) => demand.id === opportunity.sourceId)?.title : state.captations.find((captation) => captation.id === opportunity.sourceId)?.propertyId ? state.properties.find((property) => property.id === state.captations.find((captation) => captation.id === opportunity.sourceId)?.propertyId)?.title : undefined;
     const lossReasons = state.catalogEntries.filter((entry) => entry.catalogType === "loss-reason" && entry.status === "Activo");
@@ -2041,7 +2123,20 @@ function OpportunityDetail({ screen, state, entityId, onNavigate, onToast, dispa
             return;
         }
         dispatch({ type: "opportunity/change-stage", id: opportunity.id, stage: stageDraft, reason: stageReason.trim() });
+        setStageReason("");
         onToast("Cambio de etapa guardado.");
+        onNavigate("OPP-04", opportunity.id);
+    };
+    const handleStageButtonClick = () => {
+        if (screen.id === "OPP-05") {
+            const selectEl = stageEditorRef.current?.querySelector("select");
+            if (selectEl) {
+                selectEl.scrollIntoView({ behavior: "smooth", block: "center" });
+                selectEl.focus();
+            }
+            return;
+        }
+        onNavigate("OPP-05", opportunity.id);
     };
     const saveClose = (outcome: "won" | "lost") => {
         const value = finalValue.trim() ? Number(finalValue.replace(/\./g, "").replace(",", ".")) : undefined;
@@ -2068,21 +2163,21 @@ function OpportunityDetail({ screen, state, entityId, onNavigate, onToast, dispa
 </div>
 </div>
 <div className="detail-actions">
-<Button variant="outline" icon="edit" onClick={() => onNavigate("OPP-05", opportunity.id)} disabled={opportunity.stage === "Cerrada"}>Cambiar etapa</Button>
+<Button variant={screen.id === "OPP-05" ? "primary" : "outline"} icon="edit" onClick={handleStageButtonClick} disabled={opportunity.stage === "Cerrada"}>Cambiar etapa</Button>
 <Button icon="briefcase" onClick={() => onNavigate("COM-08", opportunity.id)} disabled={opportunity.stage === "Cerrada"}>Crear reserva</Button>
 <Button variant="ghost" icon="activity" aria-label="Ver trazabilidad" onClick={() => onNavigate("OPP-11", opportunity.id)}/>
 </div>
 </Card>
-<ScreenTabs screen={screen} entityId={entityId} onNavigate={onNavigate} tabs={[{ id: "OPP-04", label: "Resumen" }, { id: "OPP-06", label: "Historial" }, { id: "OPP-11", label: "Trazabilidad" }, { id: "OPP-07", label: "Cerrar ganada" }, { id: "OPP-08", label: "Cerrar perdida" }]}/>
+<ScreenTabs screen={screen} entityId={entityId} onNavigate={onNavigate} tabs={[{ id: "OPP-04", label: "Resumen" }, { id: "OPP-05", label: "Cambiar etapa" }, { id: "OPP-06", label: "Historial" }, { id: "OPP-11", label: "Trazabilidad" }, { id: "OPP-07", label: "Cerrar ganada" }, { id: "OPP-08", label: "Cerrar perdida" }]}/>
 <div className="detail-grid">
 <Card>
 <SectionHeading eyebrow="Estado actual" title={opportunity.stage}/>
 <div className="stage-progress">{stageOrder.slice(0, 6).map((stage, index) => <div className={stage === opportunity.stage ? "stage-step is-active" : index < stageOrder.indexOf(opportunity.stage) ? "stage-step is-complete" : "stage-step"} key={stage}>
 <span>{index + 1}</span>
 <small>{stage}</small>
-</div>)}</div>{opportunity.outcome && <Alert tone={opportunity.outcome === "won" ? "success" : "warning"} title={opportunity.outcome === "won" ? "Oportunidad ganada" : "Oportunidad perdida"}>El motivo y el historial quedan asociados a la fuente {opportunity.sourceType === "REQUIREMENT" ? "de la búsqueda" : "de la captación"}.</Alert>}{screen.id === "OPP-05" && <div className="inline-stage-editor">
+</div>)}</div>{opportunity.outcome && <Alert tone={opportunity.outcome === "won" ? "success" : "warning"} title={opportunity.outcome === "won" ? "Oportunidad ganada" : "Oportunidad perdida"}>El motivo y el historial quedan asociados a la fuente {opportunity.sourceType === "REQUIREMENT" ? "de la búsqueda" : "de la captación"}.</Alert>}{screen.id === "OPP-05" && <div ref={stageEditorRef} className="inline-stage-editor">
 <SelectField label="Nueva etapa" value={stageDraft} onChange={(event) => setStageDraft(event.target.value as OpportunityStage)}>
-{state.catalogEntries.filter((entry) => entry.catalogType === "pipeline-stage" && entry.status === "Activo" && entry.semanticState !== "LOST").map((entry) => <option key={entry.id} value={entry.label}>{entry.label}</option>)}
+{stageOptions.map((stageLabel) => <option key={stageLabel} value={stageLabel}>{stageLabel}</option>)}
 </SelectField>
 <TextAreaField label="Motivo del cambio" placeholder="Qué hecho ocurrió o qué se confirmó..." rows={3} value={stageReason} onChange={(event) => setStageReason(event.target.value)}/>
 <Button onClick={saveStage}>Guardar cambio de etapa</Button>
@@ -2850,14 +2945,30 @@ function ActivityForm({ screen, state, entityId, onNavigate, onToast, dispatch }
 </div>
 </Card>;
 }
-function AnalyticsView({ screen, state, onNavigate }: {
+function AnalyticsView({ screen, state, roleId, onRoleChange, onNavigate }: {
     screen: ScreenDefinition;
     state: DemoState;
+    roleId: RoleId;
+    onRoleChange: (role: RoleId) => void;
     onNavigate: ScreenNavigator;
 }) {
     const [filters, setFilters] = useState<AnalyticsFilters>({ period: "30d", responsible: "ALL", pipelineKind: "ALL", origin: "ALL" });
     const snapshot = useMemo(() => getAnalyticsSnapshot(state, filters), [filters, state]);
     const origins = useMemo(() => Array.from(new Set([...state.demands.map((demand) => demand.origin ?? "Origen desconocido"), ...state.captations.map((captation) => captation.origin ?? "Origen desconocido")])).sort(), [state.captations, state.demands]);
+    if (!hasPermission(roleId, "analytics.read")) {
+        return <Card className="blocking-state">
+            <div className="blocking-icon state-warning"><Icon name="lock" size={28}/></div>
+            <div>
+                <span className="eyebrow">Permisos del rol</span>
+                <h2>Acceso restringido a Métricas</h2>
+                <p>{permissionReason(roleId, "analytics.read")}</p>
+                <div className="state-actions">
+                    <Button variant="outline" onClick={() => onNavigate("INI-01")}>Volver al inicio</Button>
+                    <Button onClick={() => onRoleChange("responsable")}>Cambiar a Responsable comercial</Button>
+                </div>
+            </div>
+        </Card>;
+    }
     const isDirector = screen.id === "ANA-03";
     const isFunnel = screen.id === "ANA-04";
     const isSupply = screen.id === "ANA-05";
@@ -3146,7 +3257,7 @@ function CatalogList({ screen, state, onToast, onNavigate, dispatch }: {
     const [draft, setDraft] = useState("");
     const family = crmCatalogFamilies.find((item) => item.id === catalogFamilyForScreen(screen.id)) ?? crmCatalogFamilies[0];
     const entries = state.catalogEntries.filter((entry) => entry.catalogType === family.id);
-    const save = (id: string, status: "Activo" | "Cierre comercial") => { if (!draft.trim()) {
+    const save = (id: string, status: DemoState["catalogEntries"][number]["status"]) => { if (!draft.trim()) {
         onToast("El nombre del catálogo no puede quedar vacío.", "warning");
         return;
     } dispatch({ type: "catalog/update-entry", id, label: draft.trim(), status }); setEditing(null); onToast("Entrada guardada para revisión local."); };

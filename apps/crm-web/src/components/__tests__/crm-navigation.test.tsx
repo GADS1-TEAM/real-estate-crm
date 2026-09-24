@@ -115,4 +115,51 @@ describe("CRM selection and navigation", () => {
     fireEvent.click(screen.getByRole("button", { name: "← Volver al inicio" }));
     expect(route.push).toHaveBeenLastCalledWith("/inicio?screen=INI-01");
   });
+
+  it("disables Responsable select in OPP-02 for vendedor and enables it for responsable", () => {
+    const view = open("oportunidades", "OPP-02");
+    const ownerSelect = screen.getByLabelText("Responsable de Carla Benítez · PH en Guardia Vieja") as HTMLSelectElement;
+    expect(ownerSelect.disabled).toBe(true);
+    expect(screen.queryByText("Responsable actualizado.")).toBeNull();
+    view.unmount();
+
+    // Switch role to Responsable comercial
+    window.localStorage.setItem("crm-web:role-id:v1", "responsable");
+    const viewResponsable = open("oportunidades", "OPP-02");
+    const enabledSelect = screen.getByLabelText("Responsable de Carla Benítez · PH en Guardia Vieja") as HTMLSelectElement;
+    expect(enabledSelect.disabled).toBe(false);
+    fireEvent.change(enabledSelect, { target: { value: "Lucía Ferrari" } });
+    expect(screen.getByText("Responsable actualizado.")).toBeTruthy();
+    expect(enabledSelect.value).toBe("Lucía Ferrari");
+    viewResponsable.unmount();
+  });
+
+  it("blocks Métricas section for vendedor and unlocks it for responsable", () => {
+    open("metricas", "ANA-01");
+    const sidebar = within(screen.getByLabelText("Navegación principal"));
+    const metricasNav = sidebar.getByText("Métricas").closest("[aria-disabled]");
+    expect(metricasNav?.getAttribute("aria-disabled")).toBe("true");
+    expect(screen.getByRole("heading", { name: "Acceso restringido a Métricas" })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Cambiar a Responsable comercial" }));
+    expect(screen.queryByRole("heading", { name: "Acceso restringido a Métricas" })).toBeNull();
+    expect(screen.getByRole("heading", { name: "Métricas" })).toBeTruthy();
+  });
+
+  it("changes opportunity stage from OPP-05 and navigates back to OPP-04 with updated stage", () => {
+    // Even if catalogEntries lacks pipeline-stage entries (simulating BFF snapshot), normalizeDemoState restores them
+    const state = structuredClone(demoInitialState);
+    state.catalogEntries = [];
+    persistDemoState(window.localStorage, state);
+
+    open("oportunidades", "OPP-05", "opp-1");
+    const stageSelect = screen.getByLabelText("Nueva etapa") as HTMLSelectElement;
+    expect(stageSelect.options.length).toBeGreaterThan(0);
+    fireEvent.change(stageSelect, { target: { value: "Negociación" } });
+    fireEvent.change(screen.getByLabelText("Motivo del cambio"), { target: { value: "Avance confirmado con comprador." } });
+    fireEvent.click(screen.getByRole("button", { name: "Guardar cambio de etapa" }));
+    expect(screen.getByText("Cambio de etapa guardado.")).toBeTruthy();
+    expect(route.push).toHaveBeenLastCalledWith("/oportunidades?screen=OPP-04&entity=opp-1");
+  });
 });
+
