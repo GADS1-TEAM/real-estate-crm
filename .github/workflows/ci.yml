@@ -26,6 +26,11 @@ jobs:
       - name: Build + test rápido + build de webs
         run: bash scripts/test-fast.sh
 
+      - name: Validar configuración del alojamiento
+        run: |
+          docker compose --env-file .env.hosted.example -f docker-compose.hosted.yml config --quiet
+          node --check scripts/render-hosted-realm.mjs
+
   integration:
     name: Tests de integración (Mongo/RabbitMQ/Keycloak reales)
     runs-on: ubuntu-latest

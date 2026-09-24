@@ -1,0 +1,243 @@
+name: crm-hosted
+
+x-api: &api
+  restart: unless-stopped
+  environment: &api-environment
+    ASPNETCORE_ENVIRONMENT: Production
+    ASPNETCORE_HTTP_PORTS: "8080"
+    ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+    Mongo__ConnectionString: mongodb://mongo:27017/?replicaSet=rs0&directConnection=true
+    RabbitMq__HostName: rabbitmq
+    RabbitMq__UserName: ${RABBITMQ_USER:?Set RABBITMQ_USER}
+    RabbitMq__Password: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD}
+    Keycloak__Authority: https://${CRM_PUBLIC_HOST:?Set CRM_PUBLIC_HOST}/auth/realms/crm-dev
+    Keycloak__RequireHttpsMetadata: "true"
+    AccessService__BaseUrl: http://access-service:8080
+    PartyService__BaseUrl: http://party-service:8080
+    PlatformConfigService__BaseUrl: http://platform-config-service:8080
+    PropertyService__BaseUrl: http://property-service:8080
+    SupplyService__BaseUrl: http://supply-service:8080
+    DemandService__BaseUrl: http://demand-service:8080
+    MatchingService__BaseUrl: http://matching-service:8080
+    CommercialService__BaseUrl: http://commercial-service:8080
+    ActivityService__BaseUrl: http://activity-service:8080
+    AnalyticsService__BaseUrl: http://analytics-service:8080
+    AutomationAiService__BaseUrl: http://automation-ai-service:8080
+  depends_on: &api-dependencies
+    mongo:
+      condition: service_healthy
+    rabbitmq:
+      condition: service_healthy
+    keycloak:
+      condition: service_started
+
+services:
+  mongo:
+    image: mongo:7.0.43
+    restart: unless-stopped
+    command: ["--replSet", "rs0", "--bind_ip_all"]
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval \"try { rs.status().ok } catch (e) { rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo:27017'}]}) }\" | grep -q 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+
+  rabbitmq:
+    image: rabbitmq:4.3.6-management
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?Set RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Set RABBITMQ_PASSWORD}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?Set KEYCLOAK_DB_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.4
+    restart: unless-stopped
+    command: ["start", "--import-realm"]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?Set KEYCLOAK_DB_PASSWORD}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USER:?Set KEYCLOAK_ADMIN_USER}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Set KEYCLOAK_ADMIN_PASSWORD}
+      KC_HTTP_ENABLED: "true"
+      KC_HTTP_RELATIVE_PATH: /auth
+      KC_PROXY_HEADERS: xforwarded
+      KC_HOSTNAME: https://${CRM_PUBLIC_HOST:?Set CRM_PUBLIC_HOST}/auth
+      KC_HEALTH_ENABLED: "true"
+    volumes:
+      - ./infra/hosting/generated/realm.json:/opt/keycloak/data/import/realm.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  access-service:
+    <<: *api
+    environment:
+      <<: *api-environment
+      Bootstrap__SeedInitialData: "true"
+    build:
+      context: .
+      dockerfile: infra/hosting/Dockerfile.dotnet
+      args:
+        PROJECT: services/access-service/src/AccessService.Api/AccessService.Api.csproj
+    command: ["AccessService.Api.dll"]
+
+  platform-config-service:
+    <<: *api
+    environment:
+      <<: *api-environment
+      Bootstrap__SeedInitialData: "true"
+    build:
+      context: .
+      dockerfile: infra/hosting/Dockerfile.dotnet
+      args:
+        PROJECT: services/platform-config-service/src/PlatformConfigService.Api/PlatformConfigService.Api.csproj
+    command: ["PlatformConfigService.Api.dll"]
+
+  party-service:
+    <<: *api
+    build:
+      context: .
+      dockerfile: infra/hosting/Dockerfile.dotnet
+      args:
+        PROJECT: services/party-service/src/PartyService.Api/PartyService.Api.csproj
+    command: ["PartyService.Api.dll"]
+
+  property-service:
+    <<: *api
+    build:
+      context: .
+      dockerfile: infra/hosting/Dockerfile.dotnet
+      args:
+        PROJECT: services/property-service/src/PropertyService.Api/PropertyService.Api.csproj
+    command: ["PropertyService.Api.dll"]
+
+  supply-service:
+    <<: *api
+    build:
+      context: .
+      dockerfile: infra/hosting/Dockerfile.dotnet
+      args:
+        PROJECT: services/supply-service/src/SupplyService.Api/SupplyService.Api.csproj
+    command: ["SupplyService.Api.dll"]
+
+  demand-service:
+    <<: *api
+    build:
+      context: .
+      dockerfile: infra/hosting/Dockerfile.dotnet
+      args:
+        PROJECT: services/demand-service/src/DemandService.Api/DemandService.Api.csproj
+    command: ["DemandService.Api.dll"]
+
+  matching-service:
+    <<: *api
+    build:
+      context: .
+      dockerfile: infra/hosting/Dockerfile.dotnet
+      args:
+        PROJECT: services/matching-service/src/MatchingService.Api/MatchingService.Api.csproj
+    command: ["MatchingService.Api.dll"]
+
+  commercial-service:
+    <<: *api
+    build:
+      context: .
+      dockerfile: infra/hosting/Dockerfile.dotnet
+      args:
+        PROJECT: services/commercial-service/src/CommercialService.Api/CommercialService.Api.csproj
+    command: ["CommercialService.Api.dll"]
+
+  activity-service:
+    <<: *api
+    build:
+      context: .
+      dockerfile: infra/hosting/Dockerfile.dotnet
+      args:
+        PROJECT: services/activity-service/src/ActivityService.Api/ActivityService.Api.csproj
+    command: ["ActivityService.Api.dll"]
+
+  analytics-service:
+    <<: *api
+    build:
+      context: .
+      dockerfile: infra/hosting/Dockerfile.dotnet
+      args:
+        PROJECT: services/analytics-service/src/AnalyticsService.Api/AnalyticsService.Api.csproj
+    command: ["AnalyticsService.Api.dll"]
+
+  automation-ai-service:
+    <<: *api
+    build:
+      context: .
+      dockerfile: infra/hosting/Dockerfile.dotnet
+      args:
+        PROJECT: services/automation-ai-service/src/AutomationAiService.Api/AutomationAiService.Api.csproj
+    command: ["AutomationAiService.Api.dll"]
+
+  operations-bff:
+    <<: *api
+    build:
+      context: .
+      dockerfile: infra/hosting/Dockerfile.dotnet
+      args:
+        PROJECT: bffs/operations-bff/src/OperationsBff.Api/OperationsBff.Api.csproj
+    command: ["OperationsBff.Api.dll"]
+
+  crm-web:
+    build:
+      context: .
+      dockerfile: infra/hosting/Dockerfile.crm-web
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      CRM_PUBLIC_HOST: ${CRM_PUBLIC_HOST:?Set CRM_PUBLIC_HOST}
+    volumes:
+      - ./infra/hosting/Caddyfile:/etc/caddy/Caddyfile:ro
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      - operations-bff
+      - crm-web
+      - keycloak
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    profiles: ["tunnel"]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on:
+      - caddy
+
+volumes:
+  mongo-data:
+  rabbitmq-data:
+  postgres-data:

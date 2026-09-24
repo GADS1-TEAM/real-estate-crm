@@ -1,5 +1,7 @@
 # Publicación de las interfaces en Cloudflare Workers
 
+Para alojar el CRM con backend y datos compartidos, ver [HOSTED_CRM.md](HOSTED_CRM.md).
+
 Este repositorio contiene dos sitios Next.js independientes. Cloudflare Workers
 publica sus **exports estáticos** por separado mediante Static Assets:
 

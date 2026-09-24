@@ -34,6 +34,7 @@ namespace OperationsBff.Api.Screens;
 [ApiController]
 [Route("screens")]
 [AllowAnonymous]
+[ServiceFilter(typeof(OperationsBff.Api.Authentication.RequireSessionOutsideDevelopmentFilter))]
 public sealed class ScreensController(
     AccessServiceClient accessServiceClient,
     PlatformConfigServiceClient platformConfigServiceClient,
