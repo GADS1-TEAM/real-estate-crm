@@ -7,22 +7,34 @@ test.describe("Verificación de Login estricto, Responsables en Crear Oportunida
     const contactName = `Valentina Gómez ${suffix}`;
     const opportunityTitle = `Operación ${contactName} · Palermo`;
 
-    // 1. Iniciar sesión: Verificar rechazo de cualquier usuario o contraseña inválida
-    await page.goto("/login");
+    // 1. Verificar que sin iniciar sesión no se puede acceder a las pestañas ni páginas (/oportunidades, /inicio)
+    await page.goto("/oportunidades");
     await expect(page.getByRole("heading", { name: "Ingresá a tu instalación" })).toBeVisible();
+    await expect(page.locator(".sidebar")).toHaveCount(0);
+    await expect(page.getByText("Cuentas activas en la inmobiliaria")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Ingresar como Martín" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Ingresar a Métricas" })).toHaveCount(0);
 
-    // 1a. Usuario inexistente
+    // Verificar que Usuario y Contraseña están en 2 filas distintas
+    const userBox = await page.getByLabel("Usuario o correo electrónico").boundingBox();
+    const passBox = await page.getByLabel("Contraseña").boundingBox();
+    expect(userBox).not.toBeNull();
+    expect(passBox).not.toBeNull();
+    expect(passBox!.y).toBeGreaterThan(userBox!.y + userBox!.height);
+
+    // 1a. Usuario inexistente -> cuadro rojo sin ejemplos
     await page.getByLabel("Usuario o correo electrónico").fill("cualquier_usuario@falso.com");
     await page.getByLabel("Contraseña").fill("cualquier123");
     await page.getByRole("button", { name: "Iniciar sesión" }).click();
-    await expect(page.locator(".alert-error")).toContainText("Usuario o contraseña incorrectos");
+    await expect(page.locator(".alert-error")).toContainText("Usuario o contraseña incorrectos. Verificá tus credenciales.");
+    await expect(page.locator(".alert-error")).not.toContainText("ej.");
     await expect(page.getByRole("heading", { name: "Ingresá a tu instalación" })).toBeVisible();
 
     // 1b. Usuario Martín con contraseña incorrecta
     await page.getByLabel("Usuario o correo electrónico").fill("martin@inmobiliaria.com.ar");
     await page.getByLabel("Contraseña").fill("clave_erronea");
     await page.getByRole("button", { name: "Iniciar sesión" }).click();
-    await expect(page.locator(".alert-error")).toContainText("Usuario o contraseña incorrectos");
+    await expect(page.locator(".alert-error")).toContainText("Usuario o contraseña incorrectos. Verificá tus credenciales.");
     await expect(page.getByRole("heading", { name: "Ingresá a tu instalación" })).toBeVisible();
 
     // 1c. Credenciales válidas de Martín Quiroga
@@ -123,9 +135,15 @@ test.describe("Verificación de Login estricto, Responsables en Crear Oportunida
     await expect(page.locator(".pipeline-board")).toBeVisible();
     await expect(page.locator(".pipeline-column").nth(3)).toContainText(opportunityTitle);
 
-    // 7. Cambiar a Cuenta 2 (Rodrigo Vergara - Responsable comercial) y verificar Métricas
+    // 7. Cerrar sesión e iniciar sesión con Cuenta 2 (Rodrigo Vergara - Responsable comercial) para verificar Métricas
     await page.locator(".topbar-avatar").click();
-    await page.getByRole("button", { name: /Usar cuenta Rodrigo Vergara \(Métricas\)/i }).click();
+    await page.getByRole("button", { name: /Cambiar de cuenta \/ Iniciar sesión/i }).click();
+    await expect(page.getByRole("heading", { name: "Ingresá a tu instalación" })).toBeVisible();
+    await expect(page.locator(".sidebar")).toHaveCount(0);
+
+    await page.getByLabel("Usuario o correo electrónico").fill("rodrigo@inmobiliaria.com.ar");
+    await page.getByLabel("Contraseña").fill("rodrigo123");
+    await page.getByRole("button", { name: "Iniciar sesión" }).click();
     await expect(page.locator(".sidebar-user")).toContainText("Rodrigo Vergara");
 
     await page.goto("/metricas");
