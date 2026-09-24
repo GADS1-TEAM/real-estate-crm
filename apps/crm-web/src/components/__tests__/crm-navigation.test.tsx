@@ -161,5 +161,40 @@ describe("CRM selection and navigation", () => {
     expect(screen.getByText("Cambio de etapa guardado.")).toBeTruthy();
     expect(route.push).toHaveBeenLastCalledWith("/oportunidades?screen=OPP-04&entity=opp-1");
   });
+
+  it("changes opportunity stage forward and backward via drag and drop in OPP-01 without stage buttons", () => {
+    open("oportunidades", "OPP-01");
+    const board = document.querySelector(".pipeline-board") as HTMLElement;
+    expect(board).toBeTruthy();
+    expect(within(board).queryByRole("button", { name: /Avanzar a/i })).toBeNull();
+    expect(within(board).queryByRole("button", { name: /Cambiar etapa/i })).toBeNull();
+
+    const cardWrap = board.querySelector('[data-opportunity-id="opp-1"]') as HTMLElement;
+    const negociacionCol = board.querySelector('[data-stage="Negociación"]') as HTMLElement;
+    const contactoCol = board.querySelector('[data-stage="Contacto"]') as HTMLElement;
+    expect(cardWrap).toBeTruthy();
+
+    const dataTransfer = {
+      effectAllowed: "move",
+      dropEffect: "move",
+      setData: () => {},
+      getData: () => "opp-1",
+    };
+
+    // Drag forward to Negociación
+    fireEvent.dragStart(cardWrap, { dataTransfer });
+    fireEvent.dragOver(negociacionCol, { dataTransfer });
+    fireEvent.drop(negociacionCol, { dataTransfer });
+    expect(screen.getByText("Oportunidad avanzada a Negociación.")).toBeTruthy();
+    expect(negociacionCol.querySelector('[data-opportunity-id="opp-1"]')).toBeTruthy();
+
+    // Drag backward to Contacto
+    const updatedCardWrap = negociacionCol.querySelector('[data-opportunity-id="opp-1"]') as HTMLElement;
+    fireEvent.dragStart(updatedCardWrap, { dataTransfer });
+    fireEvent.dragOver(contactoCol, { dataTransfer });
+    fireEvent.drop(contactoCol, { dataTransfer });
+    expect(screen.getByText("Oportunidad retrocedida a Contacto.")).toBeTruthy();
+    expect(contactoCol.querySelector('[data-opportunity-id="opp-1"]')).toBeTruthy();
+  });
 });
 

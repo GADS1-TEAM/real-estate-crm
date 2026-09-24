@@ -43,7 +43,7 @@ export function CriterionEditor({ label, value, weight, onChange }: { label: str
 }
 
 export function PipelineCard({ title, sourceType, stage, owner, fee, onOpen }: { title: string; sourceType: "REQUIREMENT" | "CAPTATION_CASE"; stage: string; owner: string; fee: React.ReactNode; onOpen?: () => void }) {
-  return <Card className="pipeline-card" as="article"><div className="pipeline-card-top"><Tag tone={sourceType === "REQUIREMENT" ? "info" : "brand"}>{sourceType === "REQUIREMENT" ? "Búsqueda" : "Captación"}</Tag><Button variant="ghost" size="xsmall" icon="more" aria-label={`Más acciones para ${title}`} /></div><button className="card-link" onClick={onOpen}><strong>{title}</strong></button><span className="pipeline-card-stage">{stage}</span><div className="pipeline-card-footer"><span><AvatarMini name={owner} />{owner}</span><strong>{fee}</strong></div></Card>;
+  return <Card className="pipeline-card" as="article"><div className="pipeline-card-top"><Tag tone={sourceType === "REQUIREMENT" ? "info" : "brand"}>{sourceType === "REQUIREMENT" ? "Búsqueda" : "Captación"}</Tag><Button variant="ghost" size="xsmall" icon="more" aria-label={`Más acciones para ${title}`} onClick={onOpen} /></div><button className="card-link" onClick={onOpen}><strong>{title}</strong></button><span className="pipeline-card-stage">{stage}</span><div className="pipeline-card-footer"><span><AvatarMini name={owner} />{owner}</span><strong>{fee}</strong></div></Card>;
 }
 
 function AvatarMini({ name }: { name: string }) {
