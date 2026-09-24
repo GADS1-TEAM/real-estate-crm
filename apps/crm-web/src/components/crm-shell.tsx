@@ -13,11 +13,24 @@ export interface ShellNavItem {
   badge?: string;
 }
 
-export function CrmShell({ children, activeHref, navItems, roleName, offlineCount, onSearch, onQuickCreate, onUserMenu, userMenuOpen, userMenu }: {
+export function CrmShell({
+  children,
+  activeHref,
+  navItems,
+  roleName,
+  userName = "Martín Quiroga",
+  offlineCount,
+  onSearch,
+  onQuickCreate,
+  onUserMenu,
+  userMenuOpen,
+  userMenu,
+}: {
   children: ReactNode;
   activeHref: string;
   navItems: ShellNavItem[];
   roleName: string;
+  userName?: string;
   offlineCount: number;
   onSearch: () => void;
   onQuickCreate: () => void;
@@ -39,7 +52,7 @@ export function CrmShell({ children, activeHref, navItems, roleName, offlineCoun
       <nav className="sidebar-nav">
         {navItems.map((item) => item.disabled ? <div className="nav-item nav-disabled" aria-disabled="true" aria-description={item.disabledReason ?? "Capacidad diferida para una fase posterior"} title={item.disabledReason ?? "Capacidad diferida para una fase posterior"} key={item.label}><Icon name={item.icon} size={18} /><span>{item.label}</span>{item.badge && <span className="nav-badge">{item.badge}</span>}</div> : <Link className={`nav-item ${activeHref === item.href ? "is-active" : ""}`} href={item.href} key={item.label} onClick={() => setMobileNavOpen(false)}><Icon name={item.icon} size={18} /><span>{item.label}</span>{item.badge && <span className="nav-badge">{item.badge}</span>}</Link>)}
       </nav>
-      <div className="sidebar-bottom"><button className="nav-item nav-button" onClick={() => { setMobileNavOpen(false); onQuickCreate(); }}><Icon name="plus" size={18} /><span>Crear rápido</span><kbd>⌘ K</kbd></button><div className="sidebar-user"><Avatar name="Martín Quiroga" size="small" /><div><strong>Martín Quiroga</strong><span>{roleName}</span></div><button aria-label="Abrir menú de usuario" className="user-more" onClick={() => { setMobileNavOpen(false); onUserMenu(); }}><Icon name="more" size={16} /></button></div></div>
+      <div className="sidebar-bottom"><button className="nav-item nav-button" onClick={() => { setMobileNavOpen(false); onQuickCreate(); }}><Icon name="plus" size={18} /><span>Crear rápido</span><kbd>⌘ K</kbd></button><div className="sidebar-user"><Avatar name={userName} size="small" /><div><strong>{userName}</strong><span>{roleName}</span></div><button aria-label="Abrir menú de usuario" className="user-more" onClick={() => { setMobileNavOpen(false); onUserMenu(); }}><Icon name="more" size={16} /></button></div></div>
     </aside>
     <div className="main-column">
       <header className="topbar">
@@ -49,7 +62,7 @@ export function CrmShell({ children, activeHref, navItems, roleName, offlineCoun
           <strong>brick/eminent</strong>
         </div>
         <button className="global-search-trigger" onClick={onSearch}><Icon name="search" size={17} /><span>Buscar en toda la instalación</span><kbd>Ctrl K</kbd></button>
-        <div className="topbar-actions"><button className="topbar-icon" aria-label="Abrir ayuda" title="Ayuda"><Icon name="info" size={18} /></button>{offlineCount > 0 && <Chip tone="warning" dot>{offlineCount} pendiente{offlineCount > 1 ? "s" : ""}</Chip>}<button className="topbar-avatar" aria-label="Abrir menú de usuario" onClick={onUserMenu}><Avatar name="Martín Quiroga" size="small" /></button></div>
+        <div className="topbar-actions"><button className="topbar-icon" aria-label="Abrir ayuda" title="Ayuda"><Icon name="info" size={18} /></button>{offlineCount > 0 && <Chip tone="warning" dot>{offlineCount} pendiente{offlineCount > 1 ? "s" : ""}</Chip>}<button className="topbar-avatar" aria-label="Abrir menú de usuario" onClick={onUserMenu}><Avatar name={userName} size="small" /></button></div>
         {userMenuOpen && userMenu}
       </header>
       <main className="main-content">{children}</main>
@@ -58,6 +71,44 @@ export function CrmShell({ children, activeHref, navItems, roleName, offlineCoun
   </div>;
 }
 
-export function UserMenu({ roleName, onClose, onPermission }: { roleName: string; onClose: () => void; onPermission: () => void }) {
-  return <div className="user-menu" role="menu"><div className="user-menu-head"><Avatar name="Martín Quiroga" /><div><strong>Martín Quiroga</strong><span>martin@inmobiliaria.com.ar</span></div></div><div className="user-role-line"><span>Rol efectivo</span><Chip tone="info">{roleName}</Chip></div><button className="user-menu-item" onClick={onPermission}><Icon name="lock" size={16} /><span>Ver permisos efectivos</span></button><button className="user-menu-item" onClick={onClose}><Icon name="logout" size={16} /><span>Cerrar menú</span></button><small className="user-menu-note">Acceso personalizado según tu rol.</small></div>;
+export function UserMenu({
+  roleName,
+  userName = "Martín Quiroga",
+  userEmail = "martin@inmobiliaria.com.ar",
+  onClose,
+  onPermission,
+  onSwitchAccount,
+  onLoginScreen,
+}: {
+  roleName: string;
+  userName?: string;
+  userEmail?: string;
+  onClose: () => void;
+  onPermission: () => void;
+  onSwitchAccount?: (roleId: "vendedor" | "responsable") => void;
+  onLoginScreen?: () => void;
+}) {
+  const isResponsable = roleName.toLowerCase().includes("responsable");
+  return <div className="user-menu" role="menu">
+    <div className="user-menu-head">
+      <Avatar name={userName} />
+      <div>
+        <strong>{userName}</strong>
+        <span>{userEmail}</span>
+      </div>
+    </div>
+    <div className="user-role-line"><span>Rol efectivo</span><Chip tone="info">{roleName}</Chip></div>
+    {onSwitchAccount && (
+      <button className="user-menu-item" onClick={() => onSwitchAccount(isResponsable ? "vendedor" : "responsable")}>
+        <Icon name="users" size={16} />
+        <span>{isResponsable ? "Usar cuenta Martín Quiroga (Vendedor)" : "Usar cuenta Rodrigo Vergara (Métricas)"}</span>
+      </button>
+    )}
+    <button className="user-menu-item" onClick={onPermission}><Icon name="lock" size={16} /><span>Ver permisos efectivos</span></button>
+    {onLoginScreen && (
+      <button className="user-menu-item" onClick={onLoginScreen}><Icon name="logout" size={16} /><span>Cambiar de cuenta / Iniciar sesión</span></button>
+    )}
+    <button className="user-menu-item" onClick={onClose}><Icon name="close" size={16} /><span>Cerrar menú</span></button>
+    <small className="user-menu-note">Acceso personalizado según tu rol.</small>
+  </div>;
 }

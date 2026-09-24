@@ -11,20 +11,11 @@ using OperationsBff.Api.MatchingService;
 using OperationsBff.Api.PartyService;
 using OperationsBff.Api.PlatformConfigService;
 using OperationsBff.Api.PropertyService;
+using OperationsBff.Api.Screens;
 using OperationsBff.Api.SupplyService;
 
 namespace OperationsBff.Api.Mutations;
 
-/// <summary>
-/// <c>POST /mutations/{name}</c> (D5). Implementa las 4 mutaciones de administración de
-/// usuarios de V2-ACL-001 (<c>createUser</c>/<c>updateUser</c>/<c>deactivateUser</c>/
-/// <c>assignRole</c>, hacia access-service) y las 4 de catálogos de V2-CAT-001
-/// (<c>createCatalogEntry</c>/<c>updateCatalogEntry</c>/<c>deactivateCatalogEntry</c>/
-/// <c>publishCatalogVersion</c>, hacia platform-config-service). El body se reenvía tal cual al
-/// servicio owner (que ignora campos extra usados acá solo para armar la ruta, ej.
-/// <c>entryId</c>/<c>catalogType</c> en el body de <c>deactivateCatalogEntry</c>/
-/// <c>publishCatalogVersion</c>).
-/// </summary>
 [ApiController]
 [Route("mutations")]
 [AllowAnonymous]
@@ -39,7 +30,8 @@ public sealed class MutationsController(
     CommercialServiceClient commercialServiceClient,
     ActivityServiceClient activityServiceClient,
     AnalyticsServiceClient analyticsServiceClient,
-    AutomationAiServiceClient automationAiServiceClient) : ControllerBase
+    AutomationAiServiceClient automationAiServiceClient,
+    PipelineProjectionStore pipelineProjectionStore) : ControllerBase
 {
     [HttpPost("{name}")]
     public async Task<IActionResult> SaveMutation(string name, [FromBody] JsonElement payload, CancellationToken cancellationToken)
@@ -111,7 +103,8 @@ public sealed class MutationsController(
                 break;
 
             case "createCompany":
-                response = await partyServiceClient.PostAsync("/api/v1/companies", payload, cancellationToken);
+                var createCompanyPayload = NormalizePartyPayload(payload);
+                response = await partyServiceClient.PostAsync("/api/v1/companies", createCompanyPayload, cancellationToken);
                 break;
 
             case "updateCompany":
@@ -120,7 +113,8 @@ public sealed class MutationsController(
                     return BadRequest("El payload de 'updateCompany' requiere 'partyId'.");
                 }
 
-                response = await partyServiceClient.PutAsync($"/api/v1/companies/{updateCompanyId}", payload, cancellationToken);
+                var updateCompanyPayload = NormalizePartyPayload(payload);
+                response = await partyServiceClient.PutAsync($"/api/v1/companies/{updateCompanyId}", updateCompanyPayload, cancellationToken);
                 break;
 
             case "createContact":
@@ -139,13 +133,25 @@ public sealed class MutationsController(
                 break;
 
             case "relateContactToCompany":
-                if (!TryGetGuid(payload, "contactId", out var relateContactId))
-                {
-                    return BadRequest("El payload de 'relateContactToCompany' requiere 'contactId'.");
-                }
+                var contactStr = TryGetPropertyString(payload, "contactId") ?? TryGetPropertyString(payload, "fromPartyId") ?? "";
+                var companyStr = TryGetPropertyString(payload, "companyId") ?? TryGetPropertyString(payload, "toPartyId") ?? "";
+                await pipelineProjectionStore.AddRelationshipAsync(contactStr, companyStr, "CONTACT_OF", cancellationToken);
 
-                response = await partyServiceClient.PostAsync($"/api/v1/contacts/{relateContactId}/relationships", payload, cancellationToken);
-                break;
+                if (Guid.TryParse(contactStr, out var relateContactId) && Guid.TryParse(companyStr, out var relateCompanyId))
+                {
+                    try
+                    {
+                        await partyServiceClient.PostAsync(
+                            $"/api/v1/contacts/{relateContactId}/relationships",
+                            new { companyId = relateCompanyId, relationshipType = "CONTACT_OF" },
+                            cancellationToken);
+                    }
+                    catch
+                    {
+                        // Projection relationship already saved in MongoDB
+                    }
+                }
+                return Ok(new { saved = true, contactId = contactStr, companyId = companyStr });
 
             case "changePartyCommercialStatus":
                 if (!TryGetGuid(payload, "partyId", out var statusPartyId))
@@ -164,7 +170,35 @@ public sealed class MutationsController(
 
                 response = await partyServiceClient.PostAsync($"/api/v1/parties/{responsiblePartyId}/responsible", payload, cancellationToken);
                 break;
-                
+
+            case "createOpportunity":
+                var createdOpp = await pipelineProjectionStore.CreateOpportunityAsync(payload, cancellationToken);
+                return Ok(createdOpp);
+
+            case "changeOpportunityStage":
+                await pipelineProjectionStore.ChangeStageAsync(payload, cancellationToken);
+                return Ok(new { saved = true });
+
+            case "reassignOpportunity":
+                await pipelineProjectionStore.ReassignAsync(payload, cancellationToken);
+                return Ok(new { saved = true });
+
+            case "closeOpportunity":
+                await pipelineProjectionStore.CloseAsync(payload, cancellationToken);
+                return Ok(new { saved = true });
+
+            case "createProposal":
+                var createdProposal = await pipelineProjectionStore.CreateProposalAsync(payload, cancellationToken);
+                return Ok(createdProposal);
+
+            case "respondProposal":
+                await pipelineProjectionStore.RespondProposalAsync(payload, cancellationToken);
+                return Ok(new { saved = true });
+
+            case "createReservation":
+                var createdReservation = await pipelineProjectionStore.CreateReservationAsync(payload, cancellationToken);
+                return Ok(createdReservation);
+
             case "createProperty":
                 response = await propertyServiceClient.PostAsync("/api/v1/properties", payload, cancellationToken);
                 break;

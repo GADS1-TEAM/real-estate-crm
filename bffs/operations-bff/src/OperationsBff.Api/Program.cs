@@ -9,6 +9,7 @@ using OperationsBff.Api.MatchingService;
 using OperationsBff.Api.PartyService;
 using OperationsBff.Api.PlatformConfigService;
 using OperationsBff.Api.PropertyService;
+using OperationsBff.Api.Screens;
 using OperationsBff.Api.SupplyService;
 using RealEstateCrm.BuildingBlocks.Infrastructure.Authentication;
 using RealEstateCrm.BuildingBlocks.Infrastructure.HealthChecks;
@@ -37,6 +38,7 @@ builder.Services.AddProblemDetails();
 // V2-FND-002). El front nunca ve el access token.
 builder.Services.AddKeycloakOpenIdConnectCookieAuthentication(builder.Configuration);
 builder.Services.AddAuthorization();
+builder.Services.AddSingleton<PipelineProjectionStore>();
 
 // Token relay (D6): el BFF reenvía el access token de la sesión como Bearer a access-service.
 var accessServiceBaseUrl = builder.Configuration["AccessService:BaseUrl"]

@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const port = Number(process.env.CRM_WEB_PORT ?? 3000);
-const baseURL = `http://127.0.0.1:${port}`;
+const baseURL = `http://localhost:${port}`;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -10,8 +10,8 @@ export default defineConfig({
     trace: "off",
   },
   webServer: {
-    command: `${process.platform === "win32" ? "npm.cmd" : "npm"} run dev:preview -- --port ${port}`,
-    url: baseURL,
+    command: `${process.platform === "win32" ? "npm.cmd" : "npm"} run dev -- --port ${port}`,
+    url: `${baseURL}/inicio`,
     reuseExistingServer: true,
     timeout: 120_000,
     env: {
