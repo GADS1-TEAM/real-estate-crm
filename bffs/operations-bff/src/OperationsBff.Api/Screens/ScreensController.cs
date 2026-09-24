@@ -212,10 +212,10 @@ public sealed class ScreensController(
         {
             new { id = "captation-1", propertyId = "PROP-101", owner = "Lucía Ferrari", stage = "Mandato", expectation = 245000, valuation = (decimal?)235000, currency = "USD", origin = "Referido" },
             new { id = "captation-2", propertyId = "PROP-102", owner = "Lucía Ferrari", stage = "Tasación", expectation = 410000, valuation = (decimal?)null, currency = "USD", origin = "Carga manual" },
-            new { id = "cap-101", propertyId = "PROP-101", owner = "Martín Quiroga", stage = "Nueva", expectation = 180000, valuation = (decimal?)175000, currency = "USD", origin = "Portal inmobiliario" },
-            new { id = "cap-102", propertyId = "PROP-102", owner = "Lucía Ferrari", stage = "Tasación", expectation = 550000, valuation = (decimal?)540000, currency = "USD", origin = "Portal inmobiliario" },
-            new { id = "cap-103", propertyId = "PROP-103", owner = "Rodrigo Vergara", stage = "Mandato", expectation = 2800, valuation = (decimal?)2500, currency = "USD", origin = "Referido" },
-            new { id = "cap-104", propertyId = "PROP-104", owner = "Martín Quiroga", stage = "Publicada", expectation = 950000, valuation = (decimal?)920000, currency = "USD", origin = "Carga manual" }
+            new { id = "cap-103", propertyId = "PROP-103", owner = "Rodrigo Vergara", stage = "Mandato", expectation = 280000, valuation = (decimal?)265000, currency = "USD", origin = "Referido" },
+            new { id = "cap-104", propertyId = "PROP-104", owner = "Martín Quiroga", stage = "Publicada", expectation = 950000, valuation = (decimal?)920000, currency = "USD", origin = "Carga manual" },
+            new { id = "cap-105", propertyId = "PROP-105", owner = "Martín Quiroga", stage = "Tasación", expectation = 195000, valuation = (decimal?)188000, currency = "USD", origin = "Portal inmobiliario" },
+            new { id = "cap-106", propertyId = "PROP-106", owner = "Lucía Ferrari", stage = "Mandato", expectation = 165000, valuation = (decimal?)160000, currency = "USD", origin = "Referido" }
         };
     }
 
@@ -294,10 +294,12 @@ public sealed class ScreensController(
                         var status = identityStatus == "INACTIVE" ? "Archivado" : "Activo";
                         var owner = kind == "Empresa" ? "Sofía Rendón" : "Martín Quiroga";
                         var origin = TryGetStringProperty(item, "originCode") ?? "Carga manual";
+                        var updatedAt = TryGetStringProperty(item, "updatedAt") ?? TryGetStringProperty(item, "createdAt") ?? "";
 
-                        return new { id, name, kind, phone, email, status, owner, commercialStatus, identityStatus, origin };
+                        return new { id, name, kind, phone, email, status, owner, commercialStatus, identityStatus, origin, updatedAt };
                     })
                     .Where(x => !string.Equals(x.name, "asd", StringComparison.OrdinalIgnoreCase) && !string.Equals(x.name, "ramiro", StringComparison.OrdinalIgnoreCase))
+                    .OrderByDescending(x => x.updatedAt)
                     .ToList();
 
                 var docs = JsonSerializer.SerializeToDocument(transformed);
@@ -307,6 +309,65 @@ public sealed class ScreensController(
         catch { }
 
         return JsonDocument.Parse("[]").RootElement;
+    }
+
+    private static (string Title, string Address, string TypeLabel) ResolvePropertyDisplay(string id, string? rawTitle, string? rawType, JsonElement item)
+    {
+        var typeLabel = (rawType ?? "").ToUpperInvariant() switch
+        {
+            "APARTMENT" or "DEPARTAMENTO" => "Departamento",
+            "HOUSE" or "CASA" => "Casa",
+            "PH" => "PH",
+            "COMMERCIAL" or "LOCAL" or "OFFICE" => "Local comercial",
+            "LAND" or "TERRENO" => "Lote / Terreno",
+            _ => string.IsNullOrWhiteSpace(rawType) ? "Departamento" : rawType
+        };
+
+        string? street = TryGetStringProperty(item, "addressStreet");
+        string? number = TryGetStringProperty(item, "addressNumber");
+        string? neighborhood = TryGetStringProperty(item, "neighborhood");
+        string? locality = TryGetStringProperty(item, "locality");
+
+        if (item.TryGetProperty("location", out var loc) && loc.ValueKind == JsonValueKind.Object)
+        {
+            street ??= TryGetStringProperty(loc, "street");
+            number ??= TryGetStringProperty(loc, "streetNumber");
+            neighborhood ??= TryGetStringProperty(loc, "neighborhood");
+            locality ??= TryGetStringProperty(loc, "locality");
+        }
+
+        var knownById = id switch
+        {
+            "PROP-101" => ("Departamento en Gorriti 4800 · Palermo Soho", "Gorriti 4800, Palermo Soho"),
+            "PROP-102" => ("Casa en Av. del Libertador 16200 · San Isidro", "Av. del Libertador 16200, Las Lomas"),
+            "PROP-103" => ("Oficina en Av. Leandro N. Alem 850 · Retiro", "Av. Leandro N. Alem 850, Retiro"),
+            "PROP-104" => ("Departamento en Juana Manso 1100 · Puerto Madero", "Juana Manso 1100, Puerto Madero"),
+            "PROP-105" => ("Local comercial en Zapiola 2100 · Belgrano R", "Zapiola 2100, Belgrano R"),
+            "PROP-106" => ("Departamento en Av. Las Heras 2300 · Recoleta", "Av. Las Heras 2300, Recoleta"),
+            "PROP-107" => ("Lote en Av. de los Lagos 500 · Nordelta", "Av. de los Lagos 500, Nordelta"),
+            "PROP-108" => ("Casa en Maipú 1400 · Olivos", "Maipú 1400, Olivos"),
+            "PROP-109" => ("Departamento en Av. Pedro Goyena 900 · Caballito", "Av. Pedro Goyena 900, Caballito"),
+            "PROP-110" => ("Casa en Triunvirato 4500 · Villa Urquiza", "Triunvirato 4500, Villa Urquiza"),
+            _ => ((string?)null, (string?)null)
+        };
+
+        var streetPart = !string.IsNullOrWhiteSpace(street) ? $"{street} {number}".Trim() : null;
+        var zonePart = !string.IsNullOrWhiteSpace(neighborhood) ? neighborhood : locality;
+        var builtAddress = streetPart is not null && zonePart is not null
+            ? $"{streetPart}, {zonePart}"
+            : streetPart ?? knownById.Item2 ?? TryGetStringProperty(item, "address") ?? zonePart ?? "Capital Federal";
+
+        var hasCustomTitle = !string.IsNullOrWhiteSpace(rawTitle) && !string.Equals(rawTitle, "Inmueble", StringComparison.OrdinalIgnoreCase);
+        var builtTitle = hasCustomTitle
+            ? rawTitle!
+            : knownById.Item1
+              ?? (streetPart is not null && zonePart is not null
+                  ? $"{typeLabel} en {streetPart} · {zonePart}"
+                  : streetPart is not null
+                      ? $"{typeLabel} en {streetPart}"
+                      : $"{typeLabel} en {zonePart ?? "Capital Federal"} ({id})");
+
+        return (builtTitle, builtAddress, typeLabel);
     }
 
     private async Task<JsonElement> SafeFetchPropertiesAsync(CancellationToken cancellationToken)
@@ -327,20 +388,9 @@ public sealed class ScreensController(
                 var transformed = items.Select(item =>
                 {
                     var id = TryGetStringProperty(item, "propertyId") ?? TryGetStringProperty(item, "id") ?? Guid.NewGuid().ToString();
-                    var title = TryGetStringProperty(item, "title") ?? "Inmueble";
-
-                    string address = "Capital Federal";
-                    if (item.TryGetProperty("addressStreet", out var street))
-                    {
-                        var num = TryGetStringProperty(item, "addressNumber") ?? "";
-                        address = $"{street.GetString()} {num}".Trim();
-                    }
-                    else
-                    {
-                        address = TryGetStringProperty(item, "address") ?? "Capital Federal";
-                    }
-
-                    var type = TryGetStringProperty(item, "propertyTypeCode") ?? TryGetStringProperty(item, "type") ?? "Departamento";
+                    var rawTitle = TryGetStringProperty(item, "title");
+                    var rawType = TryGetStringProperty(item, "propertyTypeCode") ?? TryGetStringProperty(item, "type");
+                    var (title, address, type) = ResolvePropertyDisplay(id, rawTitle, rawType, item);
                     var bedrooms = item.TryGetProperty("bedrooms", out var b) ? b.ToString() : "3";
 
                     decimal price = 0;

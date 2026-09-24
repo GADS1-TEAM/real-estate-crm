@@ -2308,7 +2308,30 @@ function OpportunityForm({ state, roleId, onToast, onNavigate, dispatch }: {
     const [owner, setOwner] = useState(roleId === "responsable" ? "Rodrigo Vergara" : "Martín Quiroga");
     const [origin, setOrigin] = useState("Carga manual");
     const [fee, setFee] = useState("350000");
-    const sourceOptions = sourceType === "REQUIREMENT" ? state.demands.map((demand) => ({ id: demand.id, title: demand.title })) : state.captations.map((captation) => ({ id: captation.id, title: state.properties.find((property) => property.id === captation.propertyId)?.title ?? captation.id }));
+    const sourceOptions = useMemo(() => {
+        if (sourceType === "REQUIREMENT") {
+            return state.demands.map((demand) => ({ id: demand.id, title: demand.title }));
+        }
+        const seenProps = new Set<string>();
+        const captationItems = state.captations.map((captation) => {
+            const prop = state.properties.find((property) => property.id === captation.propertyId);
+            seenProps.add(captation.propertyId);
+            const propTitle = prop && prop.title.toLowerCase() !== "inmueble"
+                ? prop.title
+                : (prop?.address && prop.address !== "Capital Federal" ? `${prop.type} en ${prop.address}` : `Captación ${captation.propertyId}`);
+            return {
+                id: captation.id,
+                title: `${propTitle} (${captation.stage} · ${captation.owner})`
+            };
+        });
+        const extraPropertyItems = state.properties
+            .filter((property) => !seenProps.has(property.id))
+            .map((property) => ({
+                id: property.id,
+                title: `${property.title.toLowerCase() !== "inmueble" ? property.title : `${property.type} en ${property.address}`} (Disponible)`
+            }));
+        return [...captationItems, ...extraPropertyItems];
+    }, [sourceType, state.demands, state.captations, state.properties]);
     const originOptions = state.catalogEntries.filter((entry) => entry.catalogType === "origin" && entry.status === "Activo");
     const save = () => {
         const selectedParty = state.contacts.find((contact) => contact.id === partyId);

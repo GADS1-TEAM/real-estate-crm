@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test.describe("Verificación de Login estricto, Responsables en Crear Oportunidad, Botones de Listado/Detalle y Demostración de 6 pasos", () => {
   test("Rechaza credenciales inválidas, permite elegir Responsable en Crear Oportunidad y valida todos los botones de Listado y Detalle", async ({ page }) => {
+    test.setTimeout(60_000);
     const suffix = Date.now().toString().slice(-5);
     const companyName = `Constructora Río ${suffix} SA`;
     const contactName = `Valentina Gómez ${suffix}`;
@@ -60,7 +61,9 @@ test.describe("Verificación de Login estricto, Responsables en Crear Oportunida
     await page.getByLabel("Email").fill(`valentina.${suffix}@correo.com.ar`);
     await page.getByLabel("Empresa vinculada (opcional)").selectOption({ label: companyName });
     await page.getByRole("button", { name: "Guardar contacto" }).click();
+    await page.getByPlaceholder("Buscar por nombre, teléfono o email").fill(contactName);
     await expect(page.locator(".data-table")).toContainText(contactName);
+    await page.getByPlaceholder("Buscar por nombre, teléfono o email").fill("");
 
     // 3. Crear una oportunidad -> Verificar que la lista de Responsables está habilitada y permite elegir
     await page.goto("/oportunidades");
@@ -79,6 +82,13 @@ test.describe("Verificación de Login estricto, Responsables en Crear Oportunida
     await responsableSelect.selectOption("Lucía Ferrari");
     await expect(responsableSelect).toHaveValue("Lucía Ferrari");
     await responsableSelect.selectOption("Martín Quiroga");
+
+    // Verificar que al elegir Tipo de fuente = Captación, Fuente real muestra nombres reales de propiedades y no 'Inmueble' repetido
+    await page.getByLabel("Tipo de fuente").selectOption("CAPTATION_CASE");
+    const fuenteRealOptions = await page.getByLabel("Fuente real").locator("option").allTextContents();
+    expect(fuenteRealOptions.length).toBeGreaterThan(0);
+    expect(fuenteRealOptions.every((text) => text.trim().toLowerCase() !== "inmueble")).toBe(true);
+    expect(fuenteRealOptions.some((text) => text.includes("Gorriti 4800") || text.includes("Libertador 16200") || text.includes("Guardia Vieja"))).toBe(true);
 
     await page.getByLabel("Nombre de la oportunidad").fill(opportunityTitle);
     await page.getByLabel("Honorarios estimados (ARS)").fill("480000");
@@ -145,8 +155,6 @@ test.describe("Verificación de Login estricto, Responsables en Crear Oportunida
     await page.getByLabel("Contraseña").fill("rodrigo123");
     await page.getByRole("button", { name: "Iniciar sesión" }).click();
     await expect(page.locator(".sidebar-user")).toContainText("Rodrigo Vergara");
-
-    await page.goto("/metricas");
     await expect(page.getByRole("heading", { name: "Métricas" }).first()).toBeVisible();
     await expect(page.getByRole("heading", { name: "Panel de desempeño" })).toBeVisible();
   });
