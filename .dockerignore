@@ -1,0 +1,13 @@
+.git
+**/bin
+**/obj
+**/node_modules
+**/.next
+**/out
+**/coverage
+**/test-results
+.env
+.env.*
+!.env.example
+!.env.hosted.example
+infra/hosting/generated

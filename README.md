@@ -1,5 +1,8 @@
 # CRM Inmobiliarias — Modelo de Dominio V1
 
+Las interfaces navegables del CRM y Platform Admin se pueden publicar en Cloudflare
+Workers en modo demo/revisión. Ver [guía de despliegue](docs/CLOUDFLARE.md).
+
 > **Estado:** Draft de arquitectura de dominio para iteración  
 > **Mercado inicial:** Argentina  
 > **Persistencia de referencia:** MongoDB  

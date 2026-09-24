@@ -79,7 +79,8 @@ builder.Services.AddAuthorizationHttpClients(builder.Configuration);
 
 builder.Services.AddPlatformConfigServiceInfrastructure();
 
-if (builder.Environment.IsDevelopment())
+// El bootstrap alojado es explícito e idempotente; no depende de ejecutar el API en Development.
+if (builder.Environment.IsDevelopment() || builder.Configuration.GetValue<bool>("Bootstrap:SeedInitialData"))
 {
     builder.Services.AddPlatformConfigServiceDevSeed();
 }

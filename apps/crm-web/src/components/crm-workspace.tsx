@@ -347,15 +347,17 @@ function BffUnavailableState({ error, onRetry }: {
     onRetry?: () => void;
 }) {
     const notConfigured = !error || error === "CRM_BFF_NOT_CONFIGURED";
+    const needsLogin = error === "CRM_BFF_401";
     return <Card className="blocking-state">
 <div className="blocking-icon">
 <Icon name="database" size={28}/>
 </div>
 <div>
 <span className="eyebrow">Fuente de datos</span>
-<h2>{notConfigured ? "Conexión pendiente" : "No pudimos cargar la información"}</h2>
-<p>{notConfigured ? "La conexión de datos todavía no está configurada para esta instalación." : "Se produjo un problema al consultar la información. Revisá la conexión y volvé a intentar."}</p>
+<h2>{needsLogin ? "Iniciá sesión" : notConfigured ? "Conexión pendiente" : "No pudimos cargar la información"}</h2>
+<p>{needsLogin ? "Ingresá para consultar los datos compartidos de la inmobiliaria." : notConfigured ? "La conexión de datos todavía no está configurada para esta instalación." : "Se produjo un problema al consultar la información. Revisá la conexión y volvé a intentar."}</p>
 <Alert tone="info" title="Datos no disponibles">La interfaz sigue disponible y va a mostrar la información cuando la conexión esté lista.</Alert>{onRetry && <div className="state-actions">
+{needsLogin && <Button onClick={() => { window.location.href = `/api/v1/auth/login?returnUrl=${encodeURIComponent(window.location.pathname + window.location.search)}`; }}>Ingresar</Button>}
 <Button variant="outline" icon="refresh" onClick={onRetry}>Reintentar</Button>
 </div>}</div>
 </Card>;

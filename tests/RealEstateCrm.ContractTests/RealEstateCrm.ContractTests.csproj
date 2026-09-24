@@ -19,6 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\bffs\operations-bff\src\OperationsBff.Api\OperationsBff.Api.csproj" />
     <ProjectReference Include="..\..\contracts\RealEstateCrm.Contracts\RealEstateCrm.Contracts.csproj" />
     <ProjectReference Include="..\..\building-blocks\RealEstateCrm.BuildingBlocks\RealEstateCrm.BuildingBlocks.csproj" />
     <ProjectReference Include="..\RealEstateCrm.TestSupport\RealEstateCrm.TestSupport.csproj" />

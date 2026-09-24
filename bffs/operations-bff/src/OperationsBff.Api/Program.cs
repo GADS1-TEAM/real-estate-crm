@@ -1,4 +1,5 @@
 using OperationsBff.Api.AccessService;
+using OperationsBff.Api.Authentication;
 using OperationsBff.Api.ActivityService;
 using OperationsBff.Api.AnalyticsService;
 using OperationsBff.Api.AutomationAiService;
@@ -16,6 +17,8 @@ using RealEstateCrm.BuildingBlocks.Infrastructure.Observability;
 using RealEstateCrm.Contracts.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddScoped<RequireSessionOutsideDevelopmentFilter>();
 
 builder.Services
     .AddControllers()

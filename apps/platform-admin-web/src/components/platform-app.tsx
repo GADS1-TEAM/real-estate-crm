@@ -28,6 +28,11 @@ export function PlatformApp({ initialScreenId }: { initialScreenId?: string }) {
   const [bffCorrelationId, setBffCorrelationId] = useState<string | null>(null);
 
   useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get("screen");
+    if (requested && getScreenById(requested)) setScreenId(requested);
+  }, []);
+
+  useEffect(() => {
     if (mode !== "review") return;
     const stored = readReviewState(window.localStorage);
     if (stored) dispatch({ type: "state/hydrate", state: stored });

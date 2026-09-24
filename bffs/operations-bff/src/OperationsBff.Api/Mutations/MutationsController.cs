@@ -28,6 +28,7 @@ namespace OperationsBff.Api.Mutations;
 [ApiController]
 [Route("mutations")]
 [AllowAnonymous]
+[ServiceFilter(typeof(OperationsBff.Api.Authentication.RequireSessionOutsideDevelopmentFilter))]
 public sealed class MutationsController(
     AccessServiceClient accessServiceClient,
     PlatformConfigServiceClient platformConfigServiceClient,

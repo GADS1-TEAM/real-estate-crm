@@ -1,15 +1,18 @@
 import { PlatformApp } from "@/components/platform-app";
-import { getScreenByRoute } from "@/lib/screen-registry";
+import { getScreenByRoute, screenRegistry } from "@/lib/screen-registry";
 
 type PageProps = {
   params: Promise<{ segments?: string[] }>;
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export default async function ProductPage({ params, searchParams }: PageProps) {
-  const [{ segments }, query] = await Promise.all([params, searchParams]);
+export function generateStaticParams() {
+  return [...new Set(screenRegistry.map((screen) => screen.route))]
+    .map((route) => ({ segments: route === "/" ? [] : route.slice(1).split("/") }));
+}
+
+export default async function ProductPage({ params }: PageProps) {
+  const { segments } = await params;
   const path = `/${(segments ?? []).join("/")}` || "/";
-  const explicitScreen = typeof query.screen === "string" ? query.screen : undefined;
   const routeScreen = getScreenByRoute(path);
-  return <PlatformApp initialScreenId={explicitScreen ?? routeScreen?.id ?? "PA-001"} />;
+  return <PlatformApp initialScreenId={routeScreen?.id ?? "PA-001"} />;
 }
