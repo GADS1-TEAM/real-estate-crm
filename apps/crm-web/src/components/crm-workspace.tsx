@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { CrmShell, UserMenu, type ShellNavItem } from "@/components/crm-shell";
 import { Alert, Avatar, Button, Card, Chip, Drawer, EmptyState, Field, Icon, Modal, Pagination, SelectField, Skeleton, StatusDot, Tabs, Tag, TextAreaField, Toast, } from "@/components/ui/primitives";
 import { AISuggestion, CriterionEditor, CurrencyAmount, MatchScoreExplanation, PipelineCard, PropertyPlaceholder, UnknownIndicator, type CriterionEvidence } from "@/components/domain/domain-components";
-import { crmCatalogFamilies, DemoStoreProvider, getAnalyticsSnapshot, useDemoStore, type AnalyticsFilters, type AnalyticsMetricValue, type CatalogFamily, type DemoAction, type DemoActivity, type DemoDemand, type DemoListing, normalizeDemoState, type DemoState, type OpportunityStage, } from "@/lib/demo-store";
+import { crmCatalogFamilies, demoReducer, DemoStoreProvider, getAnalyticsSnapshot, useDemoStore, type AnalyticsFilters, type AnalyticsMetricValue, type CatalogFamily, type DemoAction, type DemoActivity, type DemoDemand, type DemoListing, normalizeDemoState, type DemoState, type OpportunityStage, } from "@/lib/demo-store";
 import { createCrmDataSource, type CrmDataSource } from "@/lib/data-source";
 import { crmPersonas, getRole, hasPermission, permissionLabel, permissionReason, type Permission, type RoleId } from "@/lib/permissions";
 import { getScreenById, screenRegistry, type ScreenDefinition } from "@/lib/screen-registry";
@@ -115,44 +115,44 @@ export function CrmApp({ initialSection, catalogOnly = false }: {
 <CrmWorkspace initialSection={initialSection} catalogOnly={catalogOnly}/>
 </DemoStoreProvider>;
 }
-function saveActionMutation(dataSource: CrmDataSource, action: DemoAction) {
+async function saveActionMutation(dataSource: CrmDataSource, action: DemoAction): Promise<void> {
     try {
         switch (action.type) {
             case "contact/create":
-                dataSource.saveMutation("createContact", action.item);
+                await dataSource.saveMutation("createContact", action.item);
                 break;
             case "contact/update":
-                dataSource.saveMutation("updateContact", { partyId: action.id, ...action.changes });
+                await dataSource.saveMutation("updateContact", { partyId: action.id, ...action.changes });
                 break;
             case "party/relate":
-                dataSource.saveMutation("relateContactToCompany", action);
+                await dataSource.saveMutation("relateContactToCompany", action);
                 break;
             case "property/create":
-                dataSource.saveMutation("createProperty", action.item);
+                await dataSource.saveMutation("createProperty", action.item);
                 break;
             case "property/update":
-                dataSource.saveMutation("updateProperty", { propertyId: action.id, ...action.changes });
+                await dataSource.saveMutation("updateProperty", { propertyId: action.id, ...action.changes });
                 break;
             case "listing/create":
-                dataSource.saveMutation("createListing", action.item);
+                await dataSource.saveMutation("createListing", action.item);
                 break;
             case "listing/update":
-                dataSource.saveMutation("updateListing", { listingId: action.id, ...action.changes });
+                await dataSource.saveMutation("updateListing", { listingId: action.id, ...action.changes });
                 break;
             case "demand/create":
-                dataSource.saveMutation("createRequirement", action.item);
+                await dataSource.saveMutation("createRequirement", action.item);
                 break;
             case "activity/add":
-                dataSource.saveMutation("recordActivity", action.item);
+                await dataSource.saveMutation("recordActivity", action.item);
                 break;
             case "user/invite":
-                dataSource.saveMutation("createUser", action.item);
+                await dataSource.saveMutation("createUser", action.item);
                 break;
             case "user/update":
-                dataSource.saveMutation("updateUser", { userId: action.id, ...action.changes });
+                await dataSource.saveMutation("updateUser", { userId: action.id, ...action.changes });
                 break;
             case "catalog/update-entry":
-                dataSource.saveMutation("updateCatalogEntry", { entryId: action.id, label: action.label, status: action.status });
+                await dataSource.saveMutation("updateCatalogEntry", { entryId: action.id, label: action.label, status: action.status });
                 break;
             default:
                 break;
@@ -184,7 +184,10 @@ function CrmWorkspace({ initialSection, catalogOnly }: {
     const dispatch = useCallback((action: DemoAction) => {
         rawDispatch(action);
         if (mode !== "demo") {
-            saveActionMutation(dataSource, action);
+            setRemoteState((prev) => (prev ? demoReducer(prev, action) : prev));
+            saveActionMutation(dataSource, action).then(() => {
+                setSourceAttempt((attempt) => attempt + 1);
+            });
         }
     }, [rawDispatch, dataSource]);
     const [toast, setToast] = useState<{
