@@ -54,7 +54,7 @@ test("the product shell does not expose implementation labels", async ({ page })
 
 test("business routes keep implementation terminology out of the customer-facing UI", async ({ page }) => {
   for (const route of ["/inicio", "/contactos", "/inmuebles", "/publicaciones", "/captaciones", "/busquedas", "/compatibilidades", "/oportunidades", "/actividad", "/metricas", "/asistente", "/administracion", "/login"]) {
-    await page.goto(route, { waitUntil: "commit" });
+    await page.goto(route, { waitUntil: "domcontentloaded" });
     await expect(page.locator("body")).toBeVisible();
     await expect(page.locator("body")).not.toContainText(/\b(v2|f2|demo|bff)\b/i);
   }
@@ -99,5 +99,42 @@ test("búsqueda global y búsqueda en tabla con insensibilidad a tildes", async 
   await expect(page.getByText("Estudio Norte SA")).toBeVisible();
 });
 
+test("perfil vendedor no puede reasignar responsable en OPP-02 ni entrar a Métricas, pero responsable comercial sí", async ({ page }) => {
+  test.skip(test.info().project.name !== "chromium", "Validación de permisos de rol en desktop.");
+  await page.goto("/oportunidades?screen=OPP-02");
+  const ownerSelect = page.getByLabel("Responsable de Carla Benítez · PH en Guardia Vieja");
+  await expect(ownerSelect).toBeVisible();
+  await expect(ownerSelect).toBeDisabled();
 
+  // Métricas debe estar deshabilitado en navegación para vendedor
+  const metricasItem = page.locator(".nav-item.nav-disabled", { hasText: "Métricas" });
+  await expect(metricasItem).toBeVisible();
 
+  // Si navega directamente a /metricas, ve pantalla de acceso restringido
+  await page.goto("/metricas");
+  await expect(page.getByRole("heading", { name: "Acceso restringido a Métricas" })).toBeVisible();
+  await page.getByRole("button", { name: "Cambiar a Responsable comercial" }).click();
+  await expect(page.getByRole("heading", { name: "Acceso restringido a Métricas" })).toHaveCount(0);
+
+  // Con rol responsable comercial puede reasignar en OPP-02
+  await page.goto("/oportunidades?screen=OPP-02");
+  await expect(ownerSelect).toBeEnabled();
+  await ownerSelect.selectOption("Lucía Ferrari");
+  await expect(page.getByRole("status").filter({ hasText: "Responsable actualizado." })).toBeVisible();
+  await expect(ownerSelect).toHaveValue("Lucía Ferrari");
+});
+
+test("mobile layout no tiene overflow horizontal y permite abrir el menú lateral desde Más", async ({ page }) => {
+  test.skip(test.info().project.name !== "mobile", "Este escenario se valida en el proyecto mobile.");
+  for (const url of ["/inicio", "/oportunidades?screen=OPP-01", "/oportunidades?screen=OPP-02", "/oportunidades?screen=OPP-05&entity=opp-1"]) {
+    await page.goto(url);
+    await expect(page.locator("body")).toBeVisible();
+    const hasOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
+    expect(hasOverflow).toBe(false);
+  }
+
+  await page.getByRole("button", { name: "Más", exact: true }).click();
+  await expect(page.locator(".sidebar.is-mobile-open")).toBeVisible();
+  await page.getByRole("button", { name: "Cerrar menú", exact: true }).click();
+  await expect(page.locator(".sidebar.is-mobile-open")).toHaveCount(0);
+});

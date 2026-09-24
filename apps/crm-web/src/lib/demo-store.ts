@@ -779,6 +779,44 @@ function activityRelationExists(state: DemoState, activity: DemoActivity): boole
   return true;
 }
 
+function normalizeOwnerName(owner: string | undefined): string {
+  if (!owner || owner === "Martin Quiroga") return "Martín Quiroga";
+  return owner;
+}
+
+function normalizeCatalogEntries(rawEntries: unknown): DemoState["catalogEntries"] {
+  if (!Array.isArray(rawEntries) || rawEntries.length === 0) {
+    return demoInitialState.catalogEntries;
+  }
+  const mapped: DemoState["catalogEntries"] = rawEntries.map((raw: Record<string, unknown>, idx: number) => {
+    const id = String(raw.id ?? raw.entryId ?? `cat-${idx}`);
+    const rawType = String(raw.catalogType ?? "");
+    const catalogType: CatalogFamily =
+      rawType === "commercial-stage" || rawType === "pipeline-stage" ? "pipeline-stage" :
+      rawType === "commercial-origin" || rawType === "origin" ? "origin" :
+      rawType === "activity-type" ? "activity-type" :
+      rawType === "loss-reason" ? "loss-reason" :
+      rawType === "operation-type" ? "operation-type" :
+      rawType === "property-type" ? "property-type" :
+      catalogTypeFromLegacyId(id);
+    const label = String(raw.label ?? raw.name ?? raw.code ?? id);
+    const status: "Activo" | "Inactivo" =
+      raw.status === "Inactivo" || raw.isActive === false ? "Inactivo" : "Activo";
+    return {
+      id,
+      catalogType,
+      label,
+      status,
+      semanticState: raw.semanticState as DemoState["catalogEntries"][number]["semanticState"],
+    };
+  });
+  const families: CatalogFamily[] = ["pipeline-stage", "activity-type", "origin", "loss-reason", "operation-type", "property-type"];
+  const missingDefaults = demoInitialState.catalogEntries.filter(
+    (def) => !families.some((fam) => fam === def.catalogType && mapped.some((m) => m.catalogType === fam && m.status === "Activo"))
+  );
+  return [...mapped, ...missingDefaults];
+}
+
 export function normalizeDemoState(snapshot: unknown): DemoState {
   if (!snapshot || typeof snapshot !== "object") return demoInitialState;
   const candidate = snapshot as Partial<DemoState>;
@@ -789,9 +827,9 @@ export function normalizeDemoState(snapshot: unknown): DemoState {
     relationships: arrayOrDefault(candidate.relationships, demoInitialState.relationships),
     properties: arrayOrDefault(candidate.properties, demoInitialState.properties).map((property) => ({ ...property, ownerPartyIds: property.ownerPartyIds ?? [] })),
     listings: arrayOrDefault(candidate.listings, demoInitialState.listings),
-    captations: arrayOrDefault(candidate.captations, demoInitialState.captations).map((captation) => ({ ...captation, origin: captation.origin ?? "Origen desconocido", valuationHistory: captation.valuationHistory ?? [] })),
+    captations: arrayOrDefault(candidate.captations, demoInitialState.captations).map((captation) => ({ ...captation, owner: normalizeOwnerName(captation.owner), origin: captation.origin ?? "Origen desconocido", valuationHistory: captation.valuationHistory ?? [] })),
     demands: arrayOrDefault(candidate.demands, demoInitialState.demands).map((demand) => ({ ...demand, criteria: Array.isArray(demand.criteria) ? demand.criteria : [], origin: demand.origin ?? "Origen desconocido", selectedListingIds: demand.selectedListingIds ?? [] })),
-    opportunities: arrayOrDefault(candidate.opportunities, demoInitialState.opportunities),
+    opportunities: arrayOrDefault(candidate.opportunities, demoInitialState.opportunities).map((opp) => ({ ...opp, owner: normalizeOwnerName(opp.owner) })),
     activities: arrayOrDefault(candidate.activities, demoInitialState.activities).map(normalizeActivity),
     reservations: arrayOrDefault(candidate.reservations, demoInitialState.reservations),
     operations: arrayOrDefault(candidate.operations, demoInitialState.operations),
@@ -801,7 +839,7 @@ export function normalizeDemoState(snapshot: unknown): DemoState {
     offlineQueue: arrayOrDefault(candidate.offlineQueue, demoInitialState.offlineQueue),
     matchActions: arrayOrDefault(candidate.matchActions, demoInitialState.matchActions),
     aiSuggestions: arrayOrDefault(candidate.aiSuggestions, demoInitialState.aiSuggestions),
-    catalogEntries: arrayOrDefault(candidate.catalogEntries, demoInitialState.catalogEntries).map((entry) => ({ ...entry, catalogType: entry.catalogType ?? catalogTypeFromLegacyId(entry.id) })),
+    catalogEntries: normalizeCatalogEntries(candidate.catalogEntries),
     users: arrayOrDefault(candidate.users, demoInitialState.users).map((user: Record<string, unknown>) => ({
       id: String(user.id ?? user.userId ?? `usr-${Math.random()}`),
       name: String(user.name ?? user.displayName ?? "Usuario"),
