@@ -221,7 +221,7 @@ function CrmWorkspace({ initialSection, catalogOnly }: {
     const [userMenuOpen, setUserMenuOpen] = useState(false);
     const [permissionOpen, setPermissionOpen] = useState(false);
     const [offlineOpen, setOfflineOpen] = useState(false);
-    const [sourceStatus, setSourceStatus] = useState<"idle" | "loading" | "ready" | "error">(mode === "demo" ? "ready" : "idle");
+    const [sourceStatus, setSourceStatus] = useState<"idle" | "loading" | "ready" | "error">(mode === "demo" ? "ready" : "loading");
     const [sourceError, setSourceError] = useState<string | null>(null);
     const [sourceAttempt, setSourceAttempt] = useState(0);
     const [remoteState, setRemoteState] = useState<DemoState | null>(null);
@@ -322,9 +322,10 @@ function CrmWorkspace({ initialSection, catalogOnly }: {
     const showToast = (message: string, tone: "success" | "info" | "warning" = "success") => setToast({ message, tone });
     if (catalogOnly)
         return <DesignCatalog />;
+    const isRestrictedAnalytics = screen.module === "ANA" && !hasPermission(roleId, "analytics.read");
     return <CrmShell activeHref={activeHref} navItems={visibleNavItems} roleName={role.name} offlineCount={activeState.offlineQueue.length} onSearch={() => setSearchOpen(true)} onQuickCreate={() => setQuickCreateOpen(true)} onUserMenu={() => setUserMenuOpen((value) => !value)} userMenuOpen={userMenuOpen} userMenu={<UserMenu roleName={role.name} onClose={() => setUserMenuOpen(false)} onPermission={() => { setUserMenuOpen(false); setPermissionOpen(true); }}/>}>
     <PageHeader screen={screen} section={initialSection} onQuickCreate={() => setQuickCreateOpen(true)} onNavigate={navigateToScreen}/>
-    {mode !== "demo" ? sourceStatus === "loading" ? <BffLoadingState /> : sourceStatus === "error" ? <BffUnavailableState error={sourceError} onRetry={() => setSourceAttempt((attempt) => attempt + 1)}/> : remoteState ? <FeatureView key={`${screen.id}:${entityId ?? ""}`} entityId={entityId} screen={screen} state={remoteState} roleId={roleId} onRoleChange={setRoleId} onNavigate={navigateToScreen} onToast={showToast} dispatch={dispatch}/> : <BffResponseState /> : <FeatureView key={`${screen.id}:${entityId ?? ""}`} entityId={entityId} screen={screen} state={state} roleId={roleId} onRoleChange={setRoleId} onNavigate={navigateToScreen} onToast={showToast} dispatch={dispatch}/>}
+    {mode === "demo" || isRestrictedAnalytics ? <FeatureView key={`${screen.id}:${entityId ?? ""}`} entityId={entityId} screen={screen} state={activeState} roleId={roleId} onRoleChange={setRoleId} onNavigate={navigateToScreen} onToast={showToast} dispatch={dispatch}/> : (sourceStatus === "idle" || sourceStatus === "loading") ? <BffLoadingState /> : sourceStatus === "error" ? <BffUnavailableState error={sourceError} onRetry={() => setSourceAttempt((attempt) => attempt + 1)}/> : remoteState ? <FeatureView key={`${screen.id}:${entityId ?? ""}`} entityId={entityId} screen={screen} state={remoteState} roleId={roleId} onRoleChange={setRoleId} onNavigate={navigateToScreen} onToast={showToast} dispatch={dispatch}/> : <BffResponseState />}
     {mode === "demo" && activeState.offlineQueue.length > 0 && <div className="offline-banner">
 <Icon name="wifi" size={16}/>
 <span>

@@ -14,6 +14,9 @@ export default defineConfig({
     url: baseURL,
     reuseExistingServer: true,
     timeout: 120_000,
+    env: {
+      CRM_WEB_DIST_DIR: ".next-playwright",
+    },
   },
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
