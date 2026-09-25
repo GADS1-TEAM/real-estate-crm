@@ -1,5 +1,17 @@
 import { expect, test } from "@playwright/test";
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    if (!window.localStorage.getItem("crm-web:authenticated:v1")) {
+      window.localStorage.setItem("crm-web:authenticated:v1", "true");
+      window.localStorage.setItem("crm-web:role-id:v1", "vendedor");
+      window.localStorage.setItem("crm-web:user-name:v1", "Martín Quiroga");
+      window.localStorage.setItem("crm-web:user-email:v1", "martin@inmobiliaria.com.ar");
+      window.localStorage.setItem("crm-web:user-login:v1", "martin.quiroga");
+    }
+  });
+});
+
 test("recorre inicio, criterios y cambio de etapa", async ({ page }) => {
   test.skip(test.info().project.name !== "chromium", "El journey principal se valida en desktop; el flujo mobile tiene su escenario propio.");
   await page.goto("/inicio");
@@ -12,6 +24,8 @@ test("recorre inicio, criterios y cambio de etapa", async ({ page }) => {
   await expect(page.getByText("Score recalculado")).toBeVisible();
   await page.getByRole("link", { name: "Oportunidades" }).click();
   await expect(page.getByRole("heading", { name: "Oportunidades", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: /Carla Benítez/ }).first().click();
+  await expect(page.locator(".detail-hero")).toBeVisible();
   await page.getByRole("button", { name: "Cambiar etapa" }).first().click();
   const stageSelect = page.getByLabel("Nueva etapa");
   await expect(stageSelect).toBeVisible();

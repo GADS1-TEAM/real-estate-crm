@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test.describe("Verificación de Login estricto, Responsables en Crear Oportunidad, Botones de Listado/Detalle y Demostración de 6 pasos", () => {
   test("Rechaza credenciales inválidas, permite elegir Responsable en Crear Oportunidad y valida todos los botones de Listado y Detalle", async ({ page }) => {
+    test.skip(test.info().project.name !== "chromium", "El flujo de demostración de escritorio se valida en chromium.");
     test.setTimeout(60_000);
     const suffix = Date.now().toString().slice(-5);
     const companyName = `Constructora Río ${suffix} SA`;

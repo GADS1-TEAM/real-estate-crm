@@ -53,7 +53,7 @@ const defaultScreens: Record<string, string> = {
     administracion: "ADM-01",
 };
 const routeByModule: Record<string, string> = {
-    SHL: "/inicio", AUT: "/login", INI: "/inicio", PTY: "/contactos", PRP: "/inmuebles", LST: "/publicaciones",
+    SHL: "/inicio", AUT: "/inicio", INI: "/inicio", PTY: "/contactos", PRP: "/inmuebles", LST: "/publicaciones",
     CAP: "/captaciones", DEM: "/busquedas", MAT: "/compatibilidades", OPP: "/oportunidades", COM: "/oportunidades",
     ACT: "/actividad", ANA: "/metricas", IA: "/asistente", ADM: "/administracion", GLB: "/inicio", AGD: "/agenda",
     OMN: "/actividad", SYN: "/publicaciones", DOC: "/oportunidades", CMS: "/administracion", RNT: "/administracion",
@@ -130,6 +130,9 @@ export function CrmApp({ initialSection, catalogOnly = false }: {
 }
 const roleStorageKey = "crm-web:role-id:v1";
 const authStorageKey = "crm-web:authenticated:v1";
+const userNameStorageKey = "crm-web:user-name:v1";
+const userEmailStorageKey = "crm-web:user-email:v1";
+const userLoginStorageKey = "crm-web:user-login:v1";
 const bffActionsStorageKey = "crm-web:bff-actions:v1";
 
 export function getAccountByRole(roleId: RoleId): { name: string; email: string; username: string } {
@@ -153,6 +156,41 @@ function readStoredRole(): RoleId {
         return stored;
     }
     return "vendedor";
+}
+
+function readStoredUser(): { name: string; email: string; username: string } | null {
+    if (typeof window === "undefined") return null;
+    const name = window.localStorage.getItem(userNameStorageKey);
+    const email = window.localStorage.getItem(userEmailStorageKey);
+    const username = window.localStorage.getItem(userLoginStorageKey);
+    if (name && email && username) {
+        return { name, email, username };
+    }
+    return null;
+}
+
+function storeUserProfile(account: { name: string; email: string; username: string }) {
+    if (typeof window === "undefined") return;
+    try {
+        window.localStorage.setItem(userNameStorageKey, account.name);
+        window.localStorage.setItem(userEmailStorageKey, account.email);
+        window.localStorage.setItem(userLoginStorageKey, account.username);
+    } catch {
+        // ignore storage errors
+    }
+}
+
+function clearStoredAuth() {
+    if (typeof window === "undefined") return;
+    try {
+        window.localStorage.removeItem(authStorageKey);
+        window.localStorage.removeItem(roleStorageKey);
+        window.localStorage.removeItem(userNameStorageKey);
+        window.localStorage.removeItem(userEmailStorageKey);
+        window.localStorage.removeItem(userLoginStorageKey);
+    } catch {
+        // ignore storage errors
+    }
 }
 
 function readStoredAuth(): boolean {
@@ -277,25 +315,31 @@ function CrmWorkspace({ initialSection, catalogOnly }: {
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const { state, dispatch: rawDispatch } = useDemoStore();
-    const [roleId, setRoleIdState] = useState<RoleId>("vendedor");
-    const [isAuthenticated, setIsAuthenticatedState] = useState<boolean>(() => {
-        if (typeof process !== "undefined" && (process.env.VITEST === "true" || process.env.NODE_ENV === "test")) {
-            return readStoredAuth();
-        }
-        return false;
-    });
+    const [roleId, setRoleIdState] = useState<RoleId>(() => readStoredRole());
+    const [userAccount, setUserAccountState] = useState<{ name: string; email: string; username: string } | null>(() => readStoredUser());
+    const [isAuthenticated, setIsAuthenticatedState] = useState<boolean>(() => readStoredAuth());
     const [authCompleted, setAuthCompleted] = useState<boolean>(false);
     const setAuthenticated = useCallback((next: boolean) => {
         setIsAuthenticatedState(next);
-        if (!next) setAuthCompleted(false);
-        if (typeof window !== "undefined") {
-            window.localStorage.setItem(authStorageKey, next ? "true" : "false");
+        if (!next) {
+            setAuthCompleted(false);
+            clearStoredAuth();
+        } else if (typeof window !== "undefined") {
+            try {
+                window.localStorage.setItem(authStorageKey, "true");
+            } catch {
+                // ignore
+            }
         }
     }, []);
     const setRoleId = useCallback((next: RoleId) => {
         setRoleIdState(next);
         if (typeof window !== "undefined") {
-            window.localStorage.setItem(roleStorageKey, next);
+            try {
+                window.localStorage.setItem(roleStorageKey, next);
+            } catch {
+                // ignore
+            }
         }
     }, []);
     useEffect(() => {
@@ -305,10 +349,14 @@ function CrmWorkspace({ initialSection, catalogOnly }: {
             setAuthenticated(false);
         } else if (authRole === "vendedor" || authRole === "responsable" || authRole === "direccion" || authRole === "administradora") {
             setRoleId(authRole);
+            const account = getAccountByRole(authRole);
+            setUserAccountState(account);
+            storeUserProfile(account);
             setAuthenticated(true);
         } else {
             if (requested !== "AUT-01") setAuthCompleted(false);
             setRoleIdState(readStoredRole());
+            setUserAccountState(readStoredUser());
             setIsAuthenticatedState(readStoredAuth());
         }
     }, [searchParams, setRoleId, setAuthenticated, authCompleted]);
@@ -351,7 +399,7 @@ function CrmWorkspace({ initialSection, catalogOnly }: {
         tone?: "success" | "info" | "warning";
     } | null>(null);
     const role = getRole(roleId);
-    const activeAccount = getAccountByRole(roleId);
+    const activeAccount = userAccount ?? getAccountByRole(roleId);
     const visibleNavItems = useMemo(() => navItems.map((item) => {
         if (item.href === "/metricas" && !hasPermission(roleId, "analytics.read")) {
             return { ...item, disabled: true, disabledReason: permissionReason(roleId, "analytics.read") };
@@ -415,7 +463,6 @@ function CrmWorkspace({ initialSection, catalogOnly }: {
             return;
         if (target.id === "AUT-01") {
             setAuthCompleted(false);
-            setAuthenticated(false);
         }
         router.push(buildCrmScreenUrl(routeByModule[target.module] ?? "/inicio", target.id, entityId));
         setQuickCreateOpen(false);
@@ -430,8 +477,19 @@ function CrmWorkspace({ initialSection, catalogOnly }: {
             <AuthSurface
                 screen={authScreen}
                 roleId={roleId}
+                onLoginSuccess={(nextRole, account, targetScreenId) => {
+                    setRoleId(nextRole);
+                    setUserAccountState(account);
+                    storeUserProfile(account);
+                    setAuthCompleted(true);
+                    setAuthenticated(true);
+                    navigateToScreen(targetScreenId);
+                }}
                 onRoleChange={(nextRole) => {
                     setRoleId(nextRole);
+                    const account = getAccountByRole(nextRole);
+                    setUserAccountState(account);
+                    storeUserProfile(account);
                     setAuthCompleted(true);
                     setAuthenticated(true);
                 }}
@@ -448,7 +506,7 @@ function CrmWorkspace({ initialSection, catalogOnly }: {
         </main>;
     }
     const isRestrictedAnalytics = screen.module === "ANA" && !hasPermission(roleId, "analytics.read");
-    return <CrmShell activeHref={activeHref} navItems={visibleNavItems} roleName={role.name} userName={activeAccount.name} offlineCount={activeState.offlineQueue.length} onSearch={() => setSearchOpen(true)} onQuickCreate={() => setQuickCreateOpen(true)} onUserMenu={() => setUserMenuOpen((value) => !value)} userMenuOpen={userMenuOpen} userMenu={<UserMenu roleName={role.name} userName={activeAccount.name} userEmail={activeAccount.email} onClose={() => setUserMenuOpen(false)} onPermission={() => { setUserMenuOpen(false); setPermissionOpen(true); }} onLoginScreen={() => { setUserMenuOpen(false); setAuthenticated(false); navigateToScreen("AUT-01"); }}/>}>
+    return <CrmShell activeHref={activeHref} navItems={visibleNavItems} roleName={role.name} userName={activeAccount.name} offlineCount={activeState.offlineQueue.length} onSearch={() => setSearchOpen(true)} onQuickCreate={() => setQuickCreateOpen(true)} onUserMenu={() => setUserMenuOpen((value) => !value)} userMenuOpen={userMenuOpen} userMenu={<UserMenu roleName={role.name} userName={activeAccount.name} userEmail={activeAccount.email} onClose={() => setUserMenuOpen(false)} onSwitchAccount={(targetRole) => { setUserMenuOpen(false); const targetAccount = getAccountByRole(targetRole); setRoleId(targetRole); setUserAccountState(targetAccount); storeUserProfile(targetAccount); showToast(`Cuenta cambiada a ${targetAccount.name} (${getRole(targetRole).name}).`, "info"); }} onPermission={() => { setUserMenuOpen(false); setPermissionOpen(true); }} onLoginScreen={() => { setUserMenuOpen(false); clearStoredAuth(); setAuthCompleted(false); navigateToScreen("AUT-01"); }}/>}>
     <PageHeader screen={screen} section={initialSection} onQuickCreate={() => setQuickCreateOpen(true)} onNavigate={navigateToScreen}/>
     {mode === "demo" || isRestrictedAnalytics ? <FeatureView key={`${screen.id}:${entityId ?? ""}`} entityId={entityId} screen={screen} state={activeState} roleId={roleId} onRoleChange={setRoleId} onNavigate={navigateToScreen} onToast={showToast} dispatch={dispatch}/> : remoteState ? <FeatureView key={`${screen.id}:${entityId ?? ""}`} entityId={entityId} screen={screen} state={remoteState} roleId={roleId} onRoleChange={setRoleId} onNavigate={navigateToScreen} onToast={showToast} dispatch={dispatch}/> : (sourceStatus === "idle" || sourceStatus === "loading") ? <BffLoadingState /> : sourceStatus === "error" ? <BffUnavailableState error={sourceError} onRetry={() => setSourceAttempt((attempt) => attempt + 1)}/> : <BffResponseState />}
     {mode === "demo" && activeState.offlineQueue.length > 0 && <div className="offline-banner">
@@ -831,6 +889,8 @@ function HomeView({ screen, state, roleId, onNavigate, onToast, dispatch }: {
         </div>
         </div>;
     }
+    const currentUser = readStoredUser() ?? getAccountByRole(roleId);
+    const firstName = (currentUser?.name || "Martín").split(" ")[0];
     return <div className="feature-stack">
     <Alert tone="warning" title={`${attention.length} oportunidades requieren atención`}>La señal se deriva de la antigüedad de la etapa. No crea una tarea ni un recordatorio.</Alert>
     <div className="hero-grid">
@@ -839,7 +899,7 @@ function HomeView({ screen, state, roleId, onNavigate, onToast, dispatch }: {
 <span className="eyebrow">Mi día · miércoles 9 de septiembre</span>
 <Chip tone="success" dot>Instalación operativa</Chip>
 </div>
-<h2>Buen día, Martín.</h2>
+<h2>Buen día, {firstName}.</h2>
 <p>Tenés <strong>{attention.length} oportunidades</strong> que conviene mirar antes de las 12:00.</p>
 <div className="hero-actions">
 <Button icon="arrow" onClick={() => onNavigate("INI-02")}>Ver requiere atención</Button>
@@ -3250,7 +3310,7 @@ function ActivityView({ screen, state, entityId, onNavigate, onToast, dispatch }
             : screen.id === "ACT-04"
                 ? entityId === undefined || entityId === null ? state.opportunities[0] : selectedRecord(state.opportunities, entityId)
                 : undefined;
-    if (entityId !== undefined && entityId !== null && !activitySubject) return <UnavailableRecord />;
+    if (screen.id !== "ACT-05" && entityId !== undefined && entityId !== null && !activitySubject) return <UnavailableRecord />;
     if (screen.id === "ACT-06" && entityId !== undefined && entityId !== null && !state.activities.some((activity) => activity.id === entityId)) return <UnavailableRecord />;
     if (screen.id === "ACT-01" || screen.id === "ACT-06")
         return <ActivityForm screen={screen} state={state} entityId={entityId} onNavigate={onNavigate} onToast={onToast} dispatch={dispatch}/>;
@@ -3842,10 +3902,11 @@ function DeferredSurface({ screen }: {
 </div>
 </Card>;
 }
-function AuthSurface({ screen, roleId, onRoleChange, onToast, onNavigate }: {
+function AuthSurface({ screen, roleId, onRoleChange, onLoginSuccess, onToast, onNavigate }: {
     screen: ScreenDefinition;
     roleId?: RoleId;
     onRoleChange?: (role: RoleId) => void;
+    onLoginSuccess?: (role: RoleId, account: { name: string; email: string; username: string }, targetScreen: string) => void;
     onToast?: (message: string, tone?: "success" | "info" | "warning") => void;
     onNavigate: ScreenNavigator;
 }) {
@@ -3854,22 +3915,25 @@ function AuthSurface({ screen, roleId, onRoleChange, onToast, onNavigate }: {
     const [authError, setAuthError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const resolveLocalCredentials = (rawUser: string, rawPass: string): { valid: boolean; role: RoleId; targetScreen: string; displayName: string; canonicalUser: string; canonicalPass: string } => {
+    const resolveLocalCredentials = (rawUser: string, rawPass: string): { valid: boolean; role: RoleId; targetScreen: string; displayName: string; email: string; canonicalUser: string; canonicalPass: string } => {
         const u = rawUser.trim().toLowerCase();
         const p = rawPass.trim();
         if ((u === "martin.quiroga" || u === "martin@inmobiliaria.com.ar") && (p === "martin123" || p === "dev.vendedor")) {
-            return { valid: true, role: "vendedor", targetScreen: "INI-01", displayName: "Martín Quiroga", canonicalUser: "martin.quiroga", canonicalPass: "martin123" };
+            return { valid: true, role: "vendedor", targetScreen: "INI-01", displayName: "Martín Quiroga", email: "martin@inmobiliaria.com.ar", canonicalUser: "martin.quiroga", canonicalPass: "martin123" };
+        }
+        if ((u === "lucia.ferrari" || u === "lucia@inmobiliaria.com.ar") && (p === "lucia123" || p === "dev.vendedor")) {
+            return { valid: true, role: "vendedor", targetScreen: "PRP-01", displayName: "Lucía Ferrari", email: "lucia@inmobiliaria.com.ar", canonicalUser: "lucia.ferrari", canonicalPass: "lucia123" };
         }
         if ((u === "rodrigo.vergara" || u === "rodrigo@inmobiliaria.com.ar") && (p === "rodrigo123" || p === "dev.responsable")) {
-            return { valid: true, role: "responsable", targetScreen: "ANA-01", displayName: "Rodrigo Vergara", canonicalUser: "rodrigo.vergara", canonicalPass: "rodrigo123" };
+            return { valid: true, role: "responsable", targetScreen: "ANA-01", displayName: "Rodrigo Vergara", email: "rodrigo@inmobiliaria.com.ar", canonicalUser: "rodrigo.vergara", canonicalPass: "rodrigo123" };
         }
-        if ((u === "lucia.ferrari" || u === "lucia@inmobiliaria.com.ar") && p === "lucia123") {
-            return { valid: true, role: "vendedor", targetScreen: "INI-01", displayName: "Lucía Ferrari", canonicalUser: "martin.quiroga", canonicalPass: "martin123" };
+        if ((u === "elena.vergara" || u === "elena@inmobiliaria.com.ar") && (p === "elena123" || p === "dev.direccion")) {
+            return { valid: true, role: "direccion", targetScreen: "ANA-05", displayName: "Elena Vergara", email: "elena@inmobiliaria.com.ar", canonicalUser: "elena.vergara", canonicalPass: "elena123" };
         }
         if ((u === "sofia.rendon" || u === "sofia@inmobiliaria.com.ar") && (p === "sofia123" || p === "dev.administrador")) {
-            return { valid: true, role: "administradora", targetScreen: "ADM-01", displayName: "Sofía Rendón", canonicalUser: "sofia.rendon", canonicalPass: "sofia123" };
+            return { valid: true, role: "administradora", targetScreen: "ADM-01", displayName: "Sofía Rendón", email: "sofia@inmobiliaria.com.ar", canonicalUser: "sofia.rendon", canonicalPass: "sofia123" };
         }
-        return { valid: false, role: "vendedor", targetScreen: "INI-01", displayName: "", canonicalUser: "", canonicalPass: "" };
+        return { valid: false, role: "vendedor", targetScreen: "INI-01", displayName: "", email: "", canonicalUser: "", canonicalPass: "" };
     };
 
     const signInWithCredentials = async (rawUser: string, rawPass: string) => {
@@ -3882,37 +3946,44 @@ function AuthSurface({ screen, roleId, onRoleChange, onToast, onNavigate }: {
             return;
         }
 
-        setIsSubmitting(true);
-        try {
-            const bffUrl = process.env.NEXT_PUBLIC_CRM_BFF_URL || "http://localhost:5137";
-            const response = await fetch(`${bffUrl}/api/v1/auth/login`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-                body: JSON.stringify({
-                    username: check.canonicalUser,
-                    password: check.canonicalPass
-                })
-            }).catch(() => null);
+        if (mode !== "demo") {
+            setIsSubmitting(true);
+            try {
+                const bffUrl = process.env.NEXT_PUBLIC_CRM_BFF_URL || "http://localhost:5137";
+                const response = await fetch(`${bffUrl}/api/v1/auth/login`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({
+                        username: check.canonicalUser,
+                        password: check.canonicalPass
+                    })
+                }).catch(() => null);
 
-            if (response && !response.ok) {
-                const msg = "Usuario o contraseña rechazados por el servidor de autenticación.";
-                setAuthError(msg);
-                onToast?.(msg, "warning");
-                return;
+                if (response && !response.ok) {
+                    const msg = "Usuario o contraseña rechazados por el servidor de autenticación.";
+                    setAuthError(msg);
+                    onToast?.(msg, "warning");
+                    return;
+                }
+            } finally {
+                setIsSubmitting(false);
             }
-        } finally {
-            setIsSubmitting(false);
         }
 
-        onRoleChange?.(check.role);
+        const account = { name: check.displayName, email: check.email, username: check.canonicalUser };
+        if (onLoginSuccess) {
+            onLoginSuccess(check.role, account, check.targetScreen);
+        } else {
+            onRoleChange?.(check.role);
+            onNavigate(check.targetScreen);
+        }
         onToast?.(
             check.role === "responsable"
                 ? "Sesión iniciada como Rodrigo Vergara (Responsable comercial · Métricas habilitadas)."
                 : `Sesión iniciada como ${check.displayName}.`,
             "info"
         );
-        onNavigate(check.targetScreen);
     };
 
     const submitManualCredentials = async () => {
@@ -3926,9 +3997,15 @@ function AuthSurface({ screen, roleId, onRoleChange, onToast, onNavigate }: {
 <h2>Ingresá a tu instalación</h2>
 <p>Iniciá sesión con tu usuario y contraseña para continuar.</p>
 {authError && <div style={{ marginTop: "0.75rem", textAlign: "left" }}><Alert tone="error" title="No se pudo iniciar sesión">{authError}</Alert></div>}
-<form onSubmit={(event) => { event.preventDefault(); void submitManualCredentials(); }} style={{ display: "flex", flexDirection: "column", gap: "0.85rem", textAlign: "left", marginTop: "0.75rem", marginBottom: "1rem" }}>
-<Field label="Usuario o correo electrónico" placeholder="usuario@inmobiliaria.com.ar" value={username} onChange={(event) => { setUsername(event.target.value); setAuthError(null); }}/>
-<Field label="Contraseña" type="password" placeholder="••••••••" value={password} onChange={(event) => { setPassword(event.target.value); setAuthError(null); }}/>
+<form onSubmit={(event) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const formUser = ((data.get("username") as string) || username || "").trim();
+    const formPass = ((data.get("password") as string) || password || "").trim();
+    void signInWithCredentials(formUser, formPass);
+}} style={{ display: "flex", flexDirection: "column", gap: "0.85rem", textAlign: "left", marginTop: "0.75rem", marginBottom: "1rem" }}>
+<Field name="username" label="Usuario o correo electrónico" placeholder="usuario@inmobiliaria.com.ar" value={username} onChange={(event) => { setUsername(event.target.value); setAuthError(null); }}/>
+<Field name="password" label="Contraseña" type="password" placeholder="••••••••" value={password} onChange={(event) => { setPassword(event.target.value); setAuthError(null); }}/>
 <Button type="submit" fullWidth disabled={isSubmitting}>Iniciar sesión</Button>
 </form>
 </Card>;

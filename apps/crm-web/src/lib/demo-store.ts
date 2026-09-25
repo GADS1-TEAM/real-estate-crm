@@ -904,18 +904,31 @@ export function persistDemoState(storage: Pick<Storage, "setItem">, state: DemoS
   storage.setItem(demoStorageKey, JSON.stringify(state));
 }
 
-export function DemoStoreProvider({ active, children }: { active: boolean; children: ReactNode }) {
-  const [state, dispatch] = useReducer(demoReducer, demoInitialState);
+export function DemoStoreProvider({ active = true, children }: { active?: boolean; children: ReactNode }) {
+  const [state, dispatch] = useReducer(
+    demoReducer,
+    demoInitialState,
+    (initial) => {
+      if (typeof window !== "undefined") {
+        try {
+          const stored = readDemoState(window.localStorage);
+          if (stored) return stored;
+        } catch {
+          // ignore
+        }
+      }
+      return initial;
+    }
+  );
 
   useEffect(() => {
-    if (!active) return;
-    const stored = readDemoState(window.localStorage);
-    if (stored) dispatch({ type: "hydrate", state: stored });
-  }, [active]);
-
-  useEffect(() => {
-    if (active) persistDemoState(window.localStorage, state);
-  }, [active, state]);
+    if (typeof window === "undefined") return;
+    try {
+      persistDemoState(window.localStorage, state);
+    } catch {
+      // ignore
+    }
+  }, [state]);
 
   const value = useMemo(() => ({ state, dispatch }), [state]);
   return createElement(DemoStoreContext.Provider, { value }, children);

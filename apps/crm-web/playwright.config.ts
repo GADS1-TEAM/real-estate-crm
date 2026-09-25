@@ -10,12 +10,13 @@ export default defineConfig({
     trace: "off",
   },
   webServer: {
-    command: `${process.platform === "win32" ? "npm.cmd" : "npm"} run dev -- --port ${port}`,
+    command: `${process.platform === "win32" ? "npm.cmd" : "npm"} run dev:demo -- --port ${port}`,
     url: `${baseURL}/inicio`,
     reuseExistingServer: true,
     timeout: 120_000,
     env: {
       CRM_WEB_DIST_DIR: ".next-playwright",
+      NEXT_PUBLIC_CRM_WEB_MODE: "demo",
     },
   },
   projects: [
